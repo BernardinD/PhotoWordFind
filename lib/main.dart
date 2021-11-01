@@ -1,24 +1,121 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image/image.dart' as crop_image;
-import 'package:image_crop/image_crop.dart';
 import 'package:image_size_getter/file_input.dart';
 import 'package:image_size_getter/image_size_getter.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:isolate_handler/isolate_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:progress_dialog/progress_dialog.dart';
-import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
+// import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:file_utils/file_utils.dart';
+
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
+}
+
+
+// Extracts text from image
+Future<String> OCR(String path) async {
+  debugPrint("path: $path");
+
+  final inputImage = InputImage.fromFilePath(path);
+  final textDetector = GoogleMlKit.vision.textDetector();
+  final RecognisedText recognisedText = await textDetector.processImage(inputImage);
+  return recognisedText.text;
+  // return await FlutterTesseractOcr.extractText(path, language: 'eng');
+}
+
+// Scans in file as the Image object with adjustable features
+crop_image.Image getImage(dynamic f){
+
+  List<int> bytes = File(f.path).readAsBytesSync();
+  return crop_image.decodeImage(bytes);
+
+}
+
+// Crops image (ideally in the section of the image that has the bio)
+crop_image.Image crop(crop_image.Image image, f, ui.Size screenSize){
+
+  Size size = ImageSizeGetter.getSize(FileInput(File(f.path)));
+
+  int originX = 0, originY = min(size.height, (2.5 * screenSize.height).toInt() ),
+      width = size.width,
+      height = min(size.height, (1.5 * screenSize.height).toInt() );
+  debugPrint("screenH: ${screenSize.height.toInt()}");
+  debugPrint("y: $originY, height: $height");
+  debugPrint("x: $originX, width: $width");
+
+
+  return crop_image.copyCrop(image, originX, originY, width, height);
+}
+
+/// Creates a cropped and resized image by passing the file and the `parent` directory to save the temporary image
+File createCroppedImage(dynamic f, Directory parent, ui.Size size){
+
+  crop_image.Image image = getImage(f);
+
+  // Separate the cropping and resize opperations so that the thread memory isn't used up
+  crop_image.Image croppedFile = crop(image, f, size);
+  croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
+
+  // Save temp image
+  String file_name = f.path.split("/").last;
+  File temp_cropped = File('${parent.path}/temp-${file_name}');
+  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, f.path));
+
+  return temp_cropped;
+}
+
+Future<String> find(dynamic f, String name, ui.Size size) async {
+
+  // debugPrint("tesseertact path: ${(await getApplicationDocumentsDirectory())}");
+  debugPrint("screen size(in find): ${size}");
+  File temp_cropped = createCroppedImage(
+      f, Directory.systemTemp, size);
+
+
+
+  return OCR(temp_cropped.path);
+}
+
+// Runs the `find` operation in a Isolate thread
+void threadFunction(Map<String, dynamic> context) {
+  debugPrint("came in.");
+
+  final messenger = HandledIsolate.initialize(context);
+
+
+  // Operation that should happen when the Isolate receives a message
+  messenger.listen((message) async {
+    if(message is testy) {
+
+      dynamic f = message.f;
+      String name = message.name;
+      ui.Size size = message.screenSize;
+      debugPrint("parsed messages");
+
+      find(f, name, size).then((result) {
+        if (result is String) {
+
+          // Send back result to main thread
+          messenger.send(result);
+        }
+      });
+    }
+  });
+
+  // sendPortOfOldIsolate.send(receivePort.sendPort);
 }
 
 class MyApp extends StatelessWidget {
@@ -71,17 +168,6 @@ class _MyHomePageState extends State<MyHomePage> {
   Set selected;
   FToast fToast;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
   void initState() {
     super.initState();
 
@@ -123,139 +209,423 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          // Center is a layout widget. It takes a single child and positions it
-          // in the middle of the parent.
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+      body: Center(
+        // Center is a layout widget. It takes a single child and positions it
+        // in the middle of the parent.
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              flex: 1,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  RaisedButton(
+                  ElevatedButton(
+                    onPressed: showFindPrompt,
+                    child: Text("Find"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => displaySnaps(false),
+                    child: Text("Display"),
+                    onLongPress: () => displaySnaps(true),
+                  ),
+                  ElevatedButton(
                     onPressed: move,
                     child: Text("Move"),
                   ),
                 ],
               ),
-              if (images.isNotEmpty) Container(
-                height: 500,
-                child: PhotoViewGallery(
-                  scrollPhysics: const BouncingScrollPhysics(),
-                  pageOptions: images,
-                  pageController:PageController(viewportFraction: 1.1),
-                ),
-              ),Container(
-                child: Center(
-                  child: Column(
-                    children: [
-                      DecoratedBox(
-                        decoration: const BoxDecoration( color: Colors.white),
-                        child: Checkbox(
-                          value: selected.contains("Test") ,
-                          onChanged: (bool newVal){
-                            setState(() {
-                              selected.contains("Test") ? selected.remove(
-                                  "Test") : selected.add("Test");
-                            });
-                          },
-                          activeColor: Colors.amber,
-                          checkColor: Colors.cyanAccent,
-                        ),
-                      ),
-                      RaisedButton(
-                        child: Text("Move"),
-                        // Toggle check
-                        onPressed: () => setState(() {
-                          // selected.contains("Test") ? selected.remove("Test") : selected.add("Test");
-
-                        }),
-                      ),
-                    ],
+            ),
+            if (images.isNotEmpty) Expanded(
+              flex: 9,
+              child: SingleChildScrollView(
+                child: Container(
+                  height: MediaQuery.of(context).size.height,
+                  child: PhotoViewGallery(
+                    scrollPhysics: const BouncingScrollPhysics(),
+                    pageOptions: images,
+                    pageController:PageController(viewportFraction: 1.1),
                   ),
                 ),
               ),
-              // if (images.isNotEmpty) PhotoViewGallery.builder(
-              //   builder: (BuildContext context, int index) {
-              //     return PhotoViewGalleryPageOptions(
-              //       imageProvider: FileImage(File(images[index])),
-              //       initialScale: PhotoViewComputedScale.contained * 0.8,
-              //       minScale: PhotoViewComputedScale.contained * 0.8,
-              //       maxScale: PhotoViewComputedScale.covered * 1.1,
-              //       // heroAttributes: HeroAttributes(tag: galleryItems[index].id),
-              //     );
-              //   },
-              //   itemCount: images.length,
-              //   loadingBuilder: (context, _progress) => Center(
-              //     child: Container(
-              //       width: 20.0,
-              //       height: 20.0,
-              //       child: CircularProgressIndicator(
-              //         value: _progress == null
-              //             ? null
-              //             : _progress.cumulativeBytesLoaded /
-              //             _progress.expectedTotalBytes,
-              //       ),
-              //     ),
-              //   ),
-              // ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       persistentFooterButtons: [
         GestureDetector(
-          onTap: () => pick(),
-          onLongPress: () => changeDir() ,
+          onTap: changeDir,
           child: FloatingActionButton(
             // tooltip: 'Get Text',
-            child: Icon(Icons.add_to_photos_rounded),
+            child: Icon(Icons.drive_folder_upload),
           ),
         ),
       ],
     );
   }
 
+  // Creates standardized Widget that will seen in gallery
+  PhotoViewGalleryPageOptions newGalleryCell(String text, String result, dynamic f, File image){
+    String file_name = f.path.split("/").last;
+    return PhotoViewGalleryPageOptions.customChild(
+      child: Container(
+        child: Column(
+          children: [
+            Expanded(
+              flex: 6,
+              child: Container(
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Photo
+                      Container(
+                        height: 450,
+                        width: 200,
+                        child: PhotoView(
+                          imageProvider: FileImage(image),
+                          initialScale: PhotoViewComputedScale.contained,
+                          minScale: PhotoViewComputedScale.contained *
+                              (0.5 + images.length / 10),
+                          maxScale: PhotoViewComputedScale.covered * 4.1,
+                        ),
+                      ),
+                      // Options
+                      Container(
+                        child: Center(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Selecting image
+                              Container(
+                                child: Column(
+                                  children: [
+                                    Checkbox(
+                                      value: selected.contains(file_name),
+                                      onChanged: (bool newVal){
+                                        print(newVal);
+                                        setState(() {
+                                          selected.contains(file_name) ? selected.remove(
+                                              file_name) : selected.add(file_name);
+
+                                          print("setState: file - " + file_name);
+                                          print("files status: " + selected.contains(file_name).toString());
+                                        });
+                                      },
+                                      activeColor: Colors.amber,
+                                      checkColor: Colors.cyanAccent,
+                                    ),
+                                    ElevatedButton(
+                                      child: Text("Select"),
+                                      onPressed: () {
+                                        selected.contains(file_name) ? selected.remove(
+                                            file_name) : selected.add(file_name);
+                                        _showToast(selected.contains(file_name));
+                                      },
+                                    ),
+                                    Text(
+                                      file_name,
+                                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: MediaQuery.of(context).size.width/2,
+                                child: Column(
+                                  children: [
+                                    // Snap name
+                                    ListTile(
+                                      // leading: Text("Found:"),
+                                      title: Text(result, style: TextStyle(color: Colors.redAccent),),
+                                    ),
+                                    // Copy button
+                                    ElevatedButton(
+                                      // Add to clipboard if not already there
+                                      // ...
+                                    ),
+
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ]),
+              ),
+            ),
+            Expanded(
+              flex: 4,
+              child: Container(
+                  height: 100,
+                  color: Colors.white,
+                  child: SelectableText(
+                    text.toString(),
+                    showCursor: true,
+
+                  )
+              ),
+            ),
+          ],
+        ),
+      ),
+      // heroAttributes: const HeroAttributes(tag: "tag1"),
+    );
+  }
+
+
   // Select picture(s) and run through OCR
-  Future pick() async{
-    List<PlatformFile> _paths;
+  Future<List> pick(bool select) async {
+    List paths;
     bool _multiPick = true;
     FileType _pickingType = FileType.image;
 
 
     // If directory path isn't set, have `changeDir` handle picking the files
-    if(_directoryPath == null || _directoryPath.length < 1) {
+    if (_directoryPath == null || _directoryPath.length < 1) {
       await changeDir();
       print("After changeDir");
-      return;
     }
 
     // Select file(s)
-    _paths = (await FilePicker.platform.pickFiles(
-            type: _pickingType,
-            allowMultiple: _multiPick,
-            onFileLoading: (status) async {
-              if (status == FilePickerStatus.picking) {
-                print("inside picking");
-                await _pr.show();
-              }
-              if (status == FilePickerStatus.done) {
-                print("inside DONE");
-                // await _pr.hide();
-              }
-            }))
-        ?.files;
+    if(select) {
+      paths = (await FilePicker.platform.pickFiles(
+          type: _pickingType,
+          allowMultiple: _multiPick,
+          onFileLoading: (status) async {
+            if (status == FilePickerStatus.picking) {
+              print("inside picking");
+              await _pr.show();
+            }
+            if (status == FilePickerStatus.done) {
+              print("inside DONE");
+              await _pr.hide();
+            }
+          }))
+          ?.files;
+    }
+    else{
+      await _pr.show();
+      paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
+    }
 
-    print("file path = " + _paths[0].path);
+    // sleep(Duration(seconds: 2));
+    return paths;
+  }
+
+  /// Displays a dialog box for input to the `find` feature
+  void showFindPrompt(){
+    final formKey = GlobalKey<FormState>();
+    showDialog(context: context, builder: (BuildContext context)
+    {
+      return AlertDialog(
+          content: Container(
+            child: Form(
+              key: formKey,
+              child: Column(
+                children: <Widget>[
+                  TextFormField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                        labelText: "Input name"
+                    ),
+                    // TODO: Make validation failure message dynamic
+                    validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
+                    onSaved: (input) => findSnap(input),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      debugPrint("button pressed.");
+                      if (formKey.currentState.validate()) {
+                        formKey.currentState.save();
+                      }
+                    },
+                    child: Text('Find'),
+                  ),
+                ],
+              ),
+            ),
+          )
+      );
+    });
+  }
+
+  /// Looks for the snap name in the directory
+  Future findSnap(String name)async{
+
+    // Get all files from directory
+    List<dynamic> paths;
+    // paths = await pick();
+
+    // If directory path isn't set, have `changeDir` handle picking the files
+    if (_directoryPath == null || _directoryPath.length < 1) {
+      await changeDir();
+      print("After changeDir");
+    }
+
+    paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
+
+
+
+    debugPrint("paths: " + paths.toString());
+    if(paths == null) {
+      await _pr.hide();
+      return;
+    }
+
+    await _pr.show();
+
+
+
+
+    /////////////// Testing Isolates //////////////////
+    // // List<Isolate> isolates = [];
+    // final isolates = IsolateHandler();
+    // int completed = 0;
+    // for(var f in paths) {
+    //   debugPrint("create sub-thread");
+    //
+    //   testy test = new testy(
+    //       f,
+    //       name,
+    //       MediaQuery.of(context).size);
+    //     // Start up the thread and configures the callbacks
+    //     isolates.spawn<testy>(threadFunction, name: f.path.split("/").last,onInitialized: () => isolates.send(test, to: f.path.split("/").last), onReceive: (dynamic signal) {
+    //     print('Data from new isolate : $signal');
+    //
+    //     // Return port for sending message to thread
+    //     // if (signal is SendPort) {
+    //     //   SendPort sendPortOfNewIsolate = signal;
+    //     //   sendPortOfNewIsolate.send(test);
+    //     // }
+    //     // Retrieve result of search
+    //     // else if(signal is String){
+    //     if(signal is String){
+    //       String text = signal;
+    //       debugPrint("text: " + text.toString());
+    //
+    //       if(text.toString().toLowerCase().contains(name.toLowerCase())) {
+    //         images.add(newGalleryCell(text, name, f, new File(f.path)));
+    //
+    //         // Stop creation of new isolates
+    //         paths.clear();
+    //
+    //         // Terminate running isolates
+    //         isolates.isolates.clear();
+    //         // receivePort.sendPort.send(true);
+    //
+    //         // Set the counter to the end to force closing dialogs
+    //         completed = paths.length;
+    //       }
+    //
+    //       // Close dialogs once finished with all images
+    //       if(completed++ >= paths.length){
+    //         _pr.hide().then((value) => Navigator.pop(context));
+    //       }
+    //
+    //     }
+    //     // // Terminate all running threads
+    //     // else if(signal is bool && signal){
+    //     //   //Kill new Isolate
+    //     //   isolate.kill(priority: Isolate.immediate);
+    //     //   isolate=null;
+    //     // }
+    //     // Else throw error
+    //     else{
+    //       debugPrint("------- ERROR >> receivePort Listener ------");
+    //     }
+    //
+    //   });
+    //
+    //   // Save isolate so that it isn't deleted
+    //   // isolates.add(isolate);
+    // }
+
+    // // Testing await for-each
+    // Future.forEach(paths, (f) async{
+    //   find(f, name, ).then((value) {
+    //       _pr.hide().then((value) => Navigator.pop(context));;
+    // });
+
+    //////// Original ///////////////
+    for(var f in paths) {
+      // await Future.forEach(paths, (f) async{
+      File file = new File(f.path);
+      Stopwatch intervals = new Stopwatch(),
+          timer = new Stopwatch();
+      intervals.start();
+      timer.start();
+      File temp_cropped = createCroppedImage(f, Directory.systemTemp, MediaQuery.of(context).size);
+      String text = (await OCR(temp_cropped.path));
+      debugPrint("text: " + text.toString());
+
+      if (text.toString().toLowerCase().contains(name.toLowerCase())) {
+        images.add(newGalleryCell(text, name, f, new File(f.path)));
+        // break;
+      }
+      // });
+    }
+    await _pr.hide();
+    debugPrint("here.");
+    Navigator.pop(context);
+
+    return;
+  }
+
+  // Future<bool> find(dynamic f, String name) async{
+  //
+  //   File file = new File(f.path);
+  //   Stopwatch intervals = new Stopwatch(),
+  //       timer = new Stopwatch();
+  //   intervals.start();
+  //   timer.start();
+  //   File temp_cropped = createCroppedImage(
+  //       file, f, Directory.systemTemp, intervals, timer, size);
+  //
+  //   return OCR(temp_cropped.path).then((text) {
+  //     debugPrint("text: " + text.toString());
+  //
+  //     if (text.toString().toLowerCase().contains(name.toLowerCase())) {
+  //       images.add(newGalleryCell(text, name, f, new File(f.path)));
+  //
+  //       // Break search progress
+  //       _pr.hide().then((bool) {
+  //         debugPrint("here.");
+  //         Navigator.pop(context);
+  //       });
+  //
+  //       return true;
+  //     }
+  //
+  //     return false;
+  //   });
+  // }
+
+
+  // Displays all images with a detectable snapchat username in their bio
+  Future displaySnaps(bool select) async{
+
+    // Choose files to extract text from
+    List paths = await pick(select);
+    if(paths == null) {
+      _pr.hide();
+      return;
+    }
+
+    print("file path = " + paths[0].path);
     // _pr.show();
     images = [];
-    int length = _paths.length;
+    int length = paths.length;
     int i = 0;
     _pr.update(progress: 0);
     selected.clear();
-    for(PlatformFile f in _paths) {
-      String real_path =  _directoryPath+"/"+f.name;
+
+    // Run the files through OCR process
+    for(var f in paths) {
+      if(!(f is PlatformFile) && !(f is FileSystemEntity)) throw("$f is not a PlatformFile or File");
+
+      String real_path =  _directoryPath+"/"+f.path.split("/").last;
       print("Real directory: " + real_path);
       if(File(real_path).existsSync()) {
         /*
@@ -263,63 +633,14 @@ class _MyHomePageState extends State<MyHomePage> {
          */
         // Load original file details
         File file = File(f.path);
-        Directory parent = file.parent;
+        Directory parent = file.parent,
+          cache_dir = Directory.systemTemp;
         // Load file to crop and resize
         Stopwatch intervals = new Stopwatch(), timer = new Stopwatch();
         timer.start();
         intervals.start();
 
-        List<int> bytes = file.readAsBytesSync();
-        debugPrint("byteRead: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
-
-        intervals.reset();
-        crop_image.Image image = crop_image.decodeImage(bytes);
-        debugPrint("decode: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
-
-        intervals.reset();
-        final size = ImageSizeGetter.getSize(FileInput(file));
-        debugPrint("getSize: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
-
-        int originX = 0, originY = min(size.height, (2.5 * MediaQuery.of(context).size.height).toInt() ),
-            width = size.width,
-            height = min(size.height, (1.5*MediaQuery.of(context).size.height).toInt() );
-        debugPrint("screenH: ${MediaQuery.of(context).size.height.toInt()}");
-        debugPrint("y: $originY, height: $height");
-        debugPrint("x: $originX, width: $width");
-        crop_image.Image croppedFile = crop_image.copyCrop(image, originX, originY, width, height);
-        croppedFile = crop_image.copyResize(croppedFile, height: height~/3 );
-
-        // Save temp image
-        intervals.reset();
-        File temp_cropped = File('${parent.path}/temp-${f.name}');
-        temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, f.path));
-        debugPrint("save: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
-        ////////////////////////////////////////////////////////////////////////
-        // final size = ImageSizeGetter.getSize(FileInput(file));
-        // double originX = 0, originY = 0,
-        //     width = MediaQuery.of(context).size.width.toInt().toDouble(),
-        //     height = min(size.height, 2 * MediaQuery.of(context).size.height.toInt() ).toDouble();
-        // debugPrint("originX, originY, width, height = " + originX.toString() + ", " + originY.toString() + ", " +  width.toString() + ", " +  height.toString());
-        //
-        // final sampledFile = await ImageCrop.sampleImage(
-        //   file: file,
-        //   preferredWidth: width.toInt(),
-        //   preferredHeight: height.toInt(),
-        // );
-        // final size2 = ImageSizeGetter.getSize(FileInput(sampledFile));
-        // debugPrint("size2.height = " + size2.height.toString());
-        // final croppedFile = await ImageCrop.cropImage(
-        //   file: sampledFile,
-        //   area: Rect.fromLTWH(originX, originY, size2.width.toDouble(), MediaQuery.of(context).size.height/2),
-        // );
-        // debugPrint("cropped path = " + croppedFile.path );
-        ////////////////////////////////////////////////////////////////////////
-        // ImageProperties properties = await FlutterNativeImage.getImageProperties(f.path);
-        // int originX = 0, originY = 0,
-        //     width = MediaQuery.of(context).size.width.toInt(),
-        //     height = min(properties.height, 2 * MediaQuery.of(context).size.height.toInt() );
-        // File croppedFile = await FlutterNativeImage.cropImage(f.path, originX, originY, width, height);
-        // debugPrint("cropped path = " + croppedFile.path );
+        File temp_cropped = createCroppedImage(f, cache_dir, MediaQuery.of(context).size);
 
         // Run OCR
         intervals.reset();
@@ -328,105 +649,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
         // Search pick for keyword in pic
         intervals.reset();
-        String result = search(key, text);
+        String result = findSnapKeyword(key, text)?? "";
         debugPrint("search time: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
 
         timer.stop();
         intervals.stop();
         debugPrint("Elasped: ${timer.elapsedMilliseconds}ms");
-        if (result != null) {
-          images.add(PhotoViewGalleryPageOptions.customChild(
-            child: Container(
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Photo
-                    Container(
-                      height: 450,
-                      width: 200,
-                      child: PhotoView(
-                        imageProvider: FileImage(temp_cropped),
-                        initialScale: PhotoViewComputedScale.contained,
-                        minScale: PhotoViewComputedScale.contained *
-                            (0.5 + images.length / 10),
-                        maxScale: PhotoViewComputedScale.covered * 4.1,
-                      ),
-                    ),
-                    // Options
-                    Container(
-                      child: Center(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Selecting image
-                            Container(
-                              child: Column(
-                                children: [
-                                  Checkbox(
-                                    value: selected.contains(f.name),
-                                    onChanged: (bool newVal){
-                                      print(newVal);
-                                      setState(() {
-                                        selected.contains(f.name) ? selected.remove(
-                                            f.name) : selected.add(f.name);
 
-                                        print("setState: file - " + f.name);
-                                        print("files status: " + selected.contains(f.name).toString());
-                                      });
-                                    },
-                                    activeColor: Colors.amber,
-                                    checkColor: Colors.cyanAccent,
-                                  ),
-                                  RaisedButton(
-                                    child: Text("Select"),
-                                    // Toggle check
-                                    // onPressed: () => setState(() {
-                                    //   selected.contains(f.name) ? selected.remove(
-                                    //       f.name) : selected.add(f.name);
-                                    //   print("files status: " + selected.contains(f.name).toString());
-                                    //
-                                    // }),
-                                    onPressed: () {
-                                        selected.contains(f.name) ? selected.remove(
-                                            f.name) : selected.add(f.name);
-                                        _showToast(selected.contains(f.name));
-                                    },
-                                  ),
-                                  Text(
-                                    f.name,
-                                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: MediaQuery.of(context).size.width/2,
-                              child: Column(
-                                children: [
-                                  // Snap name
-                                  ListTile(
-                                    // leading: Text("Found:"),
-                                    title: Text(result, style: TextStyle(color: Colors.redAccent),),
-                                  ),
-                                  // Copy button
-                                  RaisedButton(
-                                    // Add to clipboard if not already there
-                                    // ...
-                                  ),
-
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ]),
-            ),
-            // heroAttributes: const HeroAttributes(tag: "tag1"),
-          ));
-        }
+        // Add new Cell to gallery
+        images.add(newGalleryCell(text, result, f, new File(f.path)));
       }
 
       // Increase progress bar
@@ -440,28 +671,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
-  // bool setVal(String file){
-  //
-  //   print("file: " + file);
-  //   selected.contains(file) ? selected.remove(file) : selected.add(file);
-  //
-  //   print("files status: " + selected.contains(file).toString());
-  //
-  //   return selected.contains(file);
-  // }
-
   Future changeDir() async{
 
     // To get path and default to this location for file pick
     _directoryPath =  await FilePicker.platform.getDirectoryPath();
-
-    await pick();
   }
 
   void select(String path){
 
   }
 
+  /// Moves the selected files to a new chosen Directory
   void move() async{
     // Move selected images to new directory
     if(selected.isNotEmpty) {
@@ -481,16 +701,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future OCR(String path) async {
-    return await FlutterTesseractOcr.extractText(path, language: 'eng');
-  }
-
-  String search(List<String> keys, String text){
+  /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
+  String findSnapKeyword(List<String> keys, String text){
     // TODO: Change so tha it finds the next word in the series, not the row
     text = text.toLowerCase();
     // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
     // text = text.replaceAll(new RegExp('[^A-Za-z0-9]'),'');
+    // Remove all non-alphanumeric characters
     debugPrint("text: " + text.replaceAll(new RegExp('[^A-Za-z0-9]'),''));
+
     // Split up lines
     for(String line in text.split("\n")){
       // Split up words
@@ -505,6 +724,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return null;
   }
 
+  /// ???
   void show(text){
     showDialog(context: context, builder: (BuildContext context)
     {
@@ -521,6 +741,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
   void _showToast(bool selected){
 
     // Make sure last toast has eneded
@@ -550,5 +771,21 @@ class _MyHomePageState extends State<MyHomePage> {
       gravity: ToastGravity.BOTTOM,
       toastDuration: Duration(seconds: 1),
     );
+  }
+}
+
+/// Experimental class for passing data message into Isolate
+class testy{
+
+  File f;
+  String name;
+  ui.Size screenSize;
+
+  testy(
+  f,
+  name, size){
+    this.f = f;
+    this.name = name;
+    this.screenSize = size;
   }
 }
