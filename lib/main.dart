@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 import 'dart:io';
 import 'dart:math';
@@ -17,17 +18,19 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:progress_dialog/progress_dialog.dart';
 // import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:device_apps/device_apps.dart';
+import 'package:path/path.dart' as path;
 
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
   runApp(MyApp());
 }
 
 
 // Extracts text from image
 Future<String> OCR(String path) async {
-  debugPrint("path: $path");
 
   final inputImage = InputImage.fromFilePath(path);
   final textDetector = GoogleMlKit.vision.textDetector();
@@ -37,52 +40,47 @@ Future<String> OCR(String path) async {
 }
 
 // Scans in file as the Image object with adjustable features
-crop_image.Image getImage(dynamic f){
+crop_image.Image getImage(String filePath){
 
-  List<int> bytes = File(f.path).readAsBytesSync();
+  List<int> bytes = File(filePath).readAsBytesSync();
   return crop_image.decodeImage(bytes);
 
 }
 
 // Crops image (ideally in the section of the image that has the bio)
-crop_image.Image crop(crop_image.Image image, f, ui.Size screenSize){
+crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSize){
 
-  Size size = ImageSizeGetter.getSize(FileInput(File(f.path)));
+  Size size = ImageSizeGetter.getSize(FileInput(File(filePath)));
 
   int originX = 0, originY = min(size.height, (2.5 * screenSize.height).toInt() ),
       width = size.width,
       height = min(size.height, (1.5 * screenSize.height).toInt() );
-  debugPrint("screenH: ${screenSize.height.toInt()}");
-  debugPrint("y: $originY, height: $height");
-  debugPrint("x: $originX, width: $width");
 
 
   return crop_image.copyCrop(image, originX, originY, width, height);
 }
 
 /// Creates a cropped and resized image by passing the file and the `parent` directory to save the temporary image
-File createCroppedImage(dynamic f, Directory parent, ui.Size size){
+File createCroppedImage(String filePath, Directory parent, ui.Size size){
 
-  crop_image.Image image = getImage(f);
+  crop_image.Image image = getImage(filePath);
 
   // Separate the cropping and resize opperations so that the thread memory isn't used up
-  crop_image.Image croppedFile = crop(image, f, size);
+  crop_image.Image croppedFile = crop(image, filePath, size);
   croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
 
   // Save temp image
-  String file_name = f.path.split("/").last;
+  String file_name = filePath.split("/").last;
   File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, f.path));
+  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, filePath));
 
   return temp_cropped;
 }
 
-Future<String> find(dynamic f, String name, ui.Size size) async {
+Future<String> find(String filePath, String name, ui.Size size) async {
 
-  // debugPrint("tesseertact path: ${(await getApplicationDocumentsDirectory())}");
-  debugPrint("screen size(in find): ${size}");
   File temp_cropped = createCroppedImage(
-      f, Directory.systemTemp, size);
+      filePath, Directory.systemTemp, size);
 
 
 
@@ -91,19 +89,18 @@ Future<String> find(dynamic f, String name, ui.Size size) async {
 
 // Runs the `find` operation in a Isolate thread
 void threadFunction(Map<String, dynamic> context) {
-  debugPrint("came in.");
 
   final messenger = HandledIsolate.initialize(context);
 
 
   // Operation that should happen when the Isolate receives a message
-  messenger.listen((message) async {
-    if(message is testy) {
+  messenger.listen((receivedData) async {
+    if(receivedData is String) {
 
-      dynamic f = message.f;
-      String name = message.name;
-      ui.Size size = message.screenSize;
-      debugPrint("parsed messages");
+      Map<String, dynamic> message = json.decode(receivedData);
+      dynamic f = message["f"];
+      String name = message["name"];
+      ui.Size size = ui.Size(message['width'].toDouble(), message['height'].toDouble());
 
       find(f, name, size).then((result) {
         if (result is String) {
@@ -113,6 +110,11 @@ void threadFunction(Map<String, dynamic> context) {
         }
       });
     }
+    else{
+      debugPrint("did NOT detect string...");
+      messenger.send(null);
+    }
+
   });
 
   // sendPortOfOldIsolate.send(receivePort.sendPort);
@@ -167,6 +169,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String _directoryPath;
   Set selected;
   FToast fToast;
+  var icon;
 
   void initState() {
     super.initState();
@@ -197,12 +200,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -225,12 +223,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text("Find"),
                   ),
                   ElevatedButton(
-                    onPressed: () => displaySnaps(false),
+                    onPressed: () => displaySnaps(true),
                     child: Text("Display"),
-                    onLongPress: () => displaySnaps(true),
+                    onLongPress: () => displaySnaps(false),
                   ),
                   ElevatedButton(
-                    onPressed: move,
+                    // onPressed: move,
                     child: Text("Move"),
                   ),
                 ],
@@ -255,9 +253,33 @@ class _MyHomePageState extends State<MyHomePage> {
       persistentFooterButtons: [
         GestureDetector(
           onTap: changeDir,
-          child: FloatingActionButton(
-            // tooltip: 'Get Text',
-            child: Icon(Icons.drive_folder_upload),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              FloatingActionButton(
+                onPressed: () => DeviceApps.openApp('com.snapchat.android'),
+                child: FutureBuilder(
+                  // Get icon
+                  future: DeviceApps.getApp('com.snapchat.android', true),
+                  // Build icon when retrieved
+                  builder: (context, snapshot) {
+                    if(snapshot.connectionState == ConnectionState.done){
+                      var value = snapshot.data;
+                      ApplicationWithIcon app;
+                      app = (value as ApplicationWithIcon);
+                      return Image.memory(app.icon);
+                    }
+                    else{
+                      return CircularProgressIndicator();
+                    }
+                  }
+                ),
+              ),
+              FloatingActionButton(
+                // tooltip: 'Get Text',
+                child: Icon(Icons.drive_folder_upload),
+              ),
+            ],
           ),
         ),
       ],
@@ -317,13 +339,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                     ),
                                     ElevatedButton(
                                       child: Text("Select"),
-                                      onPressed: () {
-                                        selected.contains(file_name) ? selected.remove(
-                                            file_name) : selected.add(file_name);
-                                        _showToast(selected.contains(file_name));
-                                      },
+                                      // onPressed: () => move(file_name),
                                     ),
-                                    Text(
+                                    SelectableText(
                                       file_name,
                                       style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
                                     ),
@@ -337,11 +355,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                     // Snap name
                                     ListTile(
                                       // leading: Text("Found:"),
-                                      title: Text(result, style: TextStyle(color: Colors.redAccent),),
+                                      title: SelectableText(result, style: TextStyle(color: Colors.redAccent),),
                                     ),
                                     // Copy button
                                     ElevatedButton(
-                                      // Add to clipboard if not already there
+                                        // Add to clipboard if not already there
                                       // ...
                                     ),
 
@@ -378,39 +396,43 @@ class _MyHomePageState extends State<MyHomePage> {
   // Select picture(s) and run through OCR
   Future<List> pick(bool select) async {
     List paths;
-    bool _multiPick = true;
-    FileType _pickingType = FileType.image;
 
 
     // If directory path isn't set, have `changeDir` handle picking the files
     if (_directoryPath == null || _directoryPath.length < 1) {
       await changeDir();
+      if(_directoryPath == null){
+        // TODO: Show error message "Must select a Directory"
+        // ...
+
+        return null;
+      }
       print("After changeDir");
     }
 
     // Select file(s)
     if(select) {
+
+      bool _multiPick = true;
+      FileType _pickingType = FileType.image;
+      Stopwatch timer = new Stopwatch();
+      await _pr.show();
       paths = (await FilePicker.platform.pickFiles(
           type: _pickingType,
-          allowMultiple: _multiPick,
-          onFileLoading: (status) async {
-            if (status == FilePickerStatus.picking) {
-              print("inside picking");
-              await _pr.show();
-            }
-            if (status == FilePickerStatus.done) {
-              print("inside DONE");
-              await _pr.hide();
-            }
-          }))
-          ?.files;
+          allowMultiple: _multiPick
+      ))?.files;
+      if(!File(path.join(_directoryPath, paths.first.path.split("/").last)).existsSync()){
+        // TODO: Show error (selected files didn't exist in directory)
+        // ...
+
+        return null;
+      }
     }
     else{
       await _pr.show();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
 
-    // sleep(Duration(seconds: 2));
     return paths;
   }
 
@@ -436,7 +458,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      debugPrint("button pressed.");
                       if (formKey.currentState.validate()) {
                         formKey.currentState.save();
                       }
@@ -452,7 +473,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   /// Looks for the snap name in the directory
-  Future findSnap(String name)async{
+  Future findSnap(String query)async{
 
     // Get all files from directory
     List<dynamic> paths;
@@ -466,6 +487,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
 
+    // Reset Gallery
+    images= [];
 
 
     debugPrint("paths: " + paths.toString());
@@ -480,127 +503,118 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
     /////////////// Testing Isolates //////////////////
-    // // List<Isolate> isolates = [];
-    // final isolates = IsolateHandler();
-    // int completed = 0;
-    // for(var f in paths) {
-    //   debugPrint("create sub-thread");
-    //
-    //   testy test = new testy(
-    //       f,
-    //       name,
-    //       MediaQuery.of(context).size);
-    //     // Start up the thread and configures the callbacks
-    //     isolates.spawn<testy>(threadFunction, name: f.path.split("/").last,onInitialized: () => isolates.send(test, to: f.path.split("/").last), onReceive: (dynamic signal) {
-    //     print('Data from new isolate : $signal');
-    //
-    //     // Return port for sending message to thread
-    //     // if (signal is SendPort) {
-    //     //   SendPort sendPortOfNewIsolate = signal;
-    //     //   sendPortOfNewIsolate.send(test);
-    //     // }
-    //     // Retrieve result of search
-    //     // else if(signal is String){
-    //     if(signal is String){
-    //       String text = signal;
-    //       debugPrint("text: " + text.toString());
-    //
-    //       if(text.toString().toLowerCase().contains(name.toLowerCase())) {
-    //         images.add(newGalleryCell(text, name, f, new File(f.path)));
-    //
-    //         // Stop creation of new isolates
-    //         paths.clear();
-    //
-    //         // Terminate running isolates
-    //         isolates.isolates.clear();
-    //         // receivePort.sendPort.send(true);
-    //
-    //         // Set the counter to the end to force closing dialogs
-    //         completed = paths.length;
-    //       }
-    //
-    //       // Close dialogs once finished with all images
-    //       if(completed++ >= paths.length){
-    //         _pr.hide().then((value) => Navigator.pop(context));
-    //       }
-    //
-    //     }
-    //     // // Terminate all running threads
-    //     // else if(signal is bool && signal){
-    //     //   //Kill new Isolate
-    //     //   isolate.kill(priority: Isolate.immediate);
-    //     //   isolate=null;
-    //     // }
-    //     // Else throw error
-    //     else{
-    //       debugPrint("------- ERROR >> receivePort Listener ------");
-    //     }
-    //
-    //   });
-    //
-    //   // Save isolate so that it isn't deleted
-    //   // isolates.add(isolate);
-    // }
 
-    // // Testing await for-each
-    // Future.forEach(paths, (f) async{
-    //   find(f, name, ).then((value) {
-    //       _pr.hide().then((value) => Navigator.pop(context));;
-    // });
+    _pr.update(progress: 0);
+
+    final isolates = IsolateHandler();
+    int completed = 0;
+    int path_idx = 0;
+    for(path_idx = 0; path_idx < paths.length; path_idx++){
+
+
+      // Prepare data to be sent to thread
+      var f = paths[path_idx];
+      var size = MediaQuery.of(context).size;
+      Map<String, dynamic> message = {
+        "f": f.path,
+        "name": query,
+        "height": size.height,
+        "width" : size.width
+      };
+      String rawJson = jsonEncode(message);
+      final Map<String, dynamic> data = json.decode(rawJson);
+      String iso_name = f.path.split("/").last;
+
+      // Start up the thread and configures the callbacks
+      debugPrint("spawning new iso....");
+      isolates.spawn<String>(
+          threadFunction,
+          name: iso_name,
+          onInitialized: () => isolates.send(rawJson, to: iso_name),
+          onReceive: (dynamic signal) {
+      if(signal is String){
+        String text = signal;
+
+        // If query word has been found
+        if(text.toString().toLowerCase().contains(query.toLowerCase())) {
+          images.add(newGalleryCell(text, query, f, new File(f.path)));
+
+          // Stop creation of new isolates and to close dialogs
+          path_idx = paths.length;
+          completed = paths.length;
+        }
+
+      }
+      else{
+        // Dispose of finished isolate
+        isolates.kill(iso_name);
+      }
+
+      debugPrint("before `completed`... $completed <= ${paths.length}");
+      debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
+
+
+      // Increase progress bar
+      int update = (completed+1)*100~/paths.length;
+      update = update.clamp(0, 100);
+      print("Increasing... " + update.toString());
+      _pr.update(maxProgress: 100.0, progress: update/1.0);
+
+      // Close dialogs once finished with all images
+      if(++completed >= paths.length){
+        // Terminate running isolates
+        List names = isolates.isolates.keys.toList();
+        for(String name in names){
+          // Don't kill current thread
+          if(name == iso_name) continue;
+
+          debugPrint("iso-name: ${name}");
+          if(isolates.isolates[name].messenger.connectionEstablished ) {
+            try {
+              isolates.kill(name);
+            }
+            catch(e){
+              debugPrint("pass kill error");
+            }
+          }
+        }
+        debugPrint("popping...");
+
+        // Quick fix for this callback being called twice
+        // TODO: Find way to stop isolates immediately so they don't get to this point
+        if(_pr.isShowing())
+          _pr.hide().then((value) {
+            Navigator.pop(context);
+          });
+      }
+      });
+
+    }
 
     //////// Original ///////////////
-    for(var f in paths) {
-      // await Future.forEach(paths, (f) async{
-      File file = new File(f.path);
-      Stopwatch intervals = new Stopwatch(),
-          timer = new Stopwatch();
-      intervals.start();
-      timer.start();
-      File temp_cropped = createCroppedImage(f, Directory.systemTemp, MediaQuery.of(context).size);
-      String text = (await OCR(temp_cropped.path));
-      debugPrint("text: " + text.toString());
-
-      if (text.toString().toLowerCase().contains(name.toLowerCase())) {
-        images.add(newGalleryCell(text, name, f, new File(f.path)));
-        // break;
-      }
-      // });
-    }
-    await _pr.hide();
-    debugPrint("here.");
-    Navigator.pop(context);
+    // for(var f in paths) {
+    //   // await Future.forEach(paths, (f) async{
+    //   File file = new File(f.path);
+    //   Stopwatch intervals = new Stopwatch(),
+    //       timer = new Stopwatch();
+    //   intervals.start();
+    //   timer.start();
+    //   File temp_cropped = createCroppedImage(f, Directory.systemTemp, MediaQuery.of(context).size);
+    //   String text = (await OCR(temp_cropped.path));
+    //   debugPrint("text: " + text.toString());
+    //
+    //   if (text.toString().toLowerCase().contains(name.toLowerCase())) {
+    //     images.add(newGalleryCell(text, name, f, new File(f.path)));
+    //     // break;
+    //   }
+    //   // });
+    // }
+    // await _pr.hide();
+    // debugPrint("here.");
+    // Navigator.pop(context);
 
     return;
   }
-
-  // Future<bool> find(dynamic f, String name) async{
-  //
-  //   File file = new File(f.path);
-  //   Stopwatch intervals = new Stopwatch(),
-  //       timer = new Stopwatch();
-  //   intervals.start();
-  //   timer.start();
-  //   File temp_cropped = createCroppedImage(
-  //       file, f, Directory.systemTemp, intervals, timer, size);
-  //
-  //   return OCR(temp_cropped.path).then((text) {
-  //     debugPrint("text: " + text.toString());
-  //
-  //     if (text.toString().toLowerCase().contains(name.toLowerCase())) {
-  //       images.add(newGalleryCell(text, name, f, new File(f.path)));
-  //
-  //       // Break search progress
-  //       _pr.hide().then((bool) {
-  //         debugPrint("here.");
-  //         Navigator.pop(context);
-  //       });
-  //
-  //       return true;
-  //     }
-  //
-  //     return false;
-  //   });
-  // }
 
 
   // Displays all images with a detectable snapchat username in their bio
@@ -608,6 +622,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Choose files to extract text from
     List paths = await pick(select);
+    images = [];
+
     if(paths == null) {
       _pr.hide();
       return;
@@ -615,7 +631,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     print("file path = " + paths[0].path);
     // _pr.show();
-    images = [];
     int length = paths.length;
     int i = 0;
     _pr.update(progress: 0);
@@ -673,8 +688,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future changeDir() async{
 
-    // To get path and default to this location for file pick
+    // Reset callback function
+    try {
+      await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          onFileLoading: (_) => debugPrint(""), allowedExtensions: ["fail"]);
+    }
+    catch (e){debugPrint("changeDir >> $e");}
+        // To get path and default to this location for file pick
+    // sleep(Duration(seconds:1));
     _directoryPath =  await FilePicker.platform.getDirectoryPath();
+
   }
 
   void select(String path){
@@ -682,23 +706,18 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   /// Moves the selected files to a new chosen Directory
-  void move() async{
-    // Move selected images to new directory
-    if(selected.isNotEmpty) {
-      // Choose new directory
-      String new_dir = await FilePicker.platform.getDirectoryPath();
+  void move(String fileName) async{
+    String filePath = path.join(_directoryPath, fileName);
+    // final _result = await OpenFile.open(filePath);
 
-      if(new_dir != null) {
-        var lst = selected.toList().map((x) => _directoryPath +"/"+ x).toList();
-        print("List:" + lst.toString());
-        // FileUtils.move(selected.toList(), new_dir);
+    // debugPrint(">>>>>>>> type=${_result.type}  message=${_result.message}");
 
-        selected.clear();
-      }
-    }
-    else{
-      // Pop up detailing no files selected
-    }
+    //
+    // FilePickerCross myFile = await FilePickerCross.importFromStorage(
+    //     type: FileTypeCross.custom,       // Available: `any`, `audio`, `image`, `video`, `custom`. Note: not available using FDE
+    //     fileExtension: fileName     // Only if FileTypeCross.custom . May be any file extension like `dot`, `ppt,pptx,odp`
+    // );
+
   }
 
   /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
@@ -717,7 +736,7 @@ class _MyHomePageState extends State<MyHomePage> {
       List<String> words= line.split(" ");
       for(String word in words){
         // word;
-        if(keys.contains(word.replaceAll(new RegExp('[^A-Za-z0-9]'),'').trim())) return words[++i].trim();
+        if(keys.contains(word.replaceAll(new RegExp('[^A-Za-z0-9]'),'').trim())) return (i+1 < words.length) ? words[++i].trim() : "";
         i++;
       }
     }
@@ -771,21 +790,5 @@ class _MyHomePageState extends State<MyHomePage> {
       gravity: ToastGravity.BOTTOM,
       toastDuration: Duration(seconds: 1),
     );
-  }
-}
-
-/// Experimental class for passing data message into Isolate
-class testy{
-
-  File f;
-  String name;
-  ui.Size screenSize;
-
-  testy(
-  f,
-  name, size){
-    this.f = f;
-    this.name = name;
-    this.screenSize = size;
   }
 }
