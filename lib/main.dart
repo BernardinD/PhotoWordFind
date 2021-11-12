@@ -660,25 +660,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
-  void select(String path){
-
-  }
-
-  /// Moves the selected files to a new chosen Directory
-  void move(String fileName) async{
-    String filePath = path.join(_directoryPath, fileName);
-    // final _result = await OpenFile.open(filePath);
-
-    // debugPrint(">>>>>>>> type=${_result.type}  message=${_result.message}");
-
-    //
-    // FilePickerCross myFile = await FilePickerCross.importFromStorage(
-    //     type: FileTypeCross.custom,       // Available: `any`, `audio`, `image`, `video`, `custom`. Note: not available using FDE
-    //     fileExtension: fileName     // Only if FileTypeCross.custom . May be any file extension like `dot`, `ppt,pptx,odp`
-    // );
-
-  }
-
   /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
   String findSnapKeyword(List<String> keys, String text){
     // TODO: Change so tha it finds the next word in the series, not the row
