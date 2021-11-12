@@ -77,7 +77,7 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   return temp_cropped;
 }
 
-Future<String> find(String filePath, String name, ui.Size size) async {
+Future<String> runOCR(String filePath, ui.Size size) async {
 
   File temp_cropped = createCroppedImage(
       filePath, Directory.systemTemp, size);
@@ -99,10 +99,9 @@ void threadFunction(Map<String, dynamic> context) {
 
       Map<String, dynamic> message = json.decode(receivedData);
       dynamic f = message["f"];
-      String name = message["name"];
       ui.Size size = ui.Size(message['width'].toDouble(), message['height'].toDouble());
 
-      find(f, name, size).then((result) {
+      runOCR(f, size).then((result) {
         if (result is String) {
 
           // Send back result to main thread
@@ -258,7 +257,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               FloatingActionButton(
                 onPressed: () => DeviceApps.openApp('com.snapchat.android'),
-                child: FutureBuilder(
+                child: icon?? FutureBuilder(
                   // Get icon
                   future: DeviceApps.getApp('com.snapchat.android', true),
                   // Build icon when retrieved
@@ -267,7 +266,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       var value = snapshot.data;
                       ApplicationWithIcon app;
                       app = (value as ApplicationWithIcon);
-                      return Image.memory(app.icon);
+                      icon = Image.memory(app.icon);
+                      return icon;
                     }
                     else{
                       return CircularProgressIndicator();
@@ -421,7 +421,8 @@ class _MyHomePageState extends State<MyHomePage> {
           type: _pickingType,
           allowMultiple: _multiPick
       ))?.files;
-      if(!File(path.join(_directoryPath, paths.first.path.split("/").last)).existsSync()){
+
+      if(paths != null && !File(path.join(_directoryPath, paths.first.path.split("/").last)).existsSync()){
         // TODO: Show error (selected files didn't exist in directory)
         // ...
 
@@ -432,6 +433,10 @@ class _MyHomePageState extends State<MyHomePage> {
       await _pr.show();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
+
+
+    if(paths!= null)
+      if(!(paths.first is PlatformFile) && !(paths.first is FileSystemEntity)) throw("List of path is is not a PlatformFile or File");
 
     return paths;
   }
@@ -487,9 +492,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
 
-    // Reset Gallery
-    images= [];
-
 
     debugPrint("paths: " + paths.toString());
     if(paths == null) {
@@ -497,17 +499,55 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    // await findSequential(query, paths);
-    await findParallel(query, paths);
+    Function post = (String text, query){
+
+      // If query word has been found
+      return text.toString().toLowerCase().contains(query.toLowerCase()) ? query : null;
+    };
+
+    // Remove prompt
+    Navigator.pop(context);
+
+    await ocrParallel(paths, post, query: query);
 
 
 
     return;
   }
 
-  Future findParallel(String query, List paths) async{
+
+  // Displays all images with a detectable snapchat username in their bio
+  Future displaySnaps(bool select) async{
+
+    // _pr.show();
+
+    // Choose files to extract text from
+    List paths = await pick(select);
+
+    // Returns suggested snap username or empty string
+    Function post = (String text, String _){
+      String result = findSnapKeyword(key, text)?? "";
+
+      debugPrint("ran display Post");
+
+      return result;
+    };
+
+    if(paths == null) {
+      await _pr.hide();
+      return;
+    }
+
+    ocrParallel(paths, post);
+
+  }
+
+  Future ocrParallel(List paths, Function post, {String query, bool findFirst = false}) async{
 
     await _pr.show();
+
+    // Reset Gallery
+    images= [];
 
     // Time search
     Stopwatch time_elasped = new Stopwatch();
@@ -526,7 +566,6 @@ class _MyHomePageState extends State<MyHomePage> {
       var size = MediaQuery.of(context).size;
       Map<String, dynamic> message = {
         "f": f.path,
-        "name": query,
         "height": size.height,
         "width" : size.width
       };
@@ -543,16 +582,19 @@ class _MyHomePageState extends State<MyHomePage> {
           onReceive: (dynamic signal) {
             if(signal is String){
               String text = signal;
-
               // If query word has been found
-              if(text.toString().toLowerCase().contains(query.toLowerCase())) {
-                images.add(newGalleryCell(text, query, f, new File(f.path)));
+              String result = post(text, query);
+              if(result != null) {
+
+                images.add(newGalleryCell(text, result, f, new File(f.path)));
 
                 debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
 
                 // Stop creation of new isolates and to close dialogs
-                path_idx = paths.length;
-                completed = paths.length;
+                if(findFirst) {
+                  path_idx = paths.length;
+                  completed = paths.length;
+                }
               }
 
             }
@@ -595,106 +637,12 @@ class _MyHomePageState extends State<MyHomePage> {
               // TODO: Find way to stop isolates immediately so they don't get to this point
               if(_pr.isShowing())
                 _pr.hide().then((value) {
-                  Navigator.pop(context);
+                  setState(() => {});
                 });
             }
           });
 
     }
-  }
-
-  Future findSequential(String query, List paths) async{
-
-    await _pr.show();
-
-    Stopwatch time_elasped = new Stopwatch();
-    time_elasped.start();
-    for(var f in paths) {
-      // await Future.forEach(paths, (f) async{
-      File file = new File(f.path);
-      File temp_cropped = createCroppedImage(f.path, Directory.systemTemp, MediaQuery.of(context).size);
-      String text = (await OCR(temp_cropped.path));
-      debugPrint("text: " + text.toString());
-
-      if (text.toString().toLowerCase().contains(query.toLowerCase())) {
-        images.add(newGalleryCell(text, query, f, new File(f.path)));
-        debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
-        break;
-      }
-    }
-    await _pr.hide();
-    debugPrint("here.");
-    Navigator.pop(context);
-  }
-
-
-  // Displays all images with a detectable snapchat username in their bio
-  Future displaySnaps(bool select) async{
-
-    // Choose files to extract text from
-    List paths = await pick(select);
-    images = [];
-
-    if(paths == null) {
-      _pr.hide();
-      return;
-    }
-
-    print("file path = " + paths[0].path);
-    // _pr.show();
-    int length = paths.length;
-    int i = 0;
-    _pr.update(progress: 0);
-    selected.clear();
-
-    // Run the files through OCR process
-    for(var f in paths) {
-      if(!(f is PlatformFile) && !(f is FileSystemEntity)) throw("$f is not a PlatformFile or File");
-
-      String real_path =  _directoryPath+"/"+f.path.split("/").last;
-      print("Real directory: " + real_path);
-      if(File(real_path).existsSync()) {
-        /*
-         *Get text from image
-         */
-        // Load original file details
-        File file = File(f.path);
-        Directory parent = file.parent,
-          cache_dir = Directory.systemTemp;
-        // Load file to crop and resize
-        Stopwatch intervals = new Stopwatch(), timer = new Stopwatch();
-        timer.start();
-        intervals.start();
-
-        File temp_cropped = createCroppedImage(f.path, cache_dir, MediaQuery.of(context).size);
-
-        // Run OCR
-        intervals.reset();
-        String text = (await OCR(temp_cropped.path));
-        debugPrint("OCR: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
-
-        // Search pick for keyword in pic
-        intervals.reset();
-        String result = findSnapKeyword(key, text)?? "";
-        debugPrint("search time: ${intervals.elapsedMilliseconds}ms | ${timer.elapsedMilliseconds}ms");
-
-        timer.stop();
-        intervals.stop();
-        debugPrint("Elasped: ${timer.elapsedMilliseconds}ms");
-
-        // Add new Cell to gallery
-        images.add(newGalleryCell(text, result, f, new File(f.path)));
-      }
-
-      // Increase progress bar
-      int update = ++i*100~/length;
-      print("Increasing... " + update.toString());
-      _pr.update(maxProgress: 100.0, progress: update/1.0);
-
-    }
-    await _pr.hide();
-    setState(() {});
-
   }
 
   Future changeDir() async{
