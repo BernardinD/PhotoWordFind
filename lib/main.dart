@@ -454,7 +454,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
-                    onSaved: (input) => findSnap(input),
+                    onSaved: (input) => findSnap(input.trim()),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -497,18 +497,27 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
+    // await findSequential(query, paths);
+    await findParallel(query, paths);
+
+
+
+    return;
+  }
+
+  Future findParallel(String query, List paths) async{
+
     await _pr.show();
 
-
-
-
-    /////////////// Testing Isolates //////////////////
+    // Time search
+    Stopwatch time_elasped = new Stopwatch();
 
     _pr.update(progress: 0);
 
     final isolates = IsolateHandler();
     int completed = 0;
     int path_idx = 0;
+    time_elasped.start();
     for(path_idx = 0; path_idx < paths.length; path_idx++){
 
 
@@ -532,88 +541,90 @@ class _MyHomePageState extends State<MyHomePage> {
           name: iso_name,
           onInitialized: () => isolates.send(rawJson, to: iso_name),
           onReceive: (dynamic signal) {
-      if(signal is String){
-        String text = signal;
+            if(signal is String){
+              String text = signal;
 
-        // If query word has been found
-        if(text.toString().toLowerCase().contains(query.toLowerCase())) {
-          images.add(newGalleryCell(text, query, f, new File(f.path)));
+              // If query word has been found
+              if(text.toString().toLowerCase().contains(query.toLowerCase())) {
+                images.add(newGalleryCell(text, query, f, new File(f.path)));
 
-          // Stop creation of new isolates and to close dialogs
-          path_idx = paths.length;
-          completed = paths.length;
-        }
+                debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
 
-      }
-      else{
-        // Dispose of finished isolate
-        isolates.kill(iso_name);
-      }
+                // Stop creation of new isolates and to close dialogs
+                path_idx = paths.length;
+                completed = paths.length;
+              }
 
-      debugPrint("before `completed`... $completed <= ${paths.length}");
-      debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
-
-
-      // Increase progress bar
-      int update = (completed+1)*100~/paths.length;
-      update = update.clamp(0, 100);
-      print("Increasing... " + update.toString());
-      _pr.update(maxProgress: 100.0, progress: update/1.0);
-
-      // Close dialogs once finished with all images
-      if(++completed >= paths.length){
-        // Terminate running isolates
-        List names = isolates.isolates.keys.toList();
-        for(String name in names){
-          // Don't kill current thread
-          if(name == iso_name) continue;
-
-          debugPrint("iso-name: ${name}");
-          if(isolates.isolates[name].messenger.connectionEstablished ) {
-            try {
-              isolates.kill(name);
             }
-            catch(e){
-              debugPrint("pass kill error");
+            else{
+              // Dispose of finished isolate
+              isolates.kill(iso_name);
             }
-          }
-        }
-        debugPrint("popping...");
 
-        // Quick fix for this callback being called twice
-        // TODO: Find way to stop isolates immediately so they don't get to this point
-        if(_pr.isShowing())
-          _pr.hide().then((value) {
-            Navigator.pop(context);
+            debugPrint("before `completed`... $completed <= ${paths.length}");
+            debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
+
+
+            // Increase progress bar
+            int update = (completed+1)*100~/paths.length;
+            update = update.clamp(0, 100);
+            print("Increasing... " + update.toString());
+            _pr.update(maxProgress: 100.0, progress: update/1.0);
+
+            // Close dialogs once finished with all images
+            if(++completed >= paths.length){
+              // Terminate running isolates
+              List names = isolates.isolates.keys.toList();
+              for(String name in names){
+                // Don't kill current thread
+                if(name == iso_name) continue;
+
+                debugPrint("iso-name: ${name}");
+                if(isolates.isolates[name].messenger.connectionEstablished ) {
+                  try {
+                    isolates.kill(name);
+                  }
+                  catch(e){
+                    debugPrint("pass kill error");
+                  }
+                }
+              }
+              debugPrint("popping...");
+
+              // Quick fix for this callback being called twice
+              // TODO: Find way to stop isolates immediately so they don't get to this point
+              if(_pr.isShowing())
+                _pr.hide().then((value) {
+                  Navigator.pop(context);
+                });
+            }
           });
-      }
-      });
 
     }
+  }
 
-    //////// Original ///////////////
-    // for(var f in paths) {
-    //   // await Future.forEach(paths, (f) async{
-    //   File file = new File(f.path);
-    //   Stopwatch intervals = new Stopwatch(),
-    //       timer = new Stopwatch();
-    //   intervals.start();
-    //   timer.start();
-    //   File temp_cropped = createCroppedImage(f, Directory.systemTemp, MediaQuery.of(context).size);
-    //   String text = (await OCR(temp_cropped.path));
-    //   debugPrint("text: " + text.toString());
-    //
-    //   if (text.toString().toLowerCase().contains(name.toLowerCase())) {
-    //     images.add(newGalleryCell(text, name, f, new File(f.path)));
-    //     // break;
-    //   }
-    //   // });
-    // }
-    // await _pr.hide();
-    // debugPrint("here.");
-    // Navigator.pop(context);
+  Future findSequential(String query, List paths) async{
 
-    return;
+    await _pr.show();
+
+    Stopwatch time_elasped = new Stopwatch();
+    time_elasped.start();
+    for(var f in paths) {
+      // await Future.forEach(paths, (f) async{
+      File file = new File(f.path);
+      File temp_cropped = createCroppedImage(f.path, Directory.systemTemp, MediaQuery.of(context).size);
+      String text = (await OCR(temp_cropped.path));
+      debugPrint("text: " + text.toString());
+
+      if (text.toString().toLowerCase().contains(query.toLowerCase())) {
+        images.add(newGalleryCell(text, query, f, new File(f.path)));
+        debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
+        break;
+      }
+    }
+    await _pr.hide();
+    debugPrint("here.");
+    Navigator.pop(context);
   }
 
 
@@ -655,7 +666,7 @@ class _MyHomePageState extends State<MyHomePage> {
         timer.start();
         intervals.start();
 
-        File temp_cropped = createCroppedImage(f, cache_dir, MediaQuery.of(context).size);
+        File temp_cropped = createCroppedImage(f.path, cache_dir, MediaQuery.of(context).size);
 
         // Run OCR
         intervals.reset();
