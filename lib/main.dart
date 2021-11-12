@@ -167,7 +167,6 @@ class _MyHomePageState extends State<MyHomePage> {
   List<PhotoViewGalleryPageOptions> images = [];
   String _directoryPath;
   Set selected;
-  FToast fToast;
   var icon;
 
   void initState() {
@@ -191,10 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Initalize indicator for selected photos
     selected = new Set();
-
-    // Initalize toast for user alerts
-    fToast = FToast();
-    fToast.init(context);
+    
   }
 
   @override
@@ -700,35 +696,4 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
-  void _showToast(bool selected){
-
-    // Make sure last toast has eneded
-    fToast.removeCustomToast();
-
-    Widget toast = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.0),
-        color: selected ? Colors.greenAccent : Colors.grey,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          selected ? Icon(Icons.check) : Icon(Icons.not_interested_outlined),
-          SizedBox(
-            width: 12.0,
-          ),
-          Text(selected ? "Selected." : "Unselected."),
-        ],
-      ),
-    );
-
-
-    fToast.showToast(
-      child: toast,
-      gravity: ToastGravity.BOTTOM,
-      toastDuration: Duration(seconds: 1),
-    );
-  }
 }
