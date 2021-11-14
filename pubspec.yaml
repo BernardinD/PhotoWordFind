@@ -47,6 +47,9 @@ dependencies:
   # For opening snapchat from app
   device_apps: ^2.1.1
 
+  # Storing OCR results
+  shared_preferences: ^2.0.6
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

@@ -20,6 +20,8 @@ import 'package:progress_dialog/progress_dialog.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 
 void main() {
@@ -97,17 +99,26 @@ void threadFunction(Map<String, dynamic> context) {
   messenger.listen((receivedData) async {
     if(receivedData is String) {
 
+      final prefs = await SharedPreferences.getInstance();
+
       Map<String, dynamic> message = json.decode(receivedData);
       dynamic f = message["f"];
       ui.Size size = ui.Size(message['width'].toDouble(), message['height'].toDouble());
 
-      runOCR(f, size).then((result) {
-        if (result is String) {
-
-          // Send back result to main thread
-          messenger.send(result);
-        }
-      });
+      if(prefs.getString(f) != null){
+        String result = prefs.getString(f);
+        messenger.send(result);
+      }
+      else {
+        runOCR(f, size).then((result) {
+          if (result is String) {
+            // Save OCR result
+            prefs.setString(f, result);
+            // Send back result to main thread
+            messenger.send(result);
+          }
+        });
+      }
     }
     else{
       debugPrint("did NOT detect string...");
@@ -190,7 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Initalize indicator for selected photos
     selected = new Set();
-    
+
   }
 
   @override
