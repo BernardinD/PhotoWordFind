@@ -178,10 +178,25 @@ class _MyHomePageState extends State<MyHomePage> {
   List<PhotoViewGalleryPageOptions> images = [];
   String _directoryPath;
   Set selected;
-  var icon;
+  var snapchat_icon, gallery_icon;
+
+  String snapchat_uri = 'com.snapchat.android',
+  gallery_uri = 'com.sec.android.gallery3d';
+
+
+
+
 
   void initState() {
     super.initState();
+
+    DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
+
+      for(var app in apps){
+        if(app.appName.toLowerCase().contains("gallery"))
+          debugPrint("$app");
+      }
+    });
 
     _pr = new ProgressDialog(context, type: ProgressDialogType.Download, isDismissible: false);
     _pr.style(
@@ -263,18 +278,40 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               FloatingActionButton(
-                onPressed: () => DeviceApps.openApp('com.snapchat.android'),
-                child: icon?? FutureBuilder(
+                backgroundColor: Colors.white,
+                onPressed: () => DeviceApps.openApp(snapchat_uri),
+                child: snapchat_icon?? FutureBuilder(
                   // Get icon
-                  future: DeviceApps.getApp('com.snapchat.android', true),
+                  future: DeviceApps.getApp(snapchat_uri, true),
                   // Build icon when retrieved
                   builder: (context, snapshot) {
                     if(snapshot.connectionState == ConnectionState.done){
                       var value = snapshot.data;
                       ApplicationWithIcon app;
                       app = (value as ApplicationWithIcon);
-                      icon = Image.memory(app.icon);
-                      return icon;
+                      snapchat_icon = Image.memory(app.icon);
+                      return snapchat_icon;
+                    }
+                    else{
+                      return CircularProgressIndicator();
+                    }
+                  }
+                ),
+              ),
+              FloatingActionButton(
+                backgroundColor: Colors.white,
+                onPressed: () => DeviceApps.openApp(gallery_uri),
+                child: gallery_icon?? FutureBuilder(
+                  // Get icon
+                  future: DeviceApps.getApp(gallery_uri, true),
+                  // Build icon when retrieved
+                  builder: (context, snapshot) {
+                    if(snapshot.connectionState == ConnectionState.done){
+                      var value = snapshot.data;
+                      ApplicationWithIcon app;
+                      app = (value as ApplicationWithIcon);
+                      gallery_icon = Image.memory(app.icon);
+                      return gallery_icon;
                     }
                     else{
                       return CircularProgressIndicator();
