@@ -196,6 +196,8 @@ class _MyHomePageState extends State<MyHomePage> {
   gallery_uri = 'com.sec.android.gallery3d',
   bumble_uri = 'com.bumble.app';
 
+  var galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
+
 
 
   void initState() {
@@ -232,7 +234,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-
+    // galleryController.
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -270,10 +272,17 @@ class _MyHomePageState extends State<MyHomePage> {
               flex: 9,
               child: Container(
                 height: MediaQuery.of(context).size.height,
-                child: PhotoViewGallery(
-                  scrollPhysics: const BouncingScrollPhysics(),
-                  pageOptions: images,
-                  pageController:PageController(viewportFraction: 1.1),
+                child: Scrollbar(
+                  isAlwaysShown: true,
+                  showTrackOnHover: true,
+                  thickness: 35,
+                  interactive: true,
+                  controller: galleryController,
+                  child: PhotoViewGallery(
+                    scrollPhysics: const BouncingScrollPhysics(),
+                    pageOptions: images,
+                    pageController: galleryController,
+                  ),
                 ),
               ),
             ),
@@ -657,8 +666,11 @@ class _MyHomePageState extends State<MyHomePage> {
     await _pr.show();
 
     // Reset Gallery
-    if(replace == null)
-      images= [];
+    if(replace == null) {
+      if(images.length > 0)
+        galleryController.jumpToPage(0);
+      images.clear();
+    }
 
     // Time search
     Stopwatch time_elasped = new Stopwatch();
