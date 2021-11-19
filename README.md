@@ -17,36 +17,14 @@ samples, guidance on mobile development, and a full API reference.
 
 Todos: 
 
-~~Time the speed of the OCR and crop separately~~
-
-~~Try scaling down image passed to OCR~~
-
-~~Look into the other image btyes reading method that's faster and doesn't block UI~~
-
-~~(Not necessary, reading turned out to be fast)~~
-
-~~Add photos to gallery in batches (requries async functionality)~~
+Add photos to gallery in batches (requries async functionality)
 
 Minimize code into services approach
 
-~~Add text box for select text~~
-
 Give selection text background color and highligh color
-
-~~Edit the find feature to save temp cropped images in cache~~
-
-~~Try sending data to isolate-handler as json~~
-
-~~Document code with comments~~
-
-~~Implement `display()` to show all & have option to select by long-press~~
-
-~~Add "copy" button next to snapname suggestion (Changed this to using SelectableText)~~
 
 Change Snap detection to checking all text on one line 
 
-~~Complete move feature (Not possible with current flutter capabilites and Android restrictions)~~
+Create GalleryCell object
 
-~~Add button to open snapchat~~
-
-~~Cache OCRs in a map~~
+Save original image used in GalleryCell object inside the object so that it can be used when `redoing` and the image doesn't get reloaded/re-adjusted
