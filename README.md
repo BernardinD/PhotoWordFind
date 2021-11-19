@@ -16,6 +16,7 @@ For help getting started with Flutter, view our
 samples, guidance on mobile development, and a full API reference.
 
 Todos: 
+
 ~~Time the speed of the OCR and crop separately~~
 
 ~~Try scaling down image passed to OCR~~
@@ -25,19 +26,25 @@ Todos:
 ~~(Not necessary, reading turned out to be fast)~~
 
 ~~Add photos to gallery in batches (requries async functionality)~~
-Minimize code into services approach 
+
+Minimize code into services approach
+
 ~~Add text box for select text ~~
+
 Give selection text background color and highligh color
+
 ~~Edit the find feature to save temp cropped images in cache ~~
 
 ~~Try sending data to isolate-handler as json~~
 
 ~~Document code with comments~~
 
-~~Implement `display` to show all & have option to select by long-press~~
+~~Implement `display()` to show all & have option to select by long-press~~
 
 ~~Add "copy" button next to snapname suggestion (Changed this to using SelectableText)~~
+
 Change Snap detection to checking all text on one line 
+
 ~~Complete move feature (Not possible with current flutter capabilites and Android restrictions)~~
 
 ~~Add button to open snapchat~~
