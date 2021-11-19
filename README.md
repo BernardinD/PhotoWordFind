@@ -16,7 +16,7 @@ For help getting started with Flutter, view our
 samples, guidance on mobile development, and a full API reference.
 
 Todos: 
-~~Time the speed of the OCR and crop separately                                                  ~~
+~~Time the speed of the OCR and crop separately~~
 ~~Try scaling down image passed to OCR                                                           ~~
 ~~Look into the other image btyes reading method that's faster and doesn't block UI              ~~
 ~~(Not necessary, reading turned out to be fast)                                                 ~~
