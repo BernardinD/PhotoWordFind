@@ -715,6 +715,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   var pair = replace.entries.first;
                   int idx = pair.key;
                   String file = pair.value;
+                  debugPrint("f.path: ${f.path}");
+                  debugPrint("file path: $file");
                   images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
                 }
 
