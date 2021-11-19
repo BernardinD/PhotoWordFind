@@ -29,11 +29,11 @@ Todos:
 
 Minimize code into services approach
 
-~~Add text box for select text ~~
+~~Add text box for select text~~
 
 Give selection text background color and highligh color
 
-~~Edit the find feature to save temp cropped images in cache ~~
+~~Edit the find feature to save temp cropped images in cache~~
 
 ~~Try sending data to isolate-handler as json~~
 
