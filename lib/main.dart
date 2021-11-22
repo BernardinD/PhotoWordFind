@@ -190,11 +190,12 @@ class _MyHomePageState extends State<MyHomePage> {
   List<PhotoViewGalleryPageOptions> images = [];
   String _directoryPath;
   Set selected;
-  var snapchat_icon, gallery_icon, bumble_icon;
+  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
 
   String snapchat_uri = 'com.snapchat.android',
   gallery_uri = 'com.sec.android.gallery3d',
-  bumble_uri = 'com.bumble.app';
+  bumble_uri = 'com.bumble.app',
+  instagram_uri = 'com.instagram.android';
 
   var galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
 
@@ -206,7 +207,7 @@ class _MyHomePageState extends State<MyHomePage> {
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
-        if(app.appName.toLowerCase().contains("bumble"))
+        if(app.appName.toLowerCase().contains("instagram"))
           debugPrint("$app");
       }
     });
@@ -269,7 +270,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             if (images.isNotEmpty) Expanded(
-              flex: 9,
+              flex: 8,
               child: Container(
                 height: MediaQuery.of(context).size.height,
                 child: Scrollbar(
@@ -290,79 +291,104 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       persistentFooterButtons: [
-        GestureDetector(
-          onTap: changeDir,
-          child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              FloatingActionButton(
-                backgroundColor: Colors.white,
-                onPressed: () => DeviceApps.openApp(snapchat_uri),
-                child: snapchat_icon?? FutureBuilder(
-                  // Get icon
-                  future: DeviceApps.getApp(snapchat_uri, true),
-                  // Build icon when retrieved
-                  builder: (context, snapshot) {
-                    if(snapshot.connectionState == ConnectionState.done){
-                      var value = snapshot.data;
-                      ApplicationWithIcon app;
-                      app = (value as ApplicationWithIcon);
-                      snapchat_icon = Image.memory(app.icon);
-                      return snapchat_icon;
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 1.20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                FloatingActionButton(
+                  backgroundColor: Colors.white,
+                  onPressed: () => DeviceApps.openApp(snapchat_uri),
+                  child: snapchat_icon?? FutureBuilder(
+                    // Get icon
+                    future: DeviceApps.getApp(snapchat_uri, true),
+                    // Build icon when retrieved
+                    builder: (context, snapshot) {
+                      if(snapshot.connectionState == ConnectionState.done){
+                        var value = snapshot.data;
+                        ApplicationWithIcon app;
+                        app = (value as ApplicationWithIcon);
+                        snapchat_icon = Image.memory(app.icon);
+                        return snapchat_icon;
+                      }
+                      else{
+                        return CircularProgressIndicator();
+                      }
                     }
-                    else{
-                      return CircularProgressIndicator();
-                    }
-                  }
+                  ),
                 ),
-              ),
-              FloatingActionButton(
-                backgroundColor: Colors.white,
-                onPressed: () => DeviceApps.openApp(gallery_uri),
-                child: gallery_icon?? FutureBuilder(
-                  // Get icon
-                  future: DeviceApps.getApp(gallery_uri, true),
-                  // Build icon when retrieved
-                  builder: (context, snapshot) {
-                    if(snapshot.connectionState == ConnectionState.done){
-                      var value = snapshot.data;
-                      ApplicationWithIcon app;
-                      app = (value as ApplicationWithIcon);
-                      gallery_icon = Image.memory(app.icon);
-                      return gallery_icon;
+                FloatingActionButton(
+                  backgroundColor: Colors.white,
+                  onPressed: () => DeviceApps.openApp(gallery_uri),
+                  child: gallery_icon?? FutureBuilder(
+                    // Get icon
+                    future: DeviceApps.getApp(gallery_uri, true),
+                    // Build icon when retrieved
+                    builder: (context, snapshot) {
+                      if(snapshot.connectionState == ConnectionState.done){
+                        var value = snapshot.data;
+                        ApplicationWithIcon app;
+                        app = (value as ApplicationWithIcon);
+                        gallery_icon = Image.memory(app.icon);
+                        return gallery_icon;
+                      }
+                      else{
+                        return CircularProgressIndicator();
+                      }
                     }
-                    else{
-                      return CircularProgressIndicator();
-                    }
-                  }
+                  ),
                 ),
-              ),
-              FloatingActionButton(
-                backgroundColor: Colors.white,
-                onPressed: () => DeviceApps.openApp(bumble_uri),
-                child: bumble_icon?? FutureBuilder(
-                  // Get icon
-                  future: DeviceApps.getApp(bumble_uri, true),
-                  // Build icon when retrieved
-                  builder: (context, snapshot) {
-                    if(snapshot.connectionState == ConnectionState.done){
-                      var value = snapshot.data;
-                      ApplicationWithIcon app;
-                      app = (value as ApplicationWithIcon);
-                      bumble_icon = Image.memory(app.icon);
-                      return bumble_icon;
+                FloatingActionButton(
+                  backgroundColor: Colors.white,
+                  onPressed: () => DeviceApps.openApp(bumble_uri),
+                  child: bumble_icon?? FutureBuilder(
+                    // Get icon
+                    future: DeviceApps.getApp(bumble_uri, true),
+                    // Build icon when retrieved
+                    builder: (context, snapshot) {
+                      if(snapshot.connectionState == ConnectionState.done){
+                        var value = snapshot.data;
+                        ApplicationWithIcon app;
+                        app = (value as ApplicationWithIcon);
+                        bumble_icon = Image.memory(app.icon);
+                        return bumble_icon;
+                      }
+                      else{
+                        return CircularProgressIndicator();
+                      }
                     }
-                    else{
-                      return CircularProgressIndicator();
-                    }
-                  }
+                  ),
                 ),
-              ),
-              FloatingActionButton(
-                // tooltip: 'Get Text',
-                child: Icon(Icons.drive_folder_upload),
-              ),
-            ],
+                FloatingActionButton(
+                  // tooltip: 'Get Text',
+                  onPressed: changeDir,
+                  child: Icon(Icons.drive_folder_upload),
+                ),
+                FloatingActionButton(
+                  backgroundColor: Colors.white,
+                  onPressed: () => DeviceApps.openApp(instagram_uri),
+                  child: instagram_icon?? FutureBuilder(
+                    // Get icon
+                      future: DeviceApps.getApp(instagram_uri, true),
+                      // Build icon when retrieved
+                      builder: (context, snapshot) {
+                        if(snapshot.connectionState == ConnectionState.done){
+                          var value = snapshot.data;
+                          ApplicationWithIcon app;
+                          app = (value as ApplicationWithIcon);
+                          instagram_icon = Image.memory(app.icon);
+                          return instagram_icon;
+                        }
+                        else{
+                          return CircularProgressIndicator();
+                        }
+                      }
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
