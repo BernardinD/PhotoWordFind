@@ -271,20 +271,17 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             if (images.isNotEmpty) Expanded(
               flex: 8,
-              child: SingleChildScrollView(
-                child: Container(
-                  height: MediaQuery.of(context).size.height,
-                  child: Scrollbar(
-                    isAlwaysShown: true,
-                    showTrackOnHover: true,
-                    thickness: 35,
-                    interactive: true,
-                    controller: galleryController,
-                    child: PhotoViewGallery(
-                      scrollPhysics: const BouncingScrollPhysics(),
-                      pageOptions: images,
-                      pageController: galleryController,
-                    ),
+              child: Container(
+                child: Scrollbar(
+                  isAlwaysShown: true,
+                  showTrackOnHover: true,
+                  thickness: 35,
+                  interactive: true,
+                  controller: galleryController,
+                  child: PhotoViewGallery(
+                    scrollPhysics: const BouncingScrollPhysics(),
+                    pageOptions: images,
+                    pageController: galleryController,
                   ),
                 ),
               ),
