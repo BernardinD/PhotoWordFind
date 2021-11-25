@@ -94,6 +94,19 @@ Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
   return OCR(temp_cropped.path);
 }
 
+List<String> splitFileNameByDots(String f){
+  List<String> split = f.split("/").last.split(".");
+
+  return split;
+}
+
+String filenameToKey(String f){
+  List<String> split = splitFileNameByDots(f);
+  String key = split.first;
+
+  return key;
+}
+
 // Runs the `find` operation in a Isolate thread
 void threadFunction(Map<String, dynamic> context) {
 
@@ -107,30 +120,25 @@ void threadFunction(Map<String, dynamic> context) {
       final prefs = await SharedPreferences.getInstance();
 
       Map<String, dynamic> message = json.decode(receivedData);
-      dynamic f = message["f"];
+      String f = message["f"];
       ui.Size size = ui.Size(message['width'].toDouble(), message['height'].toDouble());
 
-      List<String> split = f.split("/").last.split(".");
-      String key = split.first;
+      List<String> split = splitFileNameByDots(f);
+      String key = filenameToKey(f);
       bool replacing = split.length == 3;
       
       if(replacing) {
         prefs.remove(key);
       }
-      if(prefs.getString(key) != null){
-        String result = prefs.getString(key);
-        messenger.send(result);
-      }
-      else {
-        runOCR(f, size, crop: !replacing ).then((result) {
-          if (result is String) {
-            // Save OCR result
-            prefs.setString(key, result);
-            // Send back result to main thread
-            messenger.send(result);
-          }
-        });
-      }
+
+      runOCR(f, size, crop: !replacing ).then((result) {
+        if (result is String) {
+          // Save OCR result
+          prefs.setString(key, result);
+          // Send back result to main thread
+          messenger.send(result);
+        }
+      });
     }
     else{
       debugPrint("did NOT detect string...");
@@ -235,7 +243,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // galleryController.
+
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -404,133 +412,127 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return PhotoViewGalleryPageOptions.customChild(
       child: Container(
-        child: Column(
-          children: [
-            Container(
-              width: MediaQuery.of(context).size.width * 0.95,
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Photo
-                    Expanded(
-                      flex: 1,
-                      child: Container(
-                        height: 450,
-                        // width: 200,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: ElevatedButton(
-                                child: Text("test", style: TextStyle(color: Colors.white),),
-                                onPressed: () async{
-                                  // return null;
-                                  // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
-                                  RenderRepaintBoundary boundary = globalKey.currentContext.findRenderObject();
-                                  var image = await boundary.toImage();
-                                  ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
-                                  Uint8List pngBytes = byteData.buffer.asUint8List();
+        width: MediaQuery.of(context).size.width * 0.95,
+        child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Photo
+              Expanded(
+                flex: 1,
+                child: Container(
+                  height: 450,
+                  // width: 200,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: ElevatedButton(
+                          child: Text("test", style: TextStyle(color: Colors.white),),
+                          onPressed: () async{
+                            // return null;
+                            // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
+                            RenderRepaintBoundary boundary = globalKey.currentContext.findRenderObject();
+                            var image = await boundary.toImage();
+                            ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
+                            Uint8List pngBytes = byteData.buffer.asUint8List();
 
-                                  // Create file location for image
-                                  final tempDir = Directory.systemTemp;
-                                  print("tempDir = ${tempDir.path}");
-                                  final file = await new File('${tempDir.path}/${file_name.split(".").first}.repl.png').create().catchError((e){
-                                    print("file creation failed.");
-                                    print(e);
-                                  });
+                            // Create file location for image
+                            final tempDir = Directory.systemTemp;
+                            print("tempDir = ${tempDir.path}");
+                            final file = await new File('${tempDir.path}/${file_name.split(".").first}.repl.png').create().catchError((e){
+                              print("file creation failed.");
+                              print(e);
+                            });
 
-                                  // Save image locally
-                                  await file.writeAsBytes(pngBytes).catchError((e){
-                                    print("file writing failed.");
-                                    print(e);
-                                  });
-                                  print("image file exists: " + (await file.exists()).toString());
-                                  print("image file path: " + (await file.path));
+                            // Save image locally
+                            await file.writeAsBytes(pngBytes).catchError((e){
+                              print("file writing failed.");
+                              print(e);
+                            });
+                            print("image file exists: " + (await file.exists()).toString());
+                            print("image file path: " + (await file.path));
 
-                                  /*
-                                   * [Testing]
-                                   */
-                                  // Add image to gallery
-                                  // setState(() {
-                                  //   // images[list_pos] = newGalleryCell(text, "result", file, new File(file.path), position: list_pos);
-                                  // });
+                            /*
+                             * [Testing]
+                             */
+                            // Add image to gallery
+                            // setState(() {
+                            //   // images[list_pos] = newGalleryCell(text, "result", file, new File(file.path), position: list_pos);
+                            // });
 
-                                  // Run OCR
-                                  // Returns suggested snap username or empty string
-                                  Function post = (String text, String _){
-                                    String result = findSnapKeyword(key, text)?? "";
+                            // Run OCR
+                            // Returns suggested snap username or empty string
+                            Function post = (String text, String _){
+                              String result = findSnapKeyword(key, text)?? "";
 
-                                    debugPrint("ran display Post");
+                              debugPrint("ran display Post");
 
-                                    return result;
-                                  };
-                                  ocrParallel([new File(file.path)], post, replace: {list_pos : f.path}).then((value) => setState((){}));
-                                },
-                              ),
-                            ),
-                            Expanded(
-                              flex : 9,
-                              child: RepaintBoundary(
-                                key: globalKey,
-                                child: Container(
-                                  child: PhotoView(
-                                    imageProvider: FileImage(image),
-                                    initialScale: PhotoViewComputedScale.contained,
-                                    minScale: PhotoViewComputedScale.contained *
-                                        (0.5 + images.length / 10),
-                                    maxScale: PhotoViewComputedScale.covered * 4.1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                              return result;
+                            };
+                            ocrParallel([new File(file.path)], post, replace: {list_pos : f.path}).then((value) => setState((){}));
+                          },
                         ),
                       ),
-                    ),
-                    // Analysis
-                    Expanded(
-                      flex : 1,
-                      child: Container(
-                        child: Center(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Filename
-                              Container(
-                                width: MediaQuery.of(context).size.width/2,
-                                child: ListTile(
-                                  title: SelectableText(
-                                    file_name,
-                                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
-                                  ),
-                                ),
-                              ),
-                              // Snap suggestion
-                              Container(
-                                width: MediaQuery.of(context).size.width/2,
-                                child: ListTile(
-                                  title: SelectableText(suggestion, style: TextStyle(color: Colors.redAccent),),
-                                ),
-                              ),
-                              // Entire OCR
-                              Container(
-                                  height: MediaQuery.of(context).size.height * 0.25,
-                                  color: Colors.white,
-                                  child: SelectableText(
-                                    text.toString(),
-                                    showCursor: true,
-                                  )
-                              ),
-                            ],
+                      Expanded(
+                        flex : 9,
+                        child: RepaintBoundary(
+                          key: globalKey,
+                          child: Container(
+                            child: PhotoView(
+                              imageProvider: FileImage(image),
+                              initialScale: PhotoViewComputedScale.contained,
+                              minScale: PhotoViewComputedScale.contained *
+                                  (0.5 + images.length / 10),
+                              maxScale: PhotoViewComputedScale.covered * 4.1,
+                            ),
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              // Analysis
+              Expanded(
+                flex : 1,
+                child: Container(
+                  child: Center(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Filename
+                        Container(
+                          width: MediaQuery.of(context).size.width/2,
+                          child: ListTile(
+                            title: SelectableText(
+                              file_name,
+                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
+                            ),
+                          ),
+                        ),
+                        // Snap suggestion
+                        Container(
+                          width: MediaQuery.of(context).size.width/2,
+                          child: ListTile(
+                            title: SelectableText(suggestion, style: TextStyle(color: Colors.redAccent),),
+                          ),
+                        ),
+                        // Entire OCR
+                        Container(
+                            height: MediaQuery.of(context).size.height * 0.25,
+                            color: Colors.white,
+                            child: SelectableText(
+                              text.toString(),
+                              showCursor: true,
+                            )
+                        ),
+                      ],
                     ),
-                  ]),
-            ),
-          ],
-        ),
+                  ),
+                ),
+              ),
+            ]),
       ),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
@@ -688,6 +690,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future ocrParallel(List paths, Function post, {String query, bool findFirst = false, Map<int, String> replace}) async{
 
+    _pr.update(progress: 0);
     await _pr.show();
 
     // Reset Gallery
@@ -700,12 +703,13 @@ class _MyHomePageState extends State<MyHomePage> {
     // Time search
     Stopwatch time_elasped = new Stopwatch();
 
-    _pr.update(progress: 0);
 
     final isolates = IsolateHandler();
     int completed = 0;
     int path_idx = 0;
     time_elasped.start();
+    final prefs = await SharedPreferences.getInstance();
+
     for(path_idx = 0; path_idx < paths.length; path_idx++){
 
 
@@ -721,83 +725,100 @@ class _MyHomePageState extends State<MyHomePage> {
       final Map<String, dynamic> data = json.decode(rawJson);
       String iso_name = f.path.split("/").last;
 
-      // Start up the thread and configures the callbacks
-      debugPrint("spawning new iso....");
-      isolates.spawn<String>(
-          threadFunction,
-          name: iso_name,
-          onInitialized: () => isolates.send(rawJson, to: iso_name),
-          onReceive: (dynamic signal) {
-            if(signal is String){
-              String text = signal;
-              // If query word has been found
-              String result = post(text, query);
-              if(result != null) {
+      // Define callback
+      Function onReceive = (dynamic signal) {
+        if(signal is String){
+          String text = signal;
+          // If query word has been found
+          String result = post(text, query);
+          if(result != null) {
 
-                if(replace == null)
-                  images.add(newGalleryCell(text, result, f, new File(f.path)));
-                else{
-                  var pair = replace.entries.first;
-                  int idx = pair.key;
-                  String file = pair.value;
-                  debugPrint("f.path: ${f.path}");
-                  debugPrint("file path: $file");
-                  images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
-                }
-
-                debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
-
-                // Stop creation of new isolates and to close dialogs
-                if(findFirst) {
-                  path_idx = paths.length;
-                  completed = paths.length;
-                }
-              }
-
-            }
+            if(replace == null)
+              images.add(newGalleryCell(text, result, f, new File(f.path)));
             else{
-              // Dispose of finished isolate
-              isolates.kill(iso_name);
+              var pair = replace.entries.first;
+              int idx = pair.key;
+              String file = pair.value;
+              debugPrint("f.path: ${f.path}");
+              debugPrint("file path: $file");
+              images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
             }
 
-            debugPrint("before `completed`... $completed <= ${paths.length}");
-            debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
+            debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
+
+            // Stop creation of new isolates and to close dialogs
+            if(findFirst) {
+              path_idx = paths.length;
+              completed = paths.length;
+            }
+          }
+
+        }
+        else{
+          // Dispose of finished isolate
+          isolates.kill(iso_name);
+        }
+
+        debugPrint("before `completed`... $completed <= ${paths.length}");
+        debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
 
 
-            // Increase progress bar
-            int update = (completed+1)*100~/paths.length;
-            update = update.clamp(0, 100);
-            print("Increasing... " + update.toString());
-            _pr.update(maxProgress: 100.0, progress: update/1.0);
+        // Increase progress bar
+        int update = (completed+1)*100~/paths.length;
+        update = update.clamp(0, 100);
+        print("Increasing... " + update.toString());
+        _pr.update(maxProgress: 100.0, progress: update/1.0);
 
-            // Close dialogs once finished with all images
-            if(++completed >= paths.length){
-              // Terminate running isolates
-              List names = isolates.isolates.keys.toList();
-              for(String name in names){
-                // Don't kill current thread
-                if(name == iso_name) continue;
+        // Close dialogs once finished with all images
+        if(++completed >= paths.length){
+          // Terminate running isolates
+          List names = isolates.isolates.keys.toList();
+          for(String name in names){
+            // Don't kill current thread
+            if(name == iso_name) continue;
 
-                debugPrint("iso-name: ${name}");
-                if(isolates.isolates[name].messenger.connectionEstablished ) {
-                  try {
-                    isolates.kill(name);
-                  }
-                  catch(e){
-                    debugPrint("pass kill error");
-                  }
-                }
+            debugPrint("iso-name: ${name}");
+            if(isolates.isolates[name].messenger.connectionEstablished ) {
+              try {
+                isolates.kill(name);
               }
-              debugPrint("popping...");
-
-              // Quick fix for this callback being called twice
-              // TODO: Find way to stop isolates immediately so they don't get to this point
-              if(_pr.isShowing())
-                _pr.hide().then((value) {
-                  setState(() => {});
-                });
+              catch(e){
+                debugPrint("pass kill error");
+              }
             }
-          });
+          }
+          debugPrint("popping...");
+
+          // Quick fix for this callback being called twice
+          // TODO: Find way to stop isolates immediately so they don't get to this point
+          if(_pr.isShowing())
+            _pr.hide().then((value) {
+              setState(() => {});
+            });
+        }
+      };
+
+      List<String> split = splitFileNameByDots(f.path);
+      String key = filenameToKey(f.path);
+      bool replacing = split.length == 3;
+
+      if(replacing) {
+        prefs.remove(key);
+      }
+
+      if(prefs.getString(key) != null){
+        String result = prefs.getString(key);
+        onReceive(result);
+      }
+      else {
+        // Start up the thread and configures the callbacks
+        debugPrint("spawning new iso....");
+        isolates.spawn<String>(
+            threadFunction,
+            name: iso_name,
+            onInitialized: () => isolates.send(rawJson, to: iso_name),
+            onReceive: (dynamic signal) => onReceive(signal));
+      }
 
     }
   }
