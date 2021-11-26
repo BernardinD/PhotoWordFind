@@ -590,6 +590,12 @@ class _MyHomePageState extends State<MyHomePage> {
   /// Displays a dialog box for input to the `find` feature
   void showFindPrompt(){
     final formKey = GlobalKey<FormState>();
+
+    Function submit = (){
+      if (formKey.currentState.validate()) {
+        formKey.currentState.save();
+      }
+    };
     showDialog(context: context, builder: (BuildContext context)
     {
       return AlertDialog(
@@ -606,13 +612,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
                     onSaved: (input) => findSnap(input.trim()),
+                    onFieldSubmitted: (String) => submit(),
                   ),
                   ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState.validate()) {
-                        formKey.currentState.save();
-                      }
-                    },
+                    onPressed: submit,
                     child: Text('Find'),
                   ),
                 ],
