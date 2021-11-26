@@ -599,26 +599,28 @@ class _MyHomePageState extends State<MyHomePage> {
     showDialog(context: context, builder: (BuildContext context)
     {
       return AlertDialog(
-          content: Container(
-            child: Form(
-              key: formKey,
-              child: Column(
-                children: <Widget>[
-                  TextFormField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                        labelText: "Input name"
+          content: SingleChildScrollView(
+            child: Container(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  children: <Widget>[
+                    TextFormField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                          labelText: "Input name"
+                      ),
+                      // TODO: Make validation failure message dynamic
+                      validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
+                      onSaved: (input) => findSnap(input.trim()),
+                      onFieldSubmitted: (String) => submit(),
                     ),
-                    // TODO: Make validation failure message dynamic
-                    validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
-                    onSaved: (input) => findSnap(input.trim()),
-                    onFieldSubmitted: (String) => submit(),
-                  ),
-                  ElevatedButton(
-                    onPressed: submit,
-                    child: Text('Find'),
-                  ),
-                ],
+                    ElevatedButton(
+                      onPressed: submit,
+                      child: Text('Find'),
+                    ),
+                  ],
+                ),
               ),
             ),
           )
