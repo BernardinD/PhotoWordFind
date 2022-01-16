@@ -271,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     onLongPress: () => displaySnaps(false),
                   ),
                   ElevatedButton(
-                    // onPressed: move,
+                    onPressed: null,
                     child: Text("Move"),
                   ),
                 ],
@@ -283,7 +283,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Scrollbar(
                   isAlwaysShown: true,
                   showTrackOnHover: true,
-                  thickness: 35,
+                  thickness: 15,
                   interactive: true,
                   controller: galleryController,
                   child: PhotoViewGallery(
@@ -402,6 +402,10 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void move(){
+
+  }
+
   // Creates standardized Widget that will seen in gallery
   PhotoViewGalleryPageOptions newGalleryCell(String text, String suggestion, dynamic f, File image, {int position}){
     String file_name = f.path.split("/").last;
@@ -421,7 +425,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 flex: 1,
                 child: Container(
                   height: 450,
-                  // width: 200,
                   child: Column(
                     children: [
                       Expanded(
@@ -502,31 +505,50 @@ class _MyHomePageState extends State<MyHomePage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // Filename
-                        Container(
-                          width: MediaQuery.of(context).size.width/2,
-                          child: ListTile(
-                            title: SelectableText(
-                              file_name,
-                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
+                        Expanded(
+                          flex: 1,
+                          child: Container(
+                            child: ListTile(
+                              title: SelectableText(
+                                file_name,
+                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
+                              ),
                             ),
                           ),
                         ),
+
+                        Spacer(
+
+                        ),
+
                         // Snap suggestion
-                        Container(
-                          width: MediaQuery.of(context).size.width/2,
-                          child: ListTile(
-                            title: SelectableText(suggestion, style: TextStyle(color: Colors.redAccent),),
+                        Expanded(
+                          flex: 1,
+                          child: Container(
+                            child: ListTile(
+                              title: SelectableText(suggestion, style: TextStyle(color: Colors.redAccent),),
+                            ),
                           ),
                         ),
-                        // Entire OCR
-                        Container(
-                            height: MediaQuery.of(context).size.height * 0.25,
-                            color: Colors.white,
-                            child: SelectableText(
-                              text.toString(),
-                              showCursor: true,
-                            )
+
+                        Spacer(
+
                         ),
+
+                        // Entire OCR
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                              color: Colors.white,
+                              child: SelectableText(
+                                text.toString(),
+                                showCursor: true,
+                              )
+                          ),
+                        ),
+                        Spacer(
+
+                        )
                       ],
                     ),
                   ),
@@ -600,27 +622,25 @@ class _MyHomePageState extends State<MyHomePage> {
     {
       return AlertDialog(
           content: SingleChildScrollView(
-            child: Container(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  children: <Widget>[
-                    TextFormField(
-                      autofocus: true,
-                      decoration: InputDecoration(
-                          labelText: "Input name"
-                      ),
-                      // TODO: Make validation failure message dynamic
-                      validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
-                      onSaved: (input) => findSnap(input.trim()),
-                      onFieldSubmitted: (String) => submit(),
+            child: Form(
+              key: formKey,
+              child: Column(
+                children: <Widget>[
+                  TextFormField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                        labelText: "Input name"
                     ),
-                    ElevatedButton(
-                      onPressed: submit,
-                      child: Text('Find'),
-                    ),
-                  ],
-                ),
+                    // TODO: Make validation failure message dynamic
+                    validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
+                    onSaved: (input) => findSnap(input.trim()),
+                    onFieldSubmitted: (String) => submit(),
+                  ),
+                  ElevatedButton(
+                    onPressed: submit,
+                    child: Text('Find'),
+                  ),
+                ],
               ),
             ),
           )
