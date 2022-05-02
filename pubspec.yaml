@@ -51,7 +51,7 @@ dependencies:
   shared_preferences: ^2.0.6
 
   # Request storage permissions
-  permission_handler: ^9.2.0
+  permission_handler: ^7.1.0
 
 
   # The following adds the Cupertino Icons font to your application.

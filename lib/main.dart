@@ -199,6 +199,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<PhotoViewGalleryPageOptions> images = [];
   String _directoryPath;
   Set selected;
+  FToast fToast;
   var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
 
   String snapchat_uri = 'com.snapchat.android',
@@ -218,7 +219,14 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
 
+    // Initalize toast for user alerts
+    fToast = FToast();
+    fToast.init(context);
+
+    // Request storage permissions
     requestPermissions();
+
+    // Load app images and links
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
@@ -278,7 +286,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     onLongPress: () => displaySnaps(false),
                   ),
                   ElevatedButton(
-                    onPressed: null,
+                    onPressed: selected.isNotEmpty ? move : null,
                     child: Text("Move"),
                   ),
                 ],
@@ -409,8 +417,31 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void move(){
+  void move() async{
+    // Move selected images to new directory
+    if(selected.isNotEmpty) {
+      // Choose new directory
+      String new_dir = await FilePicker.platform.getDirectoryPath();
 
+      if(new_dir != null) {
+        var lst = selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
+
+        print("List:" + lst.toString());
+        String src, dst;
+        for(List<String> pair in lst){
+          src = pair[0];
+          dst = pair[1];
+          File(src).renameSync(dst);
+          // File(src).copySync(dst);
+          // File(src).deleteSync();
+        }
+
+        selected.clear();
+      }
+    }
+    else{
+      // Pop up detailing no files selected
+    }
   }
 
   // Creates standardized Widget that will seen in gallery
@@ -437,7 +468,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Expanded(
                         flex: 1,
                         child: ElevatedButton(
-                          child: Text("test", style: TextStyle(color: Colors.white),),
+                          child: Text("REDO", style: TextStyle(color: Colors.white),),
                           onPressed: () async{
                             // return null;
                             // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
@@ -524,6 +555,16 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ),
 
+                        Expanded(
+                            child: ElevatedButton(
+                              child: Text("Select"),
+                              onPressed: () {
+                                selected.contains(file_name) ? selected.remove(
+                                    file_name) : selected.add(file_name);
+                                _showToast(selected.contains(file_name));
+                              },
+                            )
+                        ),
                         Spacer(
 
                         ),
@@ -853,6 +894,38 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
     }
+  }
+
+  /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
+  void _showToast(bool selected){
+
+    // Make sure last toast has eneded
+    fToast.removeCustomToast();
+
+    Widget toast = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25.0),
+        color: selected ? Colors.greenAccent : Colors.grey,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          selected ? Icon(Icons.check) : Icon(Icons.not_interested_outlined),
+          SizedBox(
+            width: 12.0,
+          ),
+          Text(selected ? "Selected." : "Unselected."),
+        ],
+      ),
+    );
+
+
+    fToast.showToast(
+      child: toast,
+      gravity: ToastGravity.BOTTOM,
+      toastDuration: Duration(seconds: 1),
+    );
   }
 
   Future changeDir() async{
