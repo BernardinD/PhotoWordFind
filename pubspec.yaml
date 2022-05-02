@@ -30,7 +30,7 @@ dependencies:
   file_picker: ^4.2.0
   image_picker: ^0.8.4
 
-  isolate_handler: ^1.0.0
+  isolate_handler: ^1.0.1
 
   progress_dialog: ^1.2.4
 
@@ -49,6 +49,9 @@ dependencies:
 
   # Storing OCR results
   shared_preferences: ^2.0.6
+
+  # Request storage permissions
+  permission_handler: ^9.2.0
 
 
   # The following adds the Cupertino Icons font to your application.

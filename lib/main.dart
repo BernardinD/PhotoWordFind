@@ -17,6 +17,7 @@ import 'package:image/image.dart' as crop_image;
 import 'package:image_size_getter/file_input.dart';
 import 'package:image_size_getter/image_size_getter.dart';
 import 'package:isolate_handler/isolate_handler.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:progress_dialog/progress_dialog.dart';
 // import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
@@ -207,11 +208,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   var galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
 
-
+  void requestPermissions() async{
+    var status = await Permission.manageExternalStorage.status;
+    if(!status.isGranted){
+      await Permission.manageExternalStorage.request();
+    }
+  }
 
   void initState() {
     super.initState();
 
+    requestPermissions();
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
@@ -781,7 +788,7 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         else{
           // Dispose of finished isolate
-          isolates.kill(iso_name);
+          isolates.kill(iso_name, priority: Isolate.immediate);
         }
 
         debugPrint("before `completed`... $completed <= ${paths.length}");
@@ -805,7 +812,7 @@ class _MyHomePageState extends State<MyHomePage> {
             debugPrint("iso-name: ${name}");
             if(isolates.isolates[name].messenger.connectionEstablished ) {
               try {
-                isolates.kill(name);
+                isolates.kill(name, priority: Isolate.immediate);
               }
               catch(e){
                 debugPrint("pass kill error");
