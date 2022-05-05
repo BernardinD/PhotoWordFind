@@ -435,8 +435,9 @@ class _MyHomePageState extends State<MyHomePage> {
           // File(src).copySync(dst);
           // File(src).deleteSync();
         }
-
-        selected.clear();
+        setState(() {
+          selected.clear();
+        });
       }
     }
     else{
@@ -921,11 +922,14 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
 
-    fToast.showToast(
-      child: toast,
-      gravity: ToastGravity.BOTTOM,
-      toastDuration: Duration(seconds: 1),
-    );
+
+    setState(() {
+      fToast.showToast(
+        child: toast,
+        gravity: ToastGravity.BOTTOM,
+        toastDuration: Duration(seconds: 1),
+      );
+    });
   }
 
   Future changeDir() async{
