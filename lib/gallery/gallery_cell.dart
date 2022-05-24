@@ -10,11 +10,13 @@ import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart';
 
 class GalleryCell extends StatefulWidget {
-  const GalleryCell(File this.image, int this.list_pos, dynamic this.f, this.onPressedHandler, this.onLongPressedHandler, {Key key}) : super(key: key);
+  const GalleryCell(String this.text, String this.suggestedUsername, dynamic this.f, File this.src_image, this.list_pos, this.onPressedHandler, this.onLongPressedHandler, {Key key}) : super(key: key);
 
-  final File image;
-  final int list_pos;
+  final String text;
+  final String suggestedUsername;
   final dynamic f;
+  final File src_image;
+  final int Function(GalleryCell cell) list_pos;
   final void Function(String file_name) onPressedHandler;
   final void Function(String file_name) onLongPressedHandler;
 
@@ -35,102 +37,105 @@ class _GalleryCellState extends State<GalleryCell>{
 
     file_name = widget.f.path.split("/").last;
 
-    return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // Photo
-          Expanded(
-            flex: 1,
-            child: Container(
-              height: 450,
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton(
-                      child: Text("REDO", style: TextStyle(color: Colors.white),),
-                      onPressed: () => redo(file_name, f),
-                    ),
-                  ),
-                  Expanded(
-                    flex : 9,
-                    child: RepaintBoundary(
-                      key: globalKey,
-                      child: Container(
-                        child: PhotoView(
-                          imageProvider: FileImage(widget.image),
-                          initialScale: PhotoViewComputedScale.contained,
-                          minScale: PhotoViewComputedScale.contained *
-                              (0.5 + images.length / 10),
-                          maxScale: PhotoViewComputedScale.covered * 4.1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Analysis
-          Expanded(
-            flex : 1,
-            child: Container(
-              child: Center(
+    return Container(
+      key: ValueKey(file_name),
+      width: MediaQuery.of(context).size.width * 0.95,
+      child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // Photo
+            Expanded(
+              flex: 1,
+              child: Container(
+                height: 450,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Spacer(
-
-                    ),
-                    Expanded(
-                        child: ElevatedButton(
-                          child: Text("Select"),
-                          onPressed: () => widget.onPressedHandler(file_name),
-                          onLongPress: () => widget.onLongPressedHandler(file_name),
-                        )
-                    ),
-                    Spacer(
-
-                    ),
-
-                    // Snap suggestion
                     Expanded(
                       flex: 1,
-                      child: Container(
-                        child: ListTile(
-                          title: SelectableText(suggestedUsername, style: TextStyle(color: Colors.redAccent),),
+                      child: ElevatedButton(
+                        child: Text("REDO", style: TextStyle(color: Colors.white),),
+                        onPressed: () => redo(file_name, widget.f),
+                      ),
+                    ),
+                    Expanded(
+                      flex : 9,
+                      child: RepaintBoundary(
+                        key: globalKey,
+                        child: Container(
+                          child: PhotoView(
+                            imageProvider: FileImage(widget.src_image),
+                            initialScale: PhotoViewComputedScale.contained * 0.5,
+                            minScale: PhotoViewComputedScale.contained * 0.4,
+                            maxScale: PhotoViewComputedScale.covered * 2.1,
+                          ),
                         ),
                       ),
                     ),
-
-                    Spacer(
-
-                    ),
-
-                    // Entire OCR
-                    Expanded(
-                      flex: 3,
-                      child: Container(
-                          color: Colors.white,
-                          child: SelectableText(
-                            text.toString(),
-                            showCursor: true,
-                          )
-                      ),
-                    ),
-                    Spacer(
-
-                    )
                   ],
                 ),
               ),
             ),
-          ),
-        ]);
+            // Analysis
+            Expanded(
+              flex : 1,
+              child: Container(
+                child: Center(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Spacer(
+
+                      ),
+                      Expanded(
+                          child: ElevatedButton(
+                            child: Text("Select"),
+                            onPressed: () => widget.onPressedHandler(file_name),
+                            onLongPress: () => widget.onLongPressedHandler(file_name),
+                          )
+                      ),
+                      Spacer(
+
+                      ),
+
+                      // Snap suggestion
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          child: ListTile(
+                            title: SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),),
+                          ),
+                        ),
+                      ),
+
+                      Spacer(
+
+                      ),
+
+                      // Entire OCR
+                      Expanded(
+                        flex: 3,
+                        child: Container(
+                            color: Colors.white,
+                            child: SelectableText(
+                              widget.text.toString(),
+                              showCursor: true,
+                            )
+                        ),
+                      ),
+                      Spacer(
+
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ]),
+    );
   }
 
-  void redo(String file_name, dynamic f) async{
+  void redo(String file_name, dynamic src_image) async{
     // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
     RenderRepaintBoundary boundary = globalKey.currentContext.findRenderObject();
     var image = await boundary.toImage();
@@ -163,7 +168,7 @@ class _GalleryCellState extends State<GalleryCell>{
 
       return result;
     };
-    ocrParallel([new File(file.path)], post, replace: f.path).then((value) => setState((){}));
+    ocrParallel([new File(file.path)], post, replace: {widget.list_pos(widget) : src_image.path}).then((value) => setState((){}));
   }
 
 }

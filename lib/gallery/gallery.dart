@@ -6,6 +6,7 @@ import 'dart:ui';
 
 import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
+import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -15,49 +16,71 @@ class Gallery{
 
   List<PhotoViewGalleryPageOptions> _images;
 
-  List<PhotoViewGalleryPageOptions> get images => _images;
-
-  set images(List<PhotoViewGalleryPageOptions> images) {
-    _images = images;
-  }
   Set _selected;
+  var _galleryController;
 
+  // Getters
+  List<PhotoViewGalleryPageOptions> get images => _images;
   Set get selected => _selected;
+  get galleryController => _galleryController;
 
+  // Setters
   set selected(Set selected) {
     _selected = selected;
   }
-
-  var _galleryController;
-
-  get galleryController => _galleryController;
-
   set galleryController(galleryController) {
     _galleryController = galleryController;
   }
 
   Gallery(){
 
-    // Initalize indicator for selected photos
-    selected = new Set();
+    // Initialize indicator for selected photos
+    _selected = new Set();
 
-    galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
-    images = [];
+    _galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
+    _images = [];
   }
 
-  bool addNewCell(){
-    String file_name = f.path.split("/").last;
-    int list_pos = position?? gallery.images.length;
+  int length(){
+    return _images.length;
+  }
+
+  void clear(){
+    _images.clear();
+  }
+
+  void removeSelected(){
+    _images.removeWhere((cell) => _selected.contains((cell.child.key as ValueKey<String>).value));
+    _selected.clear();
+  }
+
+  // Creates standardized Widget that will seen in gallery
+  void addNewCell(String text, String suggestedUsername, dynamic f, File image){
+    Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
-    PhotoViewGalleryPageOptions.customChild(
-      child: Container(
-        key: ValueKey(file_name),
-        width: MediaQuery.of(context).size.width * 0.95,
-        child: GalleryCell(),
-      ),
+    var cell = PhotoViewGalleryPageOptions.customChild(
+      child: GalleryCell(text, suggestedUsername, f, image, redo_list_pos, onPressed, onLongPress),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
+
+    _images.add(cell);
+  }
+
+  void redoCell(String text, String suggestedUsername, int idx){
+    Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
+
+
+    GalleryCell replacing = _images[idx].child as GalleryCell;
+    var display_image = replacing.src_image;
+    var f = replacing.f;
+
+    var cell = PhotoViewGalleryPageOptions.customChild(
+      child: GalleryCell(text, suggestedUsername, f, display_image, redo_list_pos, onPressed, onLongPress),
+      // heroAttributes: const HeroAttributes(tag: "tag1"),
+    );
+
+    _images[idx] = cell;
   }
 
 
@@ -70,5 +93,15 @@ class Gallery{
   void onLongPress(String file_name){
     Clipboard.setData(ClipboardData(text: file_name));
     filenameCopiedMessage();
+  }
+
+
+  static void selectImage(bool selected){
+    Function message = (selected) => (selected ? "Selected." : "Unselected.");
+    Toasts.showToast(selected, message);
+  }
+
+  static void filenameCopiedMessage(){
+    Toasts.showToast(true, (state)=>"File name copied to clipboard");
   }
 }

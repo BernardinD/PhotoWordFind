@@ -9,6 +9,7 @@ import 'dart:ui';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/utils/image_utils.dart';
+import 'package:PhotoWordFind/utils/toast_utils.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -154,7 +155,6 @@ class _MyHomePageState extends State<MyHomePage> {
     static ProgressDialog _pr;
   String _directoryPath;
   Gallery gallery = Gallery();
-  FToast fToast;
   var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
 
   String snapchat_uri = 'com.snapchat.android',
@@ -174,8 +174,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     // Initalize toast for user alerts
-    fToast = FToast();
-    fToast.init(context);
+    Toasts.initToasts(context);
 
     // Request storage permissions
     requestPermissions();
@@ -386,173 +385,13 @@ class _MyHomePageState extends State<MyHomePage> {
           File(src).renameSync(dst);
         }
         setState(() {
-          gallery.images.removeWhere((cell) => gallery.selected.contains((cell.child.key as ValueKey<String>).value));
-          gallery.selected.clear();
+          gallery.removeSelected();
         });
       }
     }
     else{
       // Pop up detailing no files selected
     }
-  }
-
-  // Creates standardized Widget that will seen in gallery
-  PhotoViewGalleryPageOptions newGalleryCell(String text, String suggestedUsername, dynamic f, File image, {int position}){
-    String file_name = f.path.split("/").last;
-    int list_pos = position?? gallery.images.length;
-
-    // Used for controlling when to take screenshot
-    GlobalKey globalKey = new GlobalKey();
-
-    return PhotoViewGalleryPageOptions.customChild(
-      child: Container(
-        key: ValueKey(file_name),
-        width: MediaQuery.of(context).size.width * 0.95,
-        child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Photo
-              Expanded(
-                flex: 1,
-                child: Container(
-                  height: 450,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: ElevatedButton(
-                          child: Text("REDO", style: TextStyle(color: Colors.white),),
-                          onPressed: () async{
-                            // return null;
-                            // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
-                            RenderRepaintBoundary boundary = globalKey.currentContext.findRenderObject();
-                            var image = await boundary.toImage();
-                            ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
-                            Uint8List pngBytes = byteData.buffer.asUint8List();
-
-                            // Create file location for image
-                            final tempDir = Directory.systemTemp;
-                            print("tempDir = ${tempDir.path}");
-                            final file = await new File('${tempDir.path}/${file_name.split(".").first}.repl.png').create().catchError((e){
-                              print("file creation failed.");
-                              print(e);
-                            });
-
-                            // Save image locally
-                            await file.writeAsBytes(pngBytes).catchError((e){
-                              print("file writing failed.");
-                              print(e);
-                            });
-                            print("image file exists: " + (await file.exists()).toString());
-                            print("image file path: " + (await file.path));
-
-                            /*
-                             * [Testing]
-                             */
-                            // Add image to gallery
-                            // setState(() {
-                            //   // images[list_pos] = newGalleryCell(text, "result", file, new File(file.path), position: list_pos);
-                            // });
-
-                            // Run OCR
-                            // Returns suggested snap username or empty string
-                            Function post = (String text, String _){
-                              String result = findSnapKeyword(keys, text)?? "";
-
-                              debugPrint("ran display Post");
-
-                              return result;
-                            };
-                            ocrParallel([new File(file.path)], post, replace: {list_pos : f.path}).then((value) => setState((){}));
-                          },
-                        ),
-                      ),
-                      Expanded(
-                        flex : 9,
-                        child: RepaintBoundary(
-                          key: globalKey,
-                          child: Container(
-                            child: PhotoView(
-                              imageProvider: FileImage(image),
-                              initialScale: PhotoViewComputedScale.contained,
-                              minScale: PhotoViewComputedScale.contained *
-                                  (0.5 + images.length / 10),
-                              maxScale: PhotoViewComputedScale.covered * 4.1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Analysis
-              Expanded(
-                flex : 1,
-                child: Container(
-                  child: Center(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Spacer(
-
-                        ),
-                        Expanded(
-                            child: ElevatedButton(
-                              child: Text("Select"),
-                              onPressed: () {
-                                selected.contains(file_name) ? selected.remove(
-                                    file_name) : selected.add(file_name);
-                                selectImage(selected.contains(file_name));
-                              },
-                              onLongPress: (){
-                                Clipboard.setData(ClipboardData(text: file_name));
-                                filenameCopiedMessage();
-                              },
-                            )
-                        ),
-                        Spacer(
-
-                        ),
-
-                        // Snap suggestion
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            child: ListTile(
-                              title: SelectableText(suggestedUsername, style: TextStyle(color: Colors.redAccent),),
-                            ),
-                          ),
-                        ),
-
-                        Spacer(
-
-                        ),
-
-                        // Entire OCR
-                        Expanded(
-                          flex: 3,
-                          child: Container(
-                              color: Colors.white,
-                              child: SelectableText(
-                                text.toString(),
-                                showCursor: true,
-                              )
-                          ),
-                        ),
-                        Spacer(
-
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ]),
-      ),
-      // heroAttributes: const HeroAttributes(tag: "tag1"),
-    );
   }
 
 
@@ -715,9 +554,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Reset Gallery
     if(replace == null) {
-      if(gallery.images.length > 0)
+      if(gallery.length() > 0)
         gallery.galleryController.jumpToPage(0);
-      gallery.images.clear();
+      gallery.clear();
     }
 
     // Time search
@@ -734,34 +573,31 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
       // Prepare data to be sent to thread
-      var f = paths[path_idx];
+      var src_filePath = paths[path_idx];
       var size = MediaQuery.of(context).size;
       Map<String, dynamic> message = {
-        "f": f.path,
+        "f": src_filePath.path,
         "height": size.height,
         "width" : size.width
       };
       String rawJson = jsonEncode(message);
       final Map<String, dynamic> data = json.decode(rawJson);
-      String iso_name = f.path.split("/").last;
+      String iso_name = src_filePath.path.split("/").last;
 
       // Define callback
       Function onReceive = (dynamic signal) {
         if(signal is String){
           String text = signal;
           // If query word has been found
-          String result = post(text, query);
-          if(result != null) {
+          String suggestedUsername = post(text, query);
+          if(suggestedUsername != null) {
 
             if(replace == null)
-              gallery.images.add(newGalleryCell(text, result, f, new File(f.path)));
+              gallery.addNewCell(text, suggestedUsername, src_filePath, new File(src_filePath.path));
             else{
               var pair = replace.entries.first;
               int idx = pair.key;
-              String file = pair.value;
-              debugPrint("f.path: ${f.path}");
-              debugPrint("file path: $file");
-              gallery.images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
+              gallery.redoCell(text, suggestedUsername, idx);
             }
 
             debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
@@ -818,8 +654,8 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       };
 
-      List<String> split = getFileNameAndExtension(f.path);
-      String key = generateKeyFromFilename(f.path);
+      List<String> split = getFileNameAndExtension(src_filePath.path);
+      String key = generateKeyFromFilename(src_filePath.path);
       bool replacing = split.length == 3;
 
       if(replacing) {
@@ -841,50 +677,6 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
     }
-  }
-
-  void selectImage(bool selected){
-    Function message = (selected) => (selected ? "Selected." : "Unselected.");
-    _showToast(selected, message);
-  }
-
-  void filenameCopiedMessage(){
-    _showToast(true, (state)=>"File name copied to clipboard");
-  }
-
-  /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
-  void _showToast(bool state, Function message){
-
-    // Make sure last toast has eneded
-    fToast.removeCustomToast();
-
-    Widget toast = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.0),
-        color: state ? Colors.greenAccent : Colors.grey,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          state ? Icon(Icons.check) : Icon(Icons.not_interested_outlined),
-          SizedBox(
-            width: 12.0,
-          ),
-          Text(message(state)),
-        ],
-      ),
-    );
-
-
-
-    setState(() {
-      fToast.showToast(
-        child: toast,
-        gravity: ToastGravity.BOTTOM,
-        toastDuration: Duration(seconds: 1),
-      );
-    });
   }
 
   Future changeDir() async{
