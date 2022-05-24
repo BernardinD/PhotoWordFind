@@ -7,9 +7,13 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:ui';
 
+import 'package:PhotoWordFind/gallery/gallery.dart';
+import 'package:PhotoWordFind/utils/image_utils.dart';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
@@ -26,6 +30,8 @@ import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'constants/constants.dart';
+
 
 
 void main() {
@@ -35,74 +41,22 @@ void main() {
   runApp(MyApp()); 
 }
 
-
-// Extracts text from image
-Future<String> OCR(String path) async {
-
-  final inputImage = InputImage.fromFilePath(path);
-  final textDetector = GoogleMlKit.vision.textDetector();
-  final RecognisedText recognisedText = await textDetector.processImage(inputImage);
-  textDetector.close();
-  return recognisedText.text;
-  // return await FlutterTesseractOcr.extractText(path, language: 'eng');
-}
-
-// Scans in file as the Image object with adjustable features
-crop_image.Image getImage(String filePath){
-
-  List<int> bytes = File(filePath).readAsBytesSync();
-  return crop_image.decodeImage(bytes);
-
-}
-
-// Crops image (ideally in the section of the image that has the bio)
-crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSize){
-
-  Size size = ImageSizeGetter.getSize(FileInput(File(filePath)));
-
-  int originX = 0, originY = min(size.height, (2.5 * screenSize.height).toInt() ),
-      width = size.width,
-      height = min(size.height, (1.5 * screenSize.height).toInt() );
-
-
-  return crop_image.copyCrop(image, originX, originY, width, height);
-}
-
-/// Creates a cropped and resized image by passing the file and the `parent` directory to save the temporary image
-File createCroppedImage(String filePath, Directory parent, ui.Size size){
-
-  crop_image.Image image = getImage(filePath);
-
-  // Separate the cropping and resize opperations so that the thread memory isn't used up
-  crop_image.Image croppedFile = crop(image, filePath, size);
-  croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
-
-  // Save temp image
-  String file_name = filePath.split("/").last;
-  File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, filePath));
-
-  return temp_cropped;
-}
-
 Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
 
   File temp_cropped = crop ? createCroppedImage(
       filePath, Directory.systemTemp, size) : new File(filePath);
 
-
-
   return OCR(temp_cropped.path);
 }
 
-List<String> splitFileNameByDots(String f){
-  List<String> split = f.split("/").last.split(".");
+List<String> getFileNameAndExtension(String f){
+  List<String> split = path.basename(f).split(".");
 
   return split;
 }
 
-String filenameToKey(String f){
-  List<String> split = splitFileNameByDots(f);
+String generateKeyFromFilename(String f){
+  List<String> split = getFileNameAndExtension(f);
   String key = split.first;
 
   return key;
@@ -122,10 +76,13 @@ void threadFunction(Map<String, dynamic> context) {
 
       Map<String, dynamic> message = json.decode(receivedData);
       String f = message["f"];
-      ui.Size size = ui.Size(message['width'].toDouble(), message['height'].toDouble());
+      ui.Size size = ui.Size(
+          message['width'].toDouble(),
+          message['height'].toDouble()
+      );
 
-      List<String> split = splitFileNameByDots(f);
-      String key = filenameToKey(f);
+      List<String> split = getFileNameAndExtension(f);
+      String key = generateKeyFromFilename(f);
       bool replacing = split.length == 3;
       
       if(replacing) {
@@ -195,10 +152,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
     static ProgressDialog _pr;
-  List<String> key = ["sc", "snap", "snapchat"];
-  List<PhotoViewGalleryPageOptions> images = [];
   String _directoryPath;
-  Set selected;
+  Gallery gallery = Gallery();
   FToast fToast;
   var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
 
@@ -207,7 +162,6 @@ class _MyHomePageState extends State<MyHomePage> {
   bumble_uri = 'com.bumble.app',
   instagram_uri = 'com.instagram.android';
 
-  var galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
 
   void requestPermissions() async{
     var status = await Permission.manageExternalStorage.status;
@@ -251,8 +205,6 @@ class _MyHomePageState extends State<MyHomePage> {
             color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
     );
 
-    // Initalize indicator for selected photos
-    selected = new Set();
 
   }
 
@@ -286,13 +238,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     onLongPress: () => displaySnaps(false),
                   ),
                   ElevatedButton(
-                    onPressed: selected.isNotEmpty ? move : null,
+                    onPressed: gallery.selected.isNotEmpty ? move : null,
                     child: Text("Move"),
                   ),
                 ],
               ),
             ),
-            if (images.isNotEmpty) Expanded(
+            if (gallery.images.isNotEmpty) Expanded(
               flex: 8,
               child: Container(
                 child: Scrollbar(
@@ -300,11 +252,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   showTrackOnHover: true,
                   thickness: 15,
                   interactive: true,
-                  controller: galleryController,
+                  controller: gallery.galleryController,
                   child: PhotoViewGallery(
                     scrollPhysics: const BouncingScrollPhysics(),
-                    pageOptions: images,
-                    pageController: galleryController,
+                    pageOptions: gallery.images,
+                    pageController: gallery.galleryController,
                   ),
                 ),
               ),
@@ -419,12 +371,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void move() async{
     // Move selected images to new directory
-    if(selected.isNotEmpty) {
+    if(gallery.selected.isNotEmpty) {
       // Choose new directory
       String new_dir = await FilePicker.platform.getDirectoryPath();
 
       if(new_dir != null) {
-        var lst = selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
+        var lst = gallery.selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
 
         print("List:" + lst.toString());
         String src, dst;
@@ -432,11 +384,10 @@ class _MyHomePageState extends State<MyHomePage> {
           src = pair[0];
           dst = pair[1];
           File(src).renameSync(dst);
-          // File(src).copySync(dst);
-          // File(src).deleteSync();
         }
         setState(() {
-          selected.clear();
+          gallery.images.removeWhere((cell) => gallery.selected.contains((cell.child.key as ValueKey<String>).value));
+          gallery.selected.clear();
         });
       }
     }
@@ -446,15 +397,16 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // Creates standardized Widget that will seen in gallery
-  PhotoViewGalleryPageOptions newGalleryCell(String text, String suggestion, dynamic f, File image, {int position}){
+  PhotoViewGalleryPageOptions newGalleryCell(String text, String suggestedUsername, dynamic f, File image, {int position}){
     String file_name = f.path.split("/").last;
-    int list_pos = position?? images.length;
+    int list_pos = position?? gallery.images.length;
 
     // Used for controlling when to take screenshot
     GlobalKey globalKey = new GlobalKey();
 
     return PhotoViewGalleryPageOptions.customChild(
       child: Container(
+        key: ValueKey(file_name),
         width: MediaQuery.of(context).size.width * 0.95,
         child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -505,7 +457,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             // Run OCR
                             // Returns suggested snap username or empty string
                             Function post = (String text, String _){
-                              String result = findSnapKeyword(key, text)?? "";
+                              String result = findSnapKeyword(keys, text)?? "";
 
                               debugPrint("ran display Post");
 
@@ -543,26 +495,20 @@ class _MyHomePageState extends State<MyHomePage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Filename
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            child: ListTile(
-                              title: SelectableText(
-                                file_name,
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
-                              ),
-                            ),
-                          ),
-                        ),
+                        Spacer(
 
+                        ),
                         Expanded(
                             child: ElevatedButton(
                               child: Text("Select"),
                               onPressed: () {
                                 selected.contains(file_name) ? selected.remove(
                                     file_name) : selected.add(file_name);
-                                _showToast(selected.contains(file_name));
+                                selectImage(selected.contains(file_name));
+                              },
+                              onLongPress: (){
+                                Clipboard.setData(ClipboardData(text: file_name));
+                                filenameCopiedMessage();
                               },
                             )
                         ),
@@ -575,7 +521,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           flex: 1,
                           child: Container(
                             child: ListTile(
-                              title: SelectableText(suggestion, style: TextStyle(color: Colors.redAccent),),
+                              title: SelectableText(suggestedUsername, style: TextStyle(color: Colors.redAccent),),
                             ),
                           ),
                         ),
@@ -746,7 +692,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Returns suggested snap username or empty string
     Function post = (String text, String _){
-      String result = findSnapKeyword(key, text)?? "";
+      String result = findSnapKeyword(keys, text)?? "";
 
       debugPrint("ran display Post");
 
@@ -769,9 +715,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Reset Gallery
     if(replace == null) {
-      if(images.length > 0)
-        galleryController.jumpToPage(0);
-      images.clear();
+      if(gallery.images.length > 0)
+        gallery.galleryController.jumpToPage(0);
+      gallery.images.clear();
     }
 
     // Time search
@@ -808,14 +754,14 @@ class _MyHomePageState extends State<MyHomePage> {
           if(result != null) {
 
             if(replace == null)
-              images.add(newGalleryCell(text, result, f, new File(f.path)));
+              gallery.images.add(newGalleryCell(text, result, f, new File(f.path)));
             else{
               var pair = replace.entries.first;
               int idx = pair.key;
               String file = pair.value;
               debugPrint("f.path: ${f.path}");
               debugPrint("file path: $file");
-              images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
+              gallery.images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
             }
 
             debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
@@ -872,8 +818,8 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       };
 
-      List<String> split = splitFileNameByDots(f.path);
-      String key = filenameToKey(f.path);
+      List<String> split = getFileNameAndExtension(f.path);
+      String key = generateKeyFromFilename(f.path);
       bool replacing = split.length == 3;
 
       if(replacing) {
@@ -897,8 +843,17 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void selectImage(bool selected){
+    Function message = (selected) => (selected ? "Selected." : "Unselected.");
+    _showToast(selected, message);
+  }
+
+  void filenameCopiedMessage(){
+    _showToast(true, (state)=>"File name copied to clipboard");
+  }
+
   /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
-  void _showToast(bool selected){
+  void _showToast(bool state, Function message){
 
     // Make sure last toast has eneded
     fToast.removeCustomToast();
@@ -907,16 +862,16 @@ class _MyHomePageState extends State<MyHomePage> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(25.0),
-        color: selected ? Colors.greenAccent : Colors.grey,
+        color: state ? Colors.greenAccent : Colors.grey,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          selected ? Icon(Icons.check) : Icon(Icons.not_interested_outlined),
+          state ? Icon(Icons.check) : Icon(Icons.not_interested_outlined),
           SizedBox(
             width: 12.0,
           ),
-          Text(selected ? "Selected." : "Unselected."),
+          Text(message(state)),
         ],
       ),
     );
