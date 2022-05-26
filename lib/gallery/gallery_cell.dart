@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:PhotoWordFind/constants/constants.dart';
+import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -168,7 +169,7 @@ class _GalleryCellState extends State<GalleryCell>{
 
       return result;
     };
-    ocrParallel([new File(file.path)], post, replace: {widget.list_pos(widget) : src_image.path}).then((value) => setState((){}));
+    ocrParallel([new File(file.path)], post, MediaQuery.of(context).size, replace: {widget.list_pos(widget) : src_image.path}).then((value) => setState((){}));
   }
 
 }
