@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'dart:ui';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
+import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/image_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 
@@ -39,7 +40,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
-  runApp(MyApp()); 
+  runApp(MyApp());
 }
 
 Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
@@ -111,8 +112,17 @@ void threadFunction(Map<String, dynamic> context) {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
+  static ProgressDialog _pr;
+  static ProgressDialog get pr => _pr;
+
+  static Gallery _gallery;
+  static Gallery get gallery => _gallery;
+
   @override
   Widget build(BuildContext context) {
+
+    _pr = new ProgressDialog(context, type: ProgressDialogType.Download, isDismissible: false);
+    _gallery = Gallery();
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -129,6 +139,11 @@ class MyApp extends StatelessWidget {
       ),
       home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
+  }
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<ProgressDialog>('_pr', _pr));
   }
 }
 
@@ -152,9 +167,8 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
-    static ProgressDialog _pr;
   String _directoryPath;
-  Gallery gallery = Gallery();
+  Gallery gallery = MyApp._gallery;
   var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
 
   String snapchat_uri = 'com.snapchat.android',
@@ -188,8 +202,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
 
-    _pr = new ProgressDialog(context, type: ProgressDialogType.Download, isDismissible: false);
-    _pr.style(
+    MyApp._pr.style(
         message: 'Please Waiting...',
         borderRadius: 10.0,
         backgroundColor: Colors.white,
@@ -418,7 +431,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
       Stopwatch timer = new Stopwatch();
-      await _pr.show();
+      await MyApp._pr.show();
       paths = (await FilePicker.platform.pickFiles(
           type: _pickingType,
           allowMultiple: _multiPick
@@ -432,7 +445,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      await _pr.show();
+      await MyApp._pr.show();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
 
@@ -500,7 +513,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("paths: " + paths.toString());
     if(paths == null) {
-      await _pr.hide();
+      await MyApp._pr.hide();
       return;
     }
 
@@ -513,7 +526,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // Remove prompt
     Navigator.pop(context);
 
-    await ocrParallel(paths, post, query: query);
+    await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
 
 
@@ -539,145 +552,14 @@ class _MyHomePageState extends State<MyHomePage> {
     };
 
     if(paths == null) {
-      await _pr.hide();
+      await MyApp._pr.hide();
       return;
     }
 
-    ocrParallel(paths, post);
+    ocrParallel(paths, post, MediaQuery.of(context).size);
 
   }
 
-  Future ocrParallel(List paths, Function post, {String query, bool findFirst = false, Map<int, String> replace}) async{
-
-    _pr.update(progress: 0);
-    await _pr.show();
-
-    // Reset Gallery
-    if(replace == null) {
-      if(gallery.length() > 0)
-        gallery.galleryController.jumpToPage(0);
-      gallery.clear();
-    }
-
-    // Time search
-    Stopwatch time_elasped = new Stopwatch();
-
-
-    final isolates = IsolateHandler();
-    int completed = 0;
-    int path_idx = 0;
-    time_elasped.start();
-    final prefs = await SharedPreferences.getInstance();
-
-    for(path_idx = 0; path_idx < paths.length; path_idx++){
-
-
-      // Prepare data to be sent to thread
-      var src_filePath = paths[path_idx];
-      var size = MediaQuery.of(context).size;
-      Map<String, dynamic> message = {
-        "f": src_filePath.path,
-        "height": size.height,
-        "width" : size.width
-      };
-      String rawJson = jsonEncode(message);
-      final Map<String, dynamic> data = json.decode(rawJson);
-      String iso_name = src_filePath.path.split("/").last;
-
-      // Define callback
-      Function onReceive = (dynamic signal) {
-        if(signal is String){
-          String text = signal;
-          // If query word has been found
-          String suggestedUsername = post(text, query);
-          if(suggestedUsername != null) {
-
-            if(replace == null)
-              gallery.addNewCell(text, suggestedUsername, src_filePath, new File(src_filePath.path));
-            else{
-              var pair = replace.entries.first;
-              int idx = pair.key;
-              gallery.redoCell(text, suggestedUsername, idx);
-            }
-
-            debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
-
-            // Stop creation of new isolates and to close dialogs
-            if(findFirst) {
-              path_idx = paths.length;
-              completed = paths.length;
-            }
-          }
-
-        }
-        else{
-          // Dispose of finished isolate
-          isolates.kill(iso_name, priority: Isolate.immediate);
-        }
-
-        debugPrint("before `completed`... $completed <= ${paths.length}");
-        debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
-
-
-        // Increase progress bar
-        int update = (completed+1)*100~/paths.length;
-        update = update.clamp(0, 100);
-        print("Increasing... " + update.toString());
-        _pr.update(maxProgress: 100.0, progress: update/1.0);
-
-        // Close dialogs once finished with all images
-        if(++completed >= paths.length){
-          // Terminate running isolates
-          List names = isolates.isolates.keys.toList();
-          for(String name in names){
-            // Don't kill current thread
-            if(name == iso_name) continue;
-
-            debugPrint("iso-name: ${name}");
-            if(isolates.isolates[name].messenger.connectionEstablished ) {
-              try {
-                isolates.kill(name, priority: Isolate.immediate);
-              }
-              catch(e){
-                debugPrint("pass kill error");
-              }
-            }
-          }
-          debugPrint("popping...");
-
-          // Quick fix for this callback being called twice
-          // TODO: Find way to stop isolates immediately so they don't get to this point
-          if(_pr.isShowing())
-            _pr.hide().then((value) {
-              setState(() => {});
-            });
-        }
-      };
-
-      List<String> split = getFileNameAndExtension(src_filePath.path);
-      String key = generateKeyFromFilename(src_filePath.path);
-      bool replacing = split.length == 3;
-
-      if(replacing) {
-        prefs.remove(key);
-      }
-
-      if(prefs.getString(key) != null){
-        String result = prefs.getString(key);
-        onReceive(result);
-      }
-      else {
-        // Start up the thread and configures the callbacks
-        debugPrint("spawning new iso....");
-        isolates.spawn<String>(
-            threadFunction,
-            name: iso_name,
-            onInitialized: () => isolates.send(rawJson, to: iso_name),
-            onReceive: (dynamic signal) => onReceive(signal));
-      }
-
-    }
-  }
 
   Future changeDir() async{
 
@@ -692,29 +574,6 @@ class _MyHomePageState extends State<MyHomePage> {
     // sleep(Duration(seconds:1));
     _directoryPath =  await FilePicker.platform.getDirectoryPath();
 
-  }
-
-  /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
-  String findSnapKeyword(List<String> keys, String text){
-    // TODO: Change so tha it finds the next word in the series, not the row
-    text = text.toLowerCase();
-    // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
-    // text = text.replaceAll(new RegExp('[^A-Za-z0-9]'),'');
-    // Remove all non-alphanumeric characters
-    debugPrint("text: " + text.replaceAll(new RegExp('[^A-Za-z0-9]'),''));
-
-    // Split up lines
-    for(String line in text.split("\n")){
-      // Split up words
-      int i = 0;
-      List<String> words= line.split(" ");
-      for(String word in words){
-        // word;
-        if(keys.contains(word.replaceAll(new RegExp('[^A-Za-z0-9]'),'').trim())) return (i+1 < words.length) ? words[++i].trim() : "";
-        i++;
-      }
-    }
-    return null;
   }
 
   /// ???
