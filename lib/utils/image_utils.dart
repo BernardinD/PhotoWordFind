@@ -33,11 +33,14 @@ crop_image.Image getImage(String filePath){
 crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSize){
 
   Size size = ImageSizeGetter.getSize(FileInput(File(filePath)));
+  var physicalScreenSize = ui.window.physicalSize;
+  ui.Size screenSize_ = physicalScreenSize/ui.window.devicePixelRatio;
+
 
   int originX = 0,
-      originY = min(size.height, (2.5 * screenSize.height).toInt() ),
+      originY = min(size.height, (2.5 * screenSize_.height).toInt() ),
       width = size.width,
-      height = min(size.height, (1.5 * screenSize.height).toInt() );
+      height = min(size.height, (1.5 * screenSize_.height).toInt() );
 
 
   return crop_image.copyCrop(image, originX, originY, width, height);
