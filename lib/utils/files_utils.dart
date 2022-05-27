@@ -134,10 +134,13 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
 
         // Quick fix for this callback being called twice
         // TODO: Find way to stop isolates immediately so they don't get to this point
-        if(MyApp.pr.isShowing())
+        if(MyApp.pr.isShowing()) {
           MyApp.pr.hide().then((value) {
             // setState(() => {});
+            MyApp.updateFrame(() => {});
+            debugPrint(">>> getting in.");
           });
+        }
       }
     };
 

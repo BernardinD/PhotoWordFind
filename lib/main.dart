@@ -117,12 +117,14 @@ class MyApp extends StatelessWidget {
 
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
+  static Function updateFrame;
 
   @override
   Widget build(BuildContext context) {
 
     _pr = new ProgressDialog(context, type: ProgressDialogType.Download, isDismissible: false);
     _gallery = Gallery();
+
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -186,6 +188,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void initState() {
     super.initState();
+
+    MyApp.updateFrame = setState;
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
