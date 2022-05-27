@@ -119,30 +119,60 @@ class MyApp extends StatelessWidget {
   static Gallery get gallery => _gallery;
   static Function updateFrame;
 
-  @override
-  Widget build(BuildContext context) {
+
+  /// Initalizes SharedPreferences [_pref] object and gives default values
+  Future init(BuildContext context)async{
 
     if (_pr == null) {
       _pr = new ProgressDialog(
           context, type: ProgressDialogType.Download, isDismissible: false);
+      MyApp._pr.style(
+          message: 'Please Waiting...',
+          borderRadius: 10.0,
+          backgroundColor: Colors.white,
+          progressWidget: CircularProgressIndicator(),
+          elevation: 10.0,
+          insetAnimCurve: Curves.easeInOut,
+          progress: 0.0,
+          maxProgress: 100.0,
+          progressTextStyle: TextStyle(
+              color: Colors.black, fontSize: 13.0, fontWeight: FontWeight.w400),
+          messageTextStyle: TextStyle(
+              color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
+      );
     }
-    _gallery = Gallery();
 
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+    if(_gallery == null) {
+      _gallery = Gallery();
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+
+
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          // This is the theme of your application.
+          //
+          // Try running your application with "flutter run". You'll see the
+          // application has a blue toolbar. Then, without quitting the app, try
+          // changing the primarySwatch below to Colors.green and then invoke
+          // "hot reload" (press "r" in the console where you ran "flutter run",
+          // or simply save your changes to "hot reload" in a Flutter IDE).
+          // Notice that the counter didn't reset back to zero; the application
+          // is not restarted.
+          primarySwatch: Colors.blue,
+        ),
+        home: Builder(
+          builder: (context) {
+            init(context);
+            return MyHomePage(title: 'Flutter Demo Home Page');
+          }
+        ),
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
   @override
@@ -208,21 +238,6 @@ class _MyHomePageState extends State<MyHomePage> {
           debugPrint("$app");
       }
     });
-
-    MyApp._pr.style(
-        message: 'Please Waiting...',
-        borderRadius: 10.0,
-        backgroundColor: Colors.white,
-        progressWidget: CircularProgressIndicator(),
-        elevation: 10.0,
-        insetAnimCurve: Curves.easeInOut,
-        progress: 0.0,
-        maxProgress: 100.0,
-        progressTextStyle: TextStyle(
-            color: Colors.black, fontSize: 13.0, fontWeight: FontWeight.w400),
-        messageTextStyle: TextStyle(
-            color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
-    );
 
 
   }
