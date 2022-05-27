@@ -122,7 +122,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    _pr = new ProgressDialog(context, type: ProgressDialogType.Download, isDismissible: false);
+    if (_pr == null) {
+      _pr = new ProgressDialog(
+          context, type: ProgressDialogType.Download, isDismissible: false);
+    }
     _gallery = Gallery();
 
     return MaterialApp(
