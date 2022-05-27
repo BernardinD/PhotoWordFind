@@ -137,7 +137,7 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
         if(MyApp.pr.isShowing()) {
           MyApp.pr.hide().then((value) {
             // setState(() => {});
-            MyApp.updateFrame(() => {});
+            MyApp.updateFrame(null);
             debugPrint(">>> getting in.");
           });
         }
