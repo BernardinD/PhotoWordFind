@@ -4,11 +4,22 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui' as ui;
 
+import 'package:PhotoWordFind/utils/image_utils.dart';
+import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
 import 'package:isolate_handler/isolate_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
+
+Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
+
+  File temp_cropped = crop ? createCroppedImage(
+      filePath, Directory.systemTemp, size) : new File(filePath);
+
+  return OCR(temp_cropped.path);
+}
 
 /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
 String findSnapKeyword(List<String> keys, String text){
@@ -33,6 +44,18 @@ String findSnapKeyword(List<String> keys, String text){
   return null;
 }
 
+List<String> getFileNameAndExtension(String f){
+  List<String> split = path.basename(f).split(".");
+
+  return split;
+}
+
+String generateKeyFromFilename(String f){
+  List<String> split = getFileNameAndExtension(f);
+  String key = split.first;
+
+  return key;
+}
 
 Future ocrParallel(List paths, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
 

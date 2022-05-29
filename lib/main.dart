@@ -43,73 +43,6 @@ void main() {
   runApp(MyApp());
 }
 
-Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
-
-  File temp_cropped = crop ? createCroppedImage(
-      filePath, Directory.systemTemp, size) : new File(filePath);
-
-  return OCR(temp_cropped.path);
-}
-
-List<String> getFileNameAndExtension(String f){
-  List<String> split = path.basename(f).split(".");
-
-  return split;
-}
-
-String generateKeyFromFilename(String f){
-  List<String> split = getFileNameAndExtension(f);
-  String key = split.first;
-
-  return key;
-}
-
-// Runs the `find` operation in a Isolate thread
-void threadFunction(Map<String, dynamic> context) {
-
-  final messenger = HandledIsolate.initialize(context);
-
-
-  // Operation that should happen when the Isolate receives a message
-  messenger.listen((receivedData) async {
-    if(receivedData is String) {
-
-      final prefs = await SharedPreferences.getInstance();
-
-      Map<String, dynamic> message = json.decode(receivedData);
-      String f = message["f"];
-      ui.Size size = ui.Size(
-          message['width'].toDouble(),
-          message['height'].toDouble()
-      );
-
-      List<String> split = getFileNameAndExtension(f);
-      String key = generateKeyFromFilename(f);
-      bool replacing = split.length == 3;
-      
-      if(replacing) {
-        prefs.remove(key);
-      }
-
-      runOCR(f, size, crop: !replacing ).then((result) {
-        if (result is String) {
-          // Save OCR result
-          prefs.setString(key, result);
-          // Send back result to main thread
-          messenger.send(result);
-        }
-      });
-    }
-    else{
-      debugPrint("did NOT detect string...");
-      messenger.send(null);
-    }
-
-  });
-
-  // sendPortOfOldIsolate.send(receivePort.sendPort);
-}
-
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   static ProgressDialog _pr;
@@ -596,23 +529,6 @@ class _MyHomePageState extends State<MyHomePage> {
     // sleep(Duration(seconds:1));
     _directoryPath =  await FilePicker.platform.getDirectoryPath();
 
-  }
-
-  /// ???
-  void show(text){
-    showDialog(context: context, builder: (BuildContext context)
-    {
-      return AlertDialog(
-          content: Stack(
-            children: <Widget>[
-              Text(
-                text,
-                textAlign: TextAlign.center,
-              )
-            ],
-          )
-      );
-    });
   }
 
 }
