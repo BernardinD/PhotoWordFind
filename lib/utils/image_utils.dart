@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 
+import 'package:flutter/widgets.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image/image.dart' as crop_image;
 import 'package:image_size_getter/file_input.dart';
@@ -32,23 +33,28 @@ crop_image.Image getImage(String filePath){
 // Crops image (ideally in the section of the image that has the bio)
 crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSize){
 
+  debugPrint("Entering crop()...");
   Size size = ImageSizeGetter.getSize(FileInput(File(filePath)));
   var physicalScreenSize = ui.window.physicalSize;
   ui.Size screenSize_ = physicalScreenSize/ui.window.devicePixelRatio;
 
+  debugPrint("physicalScreenSize: $physicalScreenSize");
+  debugPrint("screenSize vs. screenSize_  >> $screenSize vs. $screenSize_");
 
   int originX = 0,
-      originY = min(size.height, (2.5 * screenSize_.height).toInt() ),
+      originY = min(size.height, (2.5 * screenSize.height).toInt() ),
       width = size.width,
-      height = min(size.height, (1.5 * screenSize_.height).toInt() );
+      height = min(size.height, (1.5 * screenSize.height).toInt() );
 
 
+  debugPrint("Leaving crop()...");
   return crop_image.copyCrop(image, originX, originY, width, height);
 }
 
 /// Creates a cropped and resized image by passing the file and the `parent` directory to save the temporary image
 File createCroppedImage(String filePath, Directory parent, ui.Size size){
 
+  debugPrint("Entering createCroppedImage()...");
   crop_image.Image image = getImage(filePath);
 
   // Separate the cropping and resize opperations so that the thread memory isn't used up
@@ -60,5 +66,6 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   File temp_cropped = File('${parent.path}/temp-${file_name}');
   temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, filePath));
 
+  debugPrint("Leaving createCroppedImage()...");
   return temp_cropped;
 }
