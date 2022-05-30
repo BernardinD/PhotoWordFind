@@ -108,11 +108,7 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
-  @override
-  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
-    super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<ProgressDialog>('_pr', _pr));
-  }
+
 }
 
 class MyHomePage extends StatefulWidget {
