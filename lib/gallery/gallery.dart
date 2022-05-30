@@ -4,8 +4,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
+
+import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
+import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -50,7 +53,7 @@ class Gallery{
   }
 
   void removeSelected(){
-    _images.removeWhere((cell) => _selected.contains((cell.child.key as ValueKey<String>).value));
+    _images.removeWhere((cell) => _selected.contains(((cell.child as GalleryCell).key as ValueKey<String>).value));
     _selected.clear();
   }
 
@@ -60,7 +63,7 @@ class Gallery{
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, suggestedUsername, f, image, redo_list_pos, onPressed, onLongPress),
+      child: GalleryCell(text, suggestedUsername, f, image, redo_list_pos, onPressed, onLongPress, key: ValueKey(path.basename(f.path))),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
@@ -74,6 +77,7 @@ class Gallery{
     GalleryCell replacing = _images[idx].child as GalleryCell;
     var display_image = replacing.src_image;
     var f = replacing.f;
+    var key = replacing.key;
 
     var cell = PhotoViewGalleryPageOptions.customChild(
       child: GalleryCell(text, suggestedUsername, f, display_image, redo_list_pos, onPressed, onLongPress),
@@ -85,9 +89,13 @@ class Gallery{
 
 
   void onPressed(String file_name) {
-    selected.contains(file_name) ? selected.remove(
-    file_name) : selected.add(file_name);
-    selectImage(selected.contains(file_name));
+    debugPrint("Entering onPressed()...");
+    selected.contains(file_name) ? selected.remove(file_name) : selected.add(file_name);
+
+    runSelectImageToast(selected.contains(file_name));
+
+    MyApp.updateFrame(() => null);
+    debugPrint("Leaving onPressed()...");
   }
 
   void onLongPress(String file_name){
@@ -96,7 +104,7 @@ class Gallery{
   }
 
 
-  static void selectImage(bool selected){
+  static void runSelectImageToast(bool selected){
     Function message = (selected) => (selected ? "Selected." : "Unselected.");
     Toasts.showToast(selected, message);
   }

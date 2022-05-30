@@ -11,7 +11,7 @@ import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart';
 
 class GalleryCell extends StatefulWidget {
-  const GalleryCell(String this.text, String this.suggestedUsername, dynamic this.f, File this.src_image, this.list_pos, this.onPressedHandler, this.onLongPressedHandler, {Key key}) : super(key: key);
+  const GalleryCell(String this.text, String this.suggestedUsername, dynamic this.f, File this.src_image, this.list_pos, this.onPressedHandler, this.onLongPressedHandler, {@required ValueKey<String> key}) : super(key: key);
 
   final String text;
   final String suggestedUsername;
