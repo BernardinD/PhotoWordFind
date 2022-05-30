@@ -1,36 +1,18 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:isolate';
 import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'dart:ui';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
-import 'package:PhotoWordFind/utils/image_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:image/image.dart' as crop_image;
-import 'package:image_size_getter/file_input.dart';
-import 'package:image_size_getter/image_size_getter.dart';
-import 'package:isolate_handler/isolate_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:progress_dialog/progress_dialog.dart';
-// import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
-import 'package:photo_view/photo_view.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'constants/constants.dart';
 
