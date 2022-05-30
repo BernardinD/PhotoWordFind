@@ -14,10 +14,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
-
+  print("Entering runOCR()...");
+  debugPrint("Running OCR on $filePath}");
   File temp_cropped = crop ? createCroppedImage(
       filePath, Directory.systemTemp, size) : new File(filePath);
 
+  debugPrint("Leaving runOCR()");
   return OCR(temp_cropped.path);
 }
 
@@ -77,25 +79,26 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
   int completed = 0;
   int path_idx = 0;
   time_elasped.start();
-  final prefs = await SharedPreferences.getInstance();
 
   for(path_idx = 0; path_idx < paths.length; path_idx++){
 
 
     // Prepare data to be sent to thread
-    var src_filePath = paths[path_idx];
+    var srcFilePath = paths[path_idx];
 
     Map<String, dynamic> message = {
-      "f": src_filePath.path,
+      "f": srcFilePath.path,
       "height": size.height,
       "width" : size.width
     };
     String rawJson = jsonEncode(message);
-    final Map<String, dynamic> data = json.decode(rawJson);
-    String iso_name = src_filePath.path.split("/").last;
+    String iso_name = path.basename(srcFilePath.path);
+    debugPrint("srcFilePath [${srcFilePath.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
 
     // Define callback
-    Function onReceive = (dynamic signal) {
+    void onEachOcrResult (dynamic signal) {
+      debugPrint("Entering onOCRResult...");
+      debugPrint("Checking type of OCR result: ${signal.runtimeType}");
       if(signal is String){
         String text = signal;
         // If query word has been found
@@ -103,7 +106,7 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
         if(suggestedUsername != null) {
 
           if(replace == null)
-            MyApp.gallery.addNewCell(text, suggestedUsername, src_filePath, new File(src_filePath.path));
+            MyApp.gallery.addNewCell(text, suggestedUsername, srcFilePath, new File(srcFilePath.path));
           else{
             var pair = replace.entries.first;
             int idx = pair.key;
@@ -119,9 +122,11 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
           }
         }
 
+        // isolates.kill(iso_name);
       }
       else{
         // Dispose of finished isolate
+        debugPrint("Killing isolate...");
         isolates.kill(iso_name, priority: Isolate.immediate);
       }
 
@@ -129,30 +134,15 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
       debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
 
 
-      // Increase progress bar
-      int update = (completed+1)*100~/paths.length;
-      update = update.clamp(0, 100);
-      print("Increasing... " + update.toString());
-      MyApp.pr.update(maxProgress: 100.0, progress: update/1.0);
+      increaseProgressBar(completed, paths);
 
       // Close dialogs once finished with all images
       if(++completed >= paths.length){
-        // Terminate running isolates
-        List names = isolates.isolates.keys.toList();
-        for(String name in names){
-          // Don't kill current thread
-          if(name == iso_name) continue;
 
-          debugPrint("iso-name: ${name}");
-          if(isolates.isolates[name].messenger.connectionEstablished ) {
-            try {
-              isolates.kill(name, priority: Isolate.immediate);
-            }
-            catch(e){
-              debugPrint("pass kill error");
-            }
-          }
-        }
+        debugPrint("Terminate all running isolates...");
+
+        terminateRunningThreads(iso_name, isolates);
+
         debugPrint("popping...");
 
         // Quick fix for this callback being called twice
@@ -160,42 +150,77 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
         if(MyApp.pr.isShowing()) {
           MyApp.pr.hide().then((value) {
             // setState(() => {});
-            MyApp.updateFrame(null);
+            MyApp.updateFrame(() => null);
             debugPrint(">>> getting in.");
           });
         }
       }
     };
 
-    List<String> split = getFileNameAndExtension(src_filePath.path);
-    String key = generateKeyFromFilename(src_filePath.path);
-    bool replacing = split.length == 3;
-
-    if(replacing) {
-      prefs.remove(key);
-    }
-
-    if(prefs.getString(key) != null){
-      String result = prefs.getString(key);
-      onReceive(result);
-    }
-    else {
-      // Start up the thread and configures the callbacks
-      debugPrint("spawning new iso....");
-      isolates.spawn<String>(
-          threadFunction,
-          name: iso_name,
-          onInitialized: () => isolates.send(rawJson, to: iso_name),
-          onReceive: (dynamic signal) => onReceive(signal));
-    }
+    await createOCRThread(iso_name, srcFilePath, rawJson, onEachOcrResult, isolates);
 
   }
 }
 
+createOCRThread(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates) async{
+  final prefs = await SharedPreferences.getInstance();
 
-// Runs the `find` operation in a Isolate thread
-void threadFunction(Map<String, dynamic> context) {
+  List<String> split = getFileNameAndExtension(src_filePath.path);
+  String key = generateKeyFromFilename(src_filePath.path);
+  bool replacing = split.length == 3;
 
+  if(replacing) {
+    prefs.remove(key);
+  }
+
+  // Check if this file needs to OCR or has been cached
+  if(prefs.getString(key) != null){
+    debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
+    String result = prefs.getString(key);
+    onEachOcrResult(result);
+  }
+  else {
+    // Start up the thread and configures the callbacks
+    debugPrint("Spawning new iso for [$key]....");
+    isolates.spawn<String>(
+        ocrThread,
+        name: iso_name,
+        onInitialized:() => isolates.send(rawJson, to: iso_name),
+        onReceive: (dynamic signal) => onEachOcrResult(signal));
+  }
+}
+
+void increaseProgressBar(int completed, List paths){
+  int update = (completed+1)*100~/paths.length;
+  update = update.clamp(0, 100);
+  print("Increasing... " + update.toString());
+  MyApp.pr.update(maxProgress: 100.0, progress: update/1.0);
+}
+
+void terminateRunningThreads(String currentThead, IsolateHandler isolates){
+  debugPrint("Entering terminateRunningThreads()...");
+  List names = isolates.isolates.keys.toList();
+  for(String name in names){
+    // Don't kill current thread
+    if(name == currentThead) continue;
+
+    debugPrint("next iso-name: ${name}");
+    if(isolates.isolates[name].messenger.connectionEstablished ) {
+      try {
+        isolates.kill(name, priority: Isolate.immediate);
+      }
+      catch(e){
+        debugPrint("ERROR >> while terminating isolate, $e");
+      }
+    }
+  }
+
+  debugPrint("Leaving terminateRunningThreads()...");
+}
+
+void ocrThread(Map<String, dynamic> context) {
+
+  debugPrint("Initializing new thread...");
   final messenger = HandledIsolate.initialize(context);
 
 
@@ -212,6 +237,8 @@ void threadFunction(Map<String, dynamic> context) {
           message['height'].toDouble()
       );
 
+      debugPrint("Running thread for >> $f");
+
       List<String> split = getFileNameAndExtension(f);
       String key = generateKeyFromFilename(f);
       bool replacing = split.length == 3;
@@ -220,12 +247,16 @@ void threadFunction(Map<String, dynamic> context) {
         prefs.remove(key);
       }
 
-      runOCR(f, size, crop: !replacing ).then((result) {
+      runOCR(f, size, crop: !replacing).then((result) {
+        debugPrint("Sending OCR result >> $result");
         if (result is String) {
           // Save OCR result
           prefs.setString(key, result);
           // Send back result to main thread
           messenger.send(result);
+        }
+        else{
+          messenger.send("");
         }
       });
     }
