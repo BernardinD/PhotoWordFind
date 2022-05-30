@@ -80,7 +80,7 @@ class Gallery{
     var key = replacing.key;
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, suggestedUsername, f, display_image, redo_list_pos, onPressed, onLongPress),
+      child: GalleryCell(text, suggestedUsername, f, display_image, redo_list_pos, onPressed, onLongPress, key: key),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 

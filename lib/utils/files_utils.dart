@@ -80,6 +80,11 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
   int path_idx = 0;
   time_elasped.start();
 
+  // Make sure latest thread cached updates exist in main thread
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.reload();
+
+
   for(path_idx = 0; path_idx < paths.length; path_idx++){
 
 
@@ -157,19 +162,21 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
       }
     };
 
-    await createOCRThread(iso_name, srcFilePath, rawJson, onEachOcrResult, isolates);
+    await createOCRThread(iso_name, srcFilePath, rawJson, onEachOcrResult, isolates, replace != null);
 
   }
 }
 
-createOCRThread(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates) async{
+createOCRThread(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates, bool replacing) async{
+  debugPrint("Entering createOCRThread()...");
   final prefs = await SharedPreferences.getInstance();
 
   List<String> split = getFileNameAndExtension(src_filePath.path);
   String key = generateKeyFromFilename(src_filePath.path);
-  bool replacing = split.length == 3;
+  // bool replacing = split.length == 3;
 
   if(replacing) {
+    debugPrint(">>> Removing cached OCR result");
     prefs.remove(key);
   }
 
@@ -188,6 +195,7 @@ createOCRThread(String iso_name, dynamic src_filePath, String rawJson, Function 
         onInitialized:() => isolates.send(rawJson, to: iso_name),
         onReceive: (dynamic signal) => onEachOcrResult(signal));
   }
+  debugPrint("Leaving createOCRThread()...");
 }
 
 void increaseProgressBar(int completed, List paths){
@@ -248,11 +256,13 @@ void ocrThread(Map<String, dynamic> context) {
       }
 
       runOCR(f, size, crop: !replacing).then((result) {
-        debugPrint("Sending OCR result >> $result");
         if (result is String) {
           // Save OCR result
+          debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
           prefs.setString(key, result);
+
           // Send back result to main thread
+          debugPrint("Sending OCR result...");
           messenger.send(result);
         }
         else{
