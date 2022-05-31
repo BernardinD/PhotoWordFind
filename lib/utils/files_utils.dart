@@ -160,6 +160,9 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
           });
         }
       }
+      else{
+        isolates.kill(iso_name, priority: Isolate.immediate);
+      }
     };
 
     await createOCRThread(iso_name, srcFilePath, rawJson, onEachOcrResult, isolates, replace != null);
