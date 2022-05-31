@@ -1,6 +1,7 @@
 
 
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -20,7 +21,7 @@ class Gallery{
   List<PhotoViewGalleryPageOptions> _images;
 
   Set _selected;
-  var _galleryController;
+  PageController _galleryController;
 
   // Getters
   List<PhotoViewGalleryPageOptions> get images => _images;
@@ -52,9 +53,24 @@ class Gallery{
     _images.clear();
   }
 
+  GalleryCell _getNewCurrentCell(){
+    int currentPage = _galleryController.page.toInt();
+    GalleryCell currentCell = _images[currentPage].child;
+    if(_selected.contains((currentCell.key as ValueKey).value)){
+      currentPage--;
+    }
+    return _images[currentPage].child;
+  }
+
   void removeSelected(){
+    GalleryCell newPage = _getNewCurrentCell();
     _images.removeWhere((cell) => _selected.contains(((cell.child as GalleryCell).key as ValueKey<String>).value));
     _selected.clear();
+
+    if(_images.isNotEmpty) {
+      int page = _images.indexWhere((cell) => cell.child == newPage);
+      _galleryController.jumpToPage(max(page, 0));
+    }
   }
 
   // Creates standardized Widget that will seen in gallery
