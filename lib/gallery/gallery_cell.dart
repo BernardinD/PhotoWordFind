@@ -68,7 +68,7 @@ class _GalleryCellState extends State<GalleryCell>{
                               imageProvider: FileImage(widget.src_image),
                               initialScale: PhotoViewComputedScale.covered,
                               minScale: PhotoViewComputedScale.contained * 0.4,
-                              maxScale: PhotoViewComputedScale.covered * 1.3,
+                              maxScale: PhotoViewComputedScale.covered * 1.5,
                               basePosition: Alignment.topCenter,
                             ),
                           ),
