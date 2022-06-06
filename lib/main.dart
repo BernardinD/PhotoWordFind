@@ -323,7 +323,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if(new_dir != null) {
         var lst = gallery.selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
 
-        print("List:" + lst.toString());
+        debugPrint("List:" + lst.toString());
         String src, dst;
         for(List<String> pair in lst){
           src = pair[0];
