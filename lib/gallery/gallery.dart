@@ -59,7 +59,7 @@ class Gallery{
     if(_selected.contains((currentCell.key as ValueKey).value)){
       currentPage--;
     }
-    return _images[currentPage].child;
+    return currentPage >= 0 ? _images[currentPage].child : null;
   }
 
   void removeSelected(){
@@ -74,12 +74,12 @@ class Gallery{
   }
 
   // Creates standardized Widget that will seen in gallery
-  void addNewCell(String text, String suggestedUsername, dynamic f, File image){
+  void addNewCell(String text, String suggestedUsername, dynamic file, File displayImage){
     Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, suggestedUsername, f, image, redo_list_pos, onPressed, onLongPress, key: ValueKey(path.basename(f.path))),
+      child: GalleryCell(text, suggestedUsername, file, displayImage, redo_list_pos, onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
@@ -127,5 +127,9 @@ class Gallery{
 
   static void filenameCopiedMessage(){
     Toasts.showToast(true, (state)=>"File name copied to clipboard");
+  }
+
+  void dispose(){
+
   }
 }
