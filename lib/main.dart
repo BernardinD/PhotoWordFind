@@ -115,12 +115,13 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
-  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
+  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon;
 
   String snapchat_uri = 'com.snapchat.android',
   gallery_uri = 'com.sec.android.gallery3d',
   bumble_uri = 'com.bumble.app',
-  instagram_uri = 'com.instagram.android';
+  instagram_uri = 'com.instagram.android',
+  discord_uri = 'com.discord';
 
 
   void requestPermissions() async{
@@ -145,7 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
-        if(app.appName.toLowerCase().contains("instagram"))
+        if(app.appName.toLowerCase().contains("discord"))
           debugPrint("$app");
       }
     });
@@ -299,6 +300,27 @@ class _MyHomePageState extends State<MyHomePage> {
                           app = (value as ApplicationWithIcon);
                           instagram_icon = Image.memory(app.icon);
                           return instagram_icon;
+                        }
+                        else{
+                          return CircularProgressIndicator();
+                        }
+                      }
+                  ),
+                ),
+                FloatingActionButton(
+                  backgroundColor: Colors.white,
+                  onPressed: () => DeviceApps.openApp(discord_uri),
+                  child: discord_icon?? FutureBuilder(
+                    // Get icon
+                      future: DeviceApps.getApp(discord_uri, true),
+                      // Build icon when retrieved
+                      builder: (context, snapshot) {
+                        if(snapshot.connectionState == ConnectionState.done){
+                          var value = snapshot.data;
+                          ApplicationWithIcon app;
+                          app = (value as ApplicationWithIcon);
+                          discord_icon = Image.memory(app.icon);
+                          return discord_icon;
                         }
                         else{
                           return CircularProgressIndicator();
