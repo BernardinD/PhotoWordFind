@@ -172,7 +172,7 @@ class _GalleryCellState extends State<GalleryCell>{
 
       return result;
     };
-    ocrParallel([new File(file.path)], post, MediaQuery.of(context).size, replace: {widget.list_pos(widget) : src_image.path}).then((value) => setState((){}));
+    ocrParallel([file], post, MediaQuery.of(context).size, replace: {widget.list_pos(widget) : src_image.path}).then((value) => setState((){}));
   }
 
 }
