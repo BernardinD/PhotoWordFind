@@ -27,7 +27,7 @@ dependencies:
   google_ml_kit: ^0.7.2
 
   #file_picker: ^2.1.7
-  file_picker: ^4.2.0
+  file_picker: ^4.6.1
   image_picker: ^0.8.4
 
   isolate_handler: ^1.0.1
