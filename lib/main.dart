@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
+import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 
@@ -218,116 +219,16 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                SocialIcon(snapchat_uri),
+                SocialIcon(gallery_uri),
+                SocialIcon(bumble_uri),
                 FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(snapchat_uri),
-                  child: snapchat_icon?? FutureBuilder(
-                    // Get icon
-                    future: DeviceApps.getApp(snapchat_uri, true),
-                    // Build icon when retrieved
-                    builder: (context, snapshot) {
-                      if(snapshot.connectionState == ConnectionState.done){
-                        var value = snapshot.data;
-                        ApplicationWithIcon app;
-                        app = (value as ApplicationWithIcon);
-                        snapchat_icon = Image.memory(app.icon);
-                        return snapchat_icon;
-                      }
-                      else{
-                        return CircularProgressIndicator();
-                      }
-                    }
-                  ),
-                ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(gallery_uri),
-                  child: gallery_icon?? FutureBuilder(
-                    // Get icon
-                    future: DeviceApps.getApp(gallery_uri, true),
-                    // Build icon when retrieved
-                    builder: (context, snapshot) {
-                      if(snapshot.connectionState == ConnectionState.done){
-                        var value = snapshot.data;
-                        ApplicationWithIcon app;
-                        app = (value as ApplicationWithIcon);
-                        gallery_icon = Image.memory(app.icon);
-                        return gallery_icon;
-                      }
-                      else{
-                        return CircularProgressIndicator();
-                      }
-                    }
-                  ),
-                ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(bumble_uri),
-                  child: bumble_icon?? FutureBuilder(
-                    // Get icon
-                    future: DeviceApps.getApp(bumble_uri, true),
-                    // Build icon when retrieved
-                    builder: (context, snapshot) {
-                      if(snapshot.connectionState == ConnectionState.done){
-                        var value = snapshot.data;
-                        ApplicationWithIcon app;
-                        app = (value as ApplicationWithIcon);
-                        bumble_icon = Image.memory(app.icon);
-                        return bumble_icon;
-                      }
-                      else{
-                        return CircularProgressIndicator();
-                      }
-                    }
-                  ),
-                ),
-                FloatingActionButton(
-                  // tooltip: 'Get Text',
+                  tooltip: 'Change current directory',
                   onPressed: changeDir,
                   child: Icon(Icons.drive_folder_upload),
                 ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(instagram_uri),
-                  child: instagram_icon?? FutureBuilder(
-                    // Get icon
-                      future: DeviceApps.getApp(instagram_uri, true),
-                      // Build icon when retrieved
-                      builder: (context, snapshot) {
-                        if(snapshot.connectionState == ConnectionState.done){
-                          var value = snapshot.data;
-                          ApplicationWithIcon app;
-                          app = (value as ApplicationWithIcon);
-                          instagram_icon = Image.memory(app.icon);
-                          return instagram_icon;
-                        }
-                        else{
-                          return CircularProgressIndicator();
-                        }
-                      }
-                  ),
-                ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(discord_uri),
-                  child: discord_icon?? FutureBuilder(
-                    // Get icon
-                      future: DeviceApps.getApp(discord_uri, true),
-                      // Build icon when retrieved
-                      builder: (context, snapshot) {
-                        if(snapshot.connectionState == ConnectionState.done){
-                          var value = snapshot.data;
-                          ApplicationWithIcon app;
-                          app = (value as ApplicationWithIcon);
-                          discord_icon = Image.memory(app.icon);
-                          return discord_icon;
-                        }
-                        else{
-                          return CircularProgressIndicator();
-                        }
-                      }
-                  ),
-                ),
+                SocialIcon(instagram_uri),
+                SocialIcon(discord_uri),
               ],
             ),
           ),
@@ -364,7 +265,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   // Select picture(s) and run through OCR
-  Future<List> pick(bool select) async {
+  Future<List> selectImages(bool individual) async {
     List paths;
 
 
@@ -381,7 +282,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Select file(s)
-    if(select) {
+    if(individual) {
 
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
@@ -495,7 +396,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // _pr.show();
 
     // Choose files to extract text from
-    List paths = await pick(select);
+    List paths = await selectImages(select);
 
     // Returns suggested snap username or empty string
     Function post = (String text, String _){
@@ -529,6 +430,14 @@ class _MyHomePageState extends State<MyHomePage> {
     // sleep(Duration(seconds:1));
     _directoryPath =  await FilePicker.platform.getDirectoryPath();
 
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+
+    FilePicker.platform.clearTemporaryFiles();
   }
 
 }
