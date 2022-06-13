@@ -1,30 +1,21 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:isolate';
 import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'dart:ui';
+
+import 'package:PhotoWordFind/gallery/gallery.dart';
+import 'package:PhotoWordFind/social_icons.dart';
+import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/utils/toast_utils.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:image/image.dart' as crop_image;
-import 'package:image_size_getter/file_input.dart';
-import 'package:image_size_getter/image_size_getter.dart';
-import 'package:isolate_handler/isolate_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:progress_dialog/progress_dialog.dart';
-// import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
-import 'package:photo_view/photo_view.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'constants/constants.dart';
 
 
 
@@ -32,146 +23,75 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
-  runApp(MyApp()); 
-}
-
-
-// Extracts text from image
-Future<String> OCR(String path) async {
-
-  final inputImage = InputImage.fromFilePath(path);
-  final textDetector = GoogleMlKit.vision.textDetector();
-  final RecognisedText recognisedText = await textDetector.processImage(inputImage);
-  textDetector.close();
-  return recognisedText.text;
-  // return await FlutterTesseractOcr.extractText(path, language: 'eng');
-}
-
-// Scans in file as the Image object with adjustable features
-crop_image.Image getImage(String filePath){
-
-  List<int> bytes = File(filePath).readAsBytesSync();
-  return crop_image.decodeImage(bytes);
-
-}
-
-// Crops image (ideally in the section of the image that has the bio)
-crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSize){
-
-  Size size = ImageSizeGetter.getSize(FileInput(File(filePath)));
-
-  int originX = 0, originY = min(size.height, (2.5 * screenSize.height).toInt() ),
-      width = size.width,
-      height = min(size.height, (1.5 * screenSize.height).toInt() );
-
-
-  return crop_image.copyCrop(image, originX, originY, width, height);
-}
-
-/// Creates a cropped and resized image by passing the file and the `parent` directory to save the temporary image
-File createCroppedImage(String filePath, Directory parent, ui.Size size){
-
-  crop_image.Image image = getImage(filePath);
-
-  // Separate the cropping and resize opperations so that the thread memory isn't used up
-  crop_image.Image croppedFile = crop(image, filePath, size);
-  croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
-
-  // Save temp image
-  String file_name = filePath.split("/").last;
-  File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, filePath));
-
-  return temp_cropped;
-}
-
-Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
-
-  File temp_cropped = crop ? createCroppedImage(
-      filePath, Directory.systemTemp, size) : new File(filePath);
-
-
-
-  return OCR(temp_cropped.path);
-}
-
-List<String> splitFileNameByDots(String f){
-  List<String> split = f.split("/").last.split(".");
-
-  return split;
-}
-
-String filenameToKey(String f){
-  List<String> split = splitFileNameByDots(f);
-  String key = split.first;
-
-  return key;
-}
-
-// Runs the `find` operation in a Isolate thread
-void threadFunction(Map<String, dynamic> context) {
-
-  final messenger = HandledIsolate.initialize(context);
-
-
-  // Operation that should happen when the Isolate receives a message
-  messenger.listen((receivedData) async {
-    if(receivedData is String) {
-
-      final prefs = await SharedPreferences.getInstance();
-
-      Map<String, dynamic> message = json.decode(receivedData);
-      String f = message["f"];
-      ui.Size size = ui.Size(message['width'].toDouble(), message['height'].toDouble());
-
-      List<String> split = splitFileNameByDots(f);
-      String key = filenameToKey(f);
-      bool replacing = split.length == 3;
-      
-      if(replacing) {
-        prefs.remove(key);
-      }
-
-      runOCR(f, size, crop: !replacing ).then((result) {
-        if (result is String) {
-          // Save OCR result
-          prefs.setString(key, result);
-          // Send back result to main thread
-          messenger.send(result);
-        }
-      });
-    }
-    else{
-      debugPrint("did NOT detect string...");
-      messenger.send(null);
-    }
-
-  });
-
-  // sendPortOfOldIsolate.send(receivePort.sendPort);
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
+  static ProgressDialog _pr;
+  static ProgressDialog get pr => _pr;
+
+  static Gallery _gallery;
+  static Gallery get gallery => _gallery;
+  static Function updateFrame;
+
+
+  /// Initalizes SharedPreferences [_pref] object and gives default values
+  Future init(BuildContext context)async{
+
+    if (_pr == null) {
+      _pr = new ProgressDialog(
+          context, type: ProgressDialogType.Download, isDismissible: false);
+      MyApp._pr.style(
+          message: 'Please Waiting...',
+          borderRadius: 10.0,
+          backgroundColor: Colors.white,
+          progressWidget: CircularProgressIndicator(),
+          elevation: 10.0,
+          insetAnimCurve: Curves.easeInOut,
+          progress: 0.0,
+          maxProgress: 100.0,
+          progressTextStyle: TextStyle(
+              color: Colors.black, fontSize: 13.0, fontWeight: FontWeight.w400),
+          messageTextStyle: TextStyle(
+              color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
+      );
+    }
+
+    if(_gallery == null) {
+      _gallery = Gallery();
+    }
+  }
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+
+
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          // This is the theme of your application.
+          //
+          // Try running your application with "flutter run". You'll see the
+          // application has a blue toolbar. Then, without quitting the app, try
+          // changing the primarySwatch below to Colors.green and then invoke
+          // "hot reload" (press "r" in the console where you ran "flutter run",
+          // or simply save your changes to "hot reload" in a Flutter IDE).
+          // Notice that the counter didn't reset back to zero; the application
+          // is not restarted.
+          primarySwatch: Colors.blue,
+        ),
+        home: Builder(
+          builder: (context) {
+            init(context);
+            return MyHomePage(title: 'Flutter Demo Home Page');
+          }
+        ),
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
+
 }
 
 class MyHomePage extends StatefulWidget {
@@ -194,20 +114,16 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
-    static ProgressDialog _pr;
-  List<String> key = ["sc", "snap", "snapchat"];
-  List<PhotoViewGalleryPageOptions> images = [];
   String _directoryPath;
-  Set selected;
-  FToast fToast;
-  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon;
+  Gallery gallery = MyApp._gallery;
+  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon;
 
   String snapchat_uri = 'com.snapchat.android',
   gallery_uri = 'com.sec.android.gallery3d',
   bumble_uri = 'com.bumble.app',
-  instagram_uri = 'com.instagram.android';
+  instagram_uri = 'com.instagram.android',
+  discord_uri = 'com.discord';
 
-  var galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
 
   void requestPermissions() async{
     var status = await Permission.manageExternalStorage.status;
@@ -219,9 +135,10 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
 
+    MyApp.updateFrame = setState;
+
     // Initalize toast for user alerts
-    fToast = FToast();
-    fToast.init(context);
+    Toasts.initToasts(context);
 
     // Request storage permissions
     requestPermissions();
@@ -230,29 +147,11 @@ class _MyHomePageState extends State<MyHomePage> {
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
-        if(app.appName.toLowerCase().contains("instagram"))
+        if(app.appName.toLowerCase().contains("discord"))
           debugPrint("$app");
       }
     });
 
-    _pr = new ProgressDialog(context, type: ProgressDialogType.Download, isDismissible: false);
-    _pr.style(
-        message: 'Please Waiting...',
-        borderRadius: 10.0,
-        backgroundColor: Colors.white,
-        progressWidget: CircularProgressIndicator(),
-        elevation: 10.0,
-        insetAnimCurve: Curves.easeInOut,
-        progress: 0.0,
-        maxProgress: 100.0,
-        progressTextStyle: TextStyle(
-            color: Colors.black, fontSize: 13.0, fontWeight: FontWeight.w400),
-        messageTextStyle: TextStyle(
-            color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
-    );
-
-    // Initalize indicator for selected photos
-    selected = new Set();
 
   }
 
@@ -286,13 +185,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     onLongPress: () => displaySnaps(false),
                   ),
                   ElevatedButton(
-                    onPressed: selected.isNotEmpty ? move : null,
+                    onPressed: gallery.selected.isNotEmpty ? move : null,
                     child: Text("Move"),
                   ),
                 ],
               ),
             ),
-            if (images.isNotEmpty) Expanded(
+            if (gallery.images.isNotEmpty) Expanded(
               flex: 8,
               child: Container(
                 child: Scrollbar(
@@ -300,11 +199,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   showTrackOnHover: true,
                   thickness: 15,
                   interactive: true,
-                  controller: galleryController,
+                  controller: gallery.galleryController,
                   child: PhotoViewGallery(
                     scrollPhysics: const BouncingScrollPhysics(),
-                    pageOptions: images,
-                    pageController: galleryController,
+                    pageOptions: gallery.images,
+                    pageController: gallery.galleryController,
                   ),
                 ),
               ),
@@ -320,95 +219,16 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                SocialIcon(snapchat_uri),
+                SocialIcon(gallery_uri),
+                SocialIcon(bumble_uri),
                 FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(snapchat_uri),
-                  child: snapchat_icon?? FutureBuilder(
-                    // Get icon
-                    future: DeviceApps.getApp(snapchat_uri, true),
-                    // Build icon when retrieved
-                    builder: (context, snapshot) {
-                      if(snapshot.connectionState == ConnectionState.done){
-                        var value = snapshot.data;
-                        ApplicationWithIcon app;
-                        app = (value as ApplicationWithIcon);
-                        snapchat_icon = Image.memory(app.icon);
-                        return snapchat_icon;
-                      }
-                      else{
-                        return CircularProgressIndicator();
-                      }
-                    }
-                  ),
-                ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(gallery_uri),
-                  child: gallery_icon?? FutureBuilder(
-                    // Get icon
-                    future: DeviceApps.getApp(gallery_uri, true),
-                    // Build icon when retrieved
-                    builder: (context, snapshot) {
-                      if(snapshot.connectionState == ConnectionState.done){
-                        var value = snapshot.data;
-                        ApplicationWithIcon app;
-                        app = (value as ApplicationWithIcon);
-                        gallery_icon = Image.memory(app.icon);
-                        return gallery_icon;
-                      }
-                      else{
-                        return CircularProgressIndicator();
-                      }
-                    }
-                  ),
-                ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(bumble_uri),
-                  child: bumble_icon?? FutureBuilder(
-                    // Get icon
-                    future: DeviceApps.getApp(bumble_uri, true),
-                    // Build icon when retrieved
-                    builder: (context, snapshot) {
-                      if(snapshot.connectionState == ConnectionState.done){
-                        var value = snapshot.data;
-                        ApplicationWithIcon app;
-                        app = (value as ApplicationWithIcon);
-                        bumble_icon = Image.memory(app.icon);
-                        return bumble_icon;
-                      }
-                      else{
-                        return CircularProgressIndicator();
-                      }
-                    }
-                  ),
-                ),
-                FloatingActionButton(
-                  // tooltip: 'Get Text',
+                  tooltip: 'Change current directory',
                   onPressed: changeDir,
                   child: Icon(Icons.drive_folder_upload),
                 ),
-                FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  onPressed: () => DeviceApps.openApp(instagram_uri),
-                  child: instagram_icon?? FutureBuilder(
-                    // Get icon
-                      future: DeviceApps.getApp(instagram_uri, true),
-                      // Build icon when retrieved
-                      builder: (context, snapshot) {
-                        if(snapshot.connectionState == ConnectionState.done){
-                          var value = snapshot.data;
-                          ApplicationWithIcon app;
-                          app = (value as ApplicationWithIcon);
-                          instagram_icon = Image.memory(app.icon);
-                          return instagram_icon;
-                        }
-                        else{
-                          return CircularProgressIndicator();
-                        }
-                      }
-                  ),
-                ),
+                SocialIcon(instagram_uri),
+                SocialIcon(discord_uri),
               ],
             ),
           ),
@@ -419,24 +239,22 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void move() async{
     // Move selected images to new directory
-    if(selected.isNotEmpty) {
+    if(gallery.selected.isNotEmpty) {
       // Choose new directory
       String new_dir = await FilePicker.platform.getDirectoryPath();
 
       if(new_dir != null) {
-        var lst = selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
+        var lst = gallery.selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
 
-        print("List:" + lst.toString());
+        debugPrint("List:" + lst.toString());
         String src, dst;
         for(List<String> pair in lst){
           src = pair[0];
           dst = pair[1];
           File(src).renameSync(dst);
-          // File(src).copySync(dst);
-          // File(src).deleteSync();
         }
         setState(() {
-          selected.clear();
+          gallery.removeSelected();
         });
       }
     }
@@ -445,173 +263,9 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Creates standardized Widget that will seen in gallery
-  PhotoViewGalleryPageOptions newGalleryCell(String text, String suggestion, dynamic f, File image, {int position}){
-    String file_name = f.path.split("/").last;
-    int list_pos = position?? images.length;
-
-    // Used for controlling when to take screenshot
-    GlobalKey globalKey = new GlobalKey();
-
-    return PhotoViewGalleryPageOptions.customChild(
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.95,
-        child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Photo
-              Expanded(
-                flex: 1,
-                child: Container(
-                  height: 450,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: ElevatedButton(
-                          child: Text("REDO", style: TextStyle(color: Colors.white),),
-                          onPressed: () async{
-                            // return null;
-                            // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
-                            RenderRepaintBoundary boundary = globalKey.currentContext.findRenderObject();
-                            var image = await boundary.toImage();
-                            ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
-                            Uint8List pngBytes = byteData.buffer.asUint8List();
-
-                            // Create file location for image
-                            final tempDir = Directory.systemTemp;
-                            print("tempDir = ${tempDir.path}");
-                            final file = await new File('${tempDir.path}/${file_name.split(".").first}.repl.png').create().catchError((e){
-                              print("file creation failed.");
-                              print(e);
-                            });
-
-                            // Save image locally
-                            await file.writeAsBytes(pngBytes).catchError((e){
-                              print("file writing failed.");
-                              print(e);
-                            });
-                            print("image file exists: " + (await file.exists()).toString());
-                            print("image file path: " + (await file.path));
-
-                            /*
-                             * [Testing]
-                             */
-                            // Add image to gallery
-                            // setState(() {
-                            //   // images[list_pos] = newGalleryCell(text, "result", file, new File(file.path), position: list_pos);
-                            // });
-
-                            // Run OCR
-                            // Returns suggested snap username or empty string
-                            Function post = (String text, String _){
-                              String result = findSnapKeyword(key, text)?? "";
-
-                              debugPrint("ran display Post");
-
-                              return result;
-                            };
-                            ocrParallel([new File(file.path)], post, replace: {list_pos : f.path}).then((value) => setState((){}));
-                          },
-                        ),
-                      ),
-                      Expanded(
-                        flex : 9,
-                        child: RepaintBoundary(
-                          key: globalKey,
-                          child: Container(
-                            child: PhotoView(
-                              imageProvider: FileImage(image),
-                              initialScale: PhotoViewComputedScale.contained,
-                              minScale: PhotoViewComputedScale.contained *
-                                  (0.5 + images.length / 10),
-                              maxScale: PhotoViewComputedScale.covered * 4.1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Analysis
-              Expanded(
-                flex : 1,
-                child: Container(
-                  child: Center(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Filename
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            child: ListTile(
-                              title: SelectableText(
-                                file_name,
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 7),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        Expanded(
-                            child: ElevatedButton(
-                              child: Text("Select"),
-                              onPressed: () {
-                                selected.contains(file_name) ? selected.remove(
-                                    file_name) : selected.add(file_name);
-                                _showToast(selected.contains(file_name));
-                              },
-                            )
-                        ),
-                        Spacer(
-
-                        ),
-
-                        // Snap suggestion
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            child: ListTile(
-                              title: SelectableText(suggestion, style: TextStyle(color: Colors.redAccent),),
-                            ),
-                          ),
-                        ),
-
-                        Spacer(
-
-                        ),
-
-                        // Entire OCR
-                        Expanded(
-                          flex: 3,
-                          child: Container(
-                              color: Colors.white,
-                              child: SelectableText(
-                                text.toString(),
-                                showCursor: true,
-                              )
-                          ),
-                        ),
-                        Spacer(
-
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ]),
-      ),
-      // heroAttributes: const HeroAttributes(tag: "tag1"),
-    );
-  }
-
 
   // Select picture(s) and run through OCR
-  Future<List> pick(bool select) async {
+  Future<List> selectImages(bool individual) async {
     List paths;
 
 
@@ -628,12 +282,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Select file(s)
-    if(select) {
+    if(individual) {
 
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
       Stopwatch timer = new Stopwatch();
-      await _pr.show();
+      await MyApp._pr.show();
       paths = (await FilePicker.platform.pickFiles(
           type: _pickingType,
           allowMultiple: _multiPick
@@ -647,7 +301,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      await _pr.show();
+      await MyApp._pr.show();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
 
@@ -715,7 +369,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("paths: " + paths.toString());
     if(paths == null) {
-      await _pr.hide();
+      await MyApp._pr.hide();
       return;
     }
 
@@ -728,7 +382,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // Remove prompt
     Navigator.pop(context);
 
-    await ocrParallel(paths, post, query: query);
+    await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
 
 
@@ -742,11 +396,11 @@ class _MyHomePageState extends State<MyHomePage> {
     // _pr.show();
 
     // Choose files to extract text from
-    List paths = await pick(select);
+    List paths = await selectImages(select);
 
     // Returns suggested snap username or empty string
     Function post = (String text, String _){
-      String result = findSnapKeyword(key, text)?? "";
+      String result = findSnapKeyword(keys, text)?? "";
 
       debugPrint("ran display Post");
 
@@ -754,183 +408,14 @@ class _MyHomePageState extends State<MyHomePage> {
     };
 
     if(paths == null) {
-      await _pr.hide();
+      await MyApp._pr.hide();
       return;
     }
 
-    ocrParallel(paths, post);
+    ocrParallel(paths, post, MediaQuery.of(context).size);
 
   }
 
-  Future ocrParallel(List paths, Function post, {String query, bool findFirst = false, Map<int, String> replace}) async{
-
-    _pr.update(progress: 0);
-    await _pr.show();
-
-    // Reset Gallery
-    if(replace == null) {
-      if(images.length > 0)
-        galleryController.jumpToPage(0);
-      images.clear();
-    }
-
-    // Time search
-    Stopwatch time_elasped = new Stopwatch();
-
-
-    final isolates = IsolateHandler();
-    int completed = 0;
-    int path_idx = 0;
-    time_elasped.start();
-    final prefs = await SharedPreferences.getInstance();
-
-    for(path_idx = 0; path_idx < paths.length; path_idx++){
-
-
-      // Prepare data to be sent to thread
-      var f = paths[path_idx];
-      var size = MediaQuery.of(context).size;
-      Map<String, dynamic> message = {
-        "f": f.path,
-        "height": size.height,
-        "width" : size.width
-      };
-      String rawJson = jsonEncode(message);
-      final Map<String, dynamic> data = json.decode(rawJson);
-      String iso_name = f.path.split("/").last;
-
-      // Define callback
-      Function onReceive = (dynamic signal) {
-        if(signal is String){
-          String text = signal;
-          // If query word has been found
-          String result = post(text, query);
-          if(result != null) {
-
-            if(replace == null)
-              images.add(newGalleryCell(text, result, f, new File(f.path)));
-            else{
-              var pair = replace.entries.first;
-              int idx = pair.key;
-              String file = pair.value;
-              debugPrint("f.path: ${f.path}");
-              debugPrint("file path: $file");
-              images[idx] = newGalleryCell(text, result, f, new File(file), position: idx);
-            }
-
-            debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
-
-            // Stop creation of new isolates and to close dialogs
-            if(findFirst) {
-              path_idx = paths.length;
-              completed = paths.length;
-            }
-          }
-
-        }
-        else{
-          // Dispose of finished isolate
-          isolates.kill(iso_name, priority: Isolate.immediate);
-        }
-
-        debugPrint("before `completed`... $completed <= ${paths.length}");
-        debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
-
-
-        // Increase progress bar
-        int update = (completed+1)*100~/paths.length;
-        update = update.clamp(0, 100);
-        print("Increasing... " + update.toString());
-        _pr.update(maxProgress: 100.0, progress: update/1.0);
-
-        // Close dialogs once finished with all images
-        if(++completed >= paths.length){
-          // Terminate running isolates
-          List names = isolates.isolates.keys.toList();
-          for(String name in names){
-            // Don't kill current thread
-            if(name == iso_name) continue;
-
-            debugPrint("iso-name: ${name}");
-            if(isolates.isolates[name].messenger.connectionEstablished ) {
-              try {
-                isolates.kill(name, priority: Isolate.immediate);
-              }
-              catch(e){
-                debugPrint("pass kill error");
-              }
-            }
-          }
-          debugPrint("popping...");
-
-          // Quick fix for this callback being called twice
-          // TODO: Find way to stop isolates immediately so they don't get to this point
-          if(_pr.isShowing())
-            _pr.hide().then((value) {
-              setState(() => {});
-            });
-        }
-      };
-
-      List<String> split = splitFileNameByDots(f.path);
-      String key = filenameToKey(f.path);
-      bool replacing = split.length == 3;
-
-      if(replacing) {
-        prefs.remove(key);
-      }
-
-      if(prefs.getString(key) != null){
-        String result = prefs.getString(key);
-        onReceive(result);
-      }
-      else {
-        // Start up the thread and configures the callbacks
-        debugPrint("spawning new iso....");
-        isolates.spawn<String>(
-            threadFunction,
-            name: iso_name,
-            onInitialized: () => isolates.send(rawJson, to: iso_name),
-            onReceive: (dynamic signal) => onReceive(signal));
-      }
-
-    }
-  }
-
-  /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
-  void _showToast(bool selected){
-
-    // Make sure last toast has eneded
-    fToast.removeCustomToast();
-
-    Widget toast = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.0),
-        color: selected ? Colors.greenAccent : Colors.grey,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          selected ? Icon(Icons.check) : Icon(Icons.not_interested_outlined),
-          SizedBox(
-            width: 12.0,
-          ),
-          Text(selected ? "Selected." : "Unselected."),
-        ],
-      ),
-    );
-
-
-
-    setState(() {
-      fToast.showToast(
-        child: toast,
-        gravity: ToastGravity.BOTTOM,
-        toastDuration: Duration(seconds: 1),
-      );
-    });
-  }
 
   Future changeDir() async{
 
@@ -947,44 +432,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
-  /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
-  String findSnapKeyword(List<String> keys, String text){
-    // TODO: Change so tha it finds the next word in the series, not the row
-    text = text.toLowerCase();
-    // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
-    // text = text.replaceAll(new RegExp('[^A-Za-z0-9]'),'');
-    // Remove all non-alphanumeric characters
-    debugPrint("text: " + text.replaceAll(new RegExp('[^A-Za-z0-9]'),''));
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
 
-    // Split up lines
-    for(String line in text.split("\n")){
-      // Split up words
-      int i = 0;
-      List<String> words= line.split(" ");
-      for(String word in words){
-        // word;
-        if(keys.contains(word.replaceAll(new RegExp('[^A-Za-z0-9]'),'').trim())) return (i+1 < words.length) ? words[++i].trim() : "";
-        i++;
-      }
-    }
-    return null;
-  }
-
-  /// ???
-  void show(text){
-    showDialog(context: context, builder: (BuildContext context)
-    {
-      return AlertDialog(
-          content: Stack(
-            children: <Widget>[
-              Text(
-                text,
-                textAlign: TextAlign.center,
-              )
-            ],
-          )
-      );
-    });
+    FilePicker.platform.clearTemporaryFiles();
   }
 
 }
