@@ -4,13 +4,13 @@ Flutter app for finding pictures that contain a searched word in a group of phot
 
 Todos: 
 
-- [] Add photos to gallery in batches (requries async functionality)
+- [ ] Add photos to gallery in batches (requries async functionality)
 
 - [x] Minimize code into services approach
 
 - [x] Give selection text background color and highligh color
 
-- [] Change Snap detection to checking all text on one line 
+- [ ] Change Snap detection to checking all text on one line 
 
 - [x] Create GalleryCell object
 
