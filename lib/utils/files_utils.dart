@@ -12,8 +12,7 @@ import 'package:isolate_handler/isolate_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
-
-Future<String> runOCR(String filePath, ui.Size size, {bool crop = true}) async {
+Future<String> runOCR(String filePath, {bool crop=true, ui.Size size}) async {
   print("Entering runOCR()...");
   debugPrint("Running OCR on $filePath}");
   File temp_cropped = crop ? createCroppedImage(
@@ -52,14 +51,14 @@ List<String> getFileNameAndExtension(String f){
   return split;
 }
 
-String generateKeyFromFilename(String f){
+String getKeyOfFilename(String f){
   List<String> split = getFileNameAndExtension(f);
   String key = split.first;
 
   return key;
 }
 
-Future ocrParallel(List paths, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
+Future ocrParallel(List filesList, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
 
   MyApp.pr.update(progress: 0);
   await MyApp.pr.show();
@@ -77,7 +76,7 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
 
   final isolates = IsolateHandler();
   int completed = 0;
-  int path_idx = 0;
+  int files_idx = 0;
   time_elasped.start();
 
   // Make sure latest thread cached updates exist in main thread
@@ -85,20 +84,20 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
   await prefs.reload();
 
 
-  for(path_idx = 0; path_idx < paths.length; path_idx++){
+  for(files_idx = 0; files_idx < filesList.length; files_idx++){
 
 
     // Prepare data to be sent to thread
-    var srcFilePath = paths[path_idx];
+    var srcFile = filesList[files_idx];
 
     Map<String, dynamic> message = {
-      "f": srcFilePath.path,
+      "f": srcFile.path,
       "height": size.height,
       "width" : size.width
     };
     String rawJson = jsonEncode(message);
-    String iso_name = path.basename(srcFilePath.path);
-    debugPrint("srcFilePath [${srcFilePath.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
+    String iso_name = path.basename(srcFile.path);
+    debugPrint("srcFilePath [${srcFile.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
 
     // Define callback
     void onEachOcrResult (dynamic signal) {
@@ -111,19 +110,21 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
         if(suggestedUsername != null) {
 
           if(replace == null)
-            MyApp.gallery.addNewCell(text, suggestedUsername, srcFilePath, new File(srcFilePath.path));
+            MyApp.gallery.addNewCell(text, suggestedUsername, srcFile, new File(srcFile.path));
           else{
             var pair = replace.entries.first;
             int idx = pair.key;
             MyApp.gallery.redoCell(text, suggestedUsername, idx);
+            // Note: scrFile will always be a File for redo and ONLY redo
+            (srcFile as File).delete();
           }
 
           debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
 
           // Stop creation of new isolates and to close dialogs
           if(findFirst) {
-            path_idx = paths.length;
-            completed = paths.length;
+            files_idx = filesList.length;
+            completed = filesList.length;
           }
         }
 
@@ -135,14 +136,14 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
         isolates.kill(iso_name, priority: Isolate.immediate);
       }
 
-      debugPrint("before `completed`... $completed <= ${paths.length}");
-      debugPrint("before `path_idx`... $path_idx <= ${paths.length}");
+      debugPrint("before `completed`... $completed <= ${filesList.length}");
+      debugPrint("before `path_idx`... $files_idx <= ${filesList.length}");
 
 
-      increaseProgressBar(completed, paths);
+      increaseProgressBar(completed, filesList);
 
       // Close dialogs once finished with all images
-      if(++completed >= paths.length){
+      if(++completed >= filesList.length){
 
         debugPrint("Terminate all running isolates...");
 
@@ -165,26 +166,32 @@ Future ocrParallel(List paths, Function post, Size size, {String query, bool fin
       }
     };
 
-    await createOCRThread(iso_name, srcFilePath, rawJson, onEachOcrResult, isolates, replace != null);
+    await createOCRJob(iso_name, srcFile, rawJson, onEachOcrResult, isolates, replace != null);
 
   }
 }
 
-createOCRThread(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates, bool replacing) async{
-  debugPrint("Entering createOCRThread()...");
+createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates, bool replacing) async{
+  debugPrint("Entering createOCRJob()...");
   final prefs = await SharedPreferences.getInstance();
 
   List<String> split = getFileNameAndExtension(src_filePath.path);
-  String key = generateKeyFromFilename(src_filePath.path);
+  String key = getKeyOfFilename(src_filePath.path);
   // bool replacing = split.length == 3;
 
   if(replacing) {
     debugPrint(">>> Removing cached OCR result");
     prefs.remove(key);
+
+    debugPrint("Running OCR redo in main thread...");
+    String result = await runOCR(src_filePath.path, crop: false);
+
+    prefs.setString(key, result);
+    onEachOcrResult(result);
   }
 
   // Check if this file needs to OCR or has been cached
-  if(prefs.getString(key) != null){
+  else if(prefs.getString(key) != null){
     debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
     String result = prefs.getString(key);
     onEachOcrResult(result);
@@ -198,7 +205,7 @@ createOCRThread(String iso_name, dynamic src_filePath, String rawJson, Function 
         onInitialized:() => isolates.send(rawJson, to: iso_name),
         onReceive: (dynamic signal) => onEachOcrResult(signal));
   }
-  debugPrint("Leaving createOCRThread()...");
+  debugPrint("Leaving createOCRJob()...");
 }
 
 void increaseProgressBar(int completed, List paths){
@@ -242,24 +249,17 @@ void ocrThread(Map<String, dynamic> context) {
       final prefs = await SharedPreferences.getInstance();
 
       Map<String, dynamic> message = json.decode(receivedData);
-      String f = message["f"];
+      String filePath = message["f"];
       ui.Size size = ui.Size(
           message['width'].toDouble(),
           message['height'].toDouble()
       );
 
-      debugPrint("Running thread for >> $f");
+      debugPrint("Running thread for >> $filePath");
 
-      List<String> split = getFileNameAndExtension(f);
-      String key = generateKeyFromFilename(f);
-      bool replacing = split.length == 3;
-
-      if(replacing) {
-        prefs.remove(key);
-      }
-
-      runOCR(f, size, crop: !replacing).then((result) {
+      runOCR(filePath, size: size).then((result) {
         if (result is String) {
+          String key = getKeyOfFilename(filePath);
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
           prefs.setString(key, result);
