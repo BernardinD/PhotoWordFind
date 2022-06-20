@@ -53,6 +53,8 @@ dependencies:
   # Request storage permissions
   permission_handler: ^7.1.0
 
+  # Handling errors
+  catcher: ^0.6.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -61,6 +63,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+#  flutter_driver:
+#    sdk: flutter
+#  test: any
+  mockito: any
+  build_runner: any
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
