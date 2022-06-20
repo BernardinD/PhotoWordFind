@@ -5,6 +5,7 @@ import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
+import 'package:catcher/catcher.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -22,18 +23,29 @@ import 'constants/constants.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
+  CatcherOptions debugOptions = CatcherOptions(PageReportMode(), [ConsoleHandler()]);
+  CatcherOptions releaseOptions = CatcherOptions(PageReportMode(), [
+    EmailManualHandler(["bdezius@gmail.com"], emailTitle: "Photo Word Find - Crashed", emailHeader: "Error message")
+  ]);
+
+  Catcher(rootWidget: MyApp(title: 'Flutter Demo Home Page'), debugConfig: debugOptions, releaseConfig: releaseOptions);
+
   // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
-  runApp(MyApp());
+  // runApp(MyApp('Flutter Demo Home Page'));
 }
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   static ProgressDialog _pr;
+
+  String title;
   static ProgressDialog get pr => _pr;
 
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
   static Function updateFrame;
+
+  MyApp({@required this.title});
 
 
   /// Initalizes SharedPreferences [_pref] object and gives default values
@@ -82,10 +94,11 @@ class MyApp extends StatelessWidget {
           // is not restarted.
           primarySwatch: Colors.blue,
         ),
+        navigatorKey: Catcher.navigatorKey,
         home: Builder(
           builder: (context) {
             init(context);
-            return MyHomePage(title: 'Flutter Demo Home Page');
+            return MyHomePage(title: title);
           }
         ),
       ),
@@ -137,6 +150,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
     MyApp.updateFrame = setState;
 
+    snapchat_icon = SocialIcon(snapchat_uri);
+    gallery_icon = SocialIcon(gallery_uri);
+    bumble_icon = SocialIcon(bumble_uri);
+    instagram_icon = SocialIcon(instagram_uri);
+    discord_icon = SocialIcon(discord_uri);
+
     // Initalize toast for user alerts
     Toasts.initToasts(context);
 
@@ -159,6 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
 
     return Scaffold(
+      resizeToAvoidBottomInset : false,
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
@@ -167,48 +187,53 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              flex: 1,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton(
-                    onPressed: showFindPrompt,
-                    child: Text("Find"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => displaySnaps(true),
-                    child: Text("Display"),
-                    onLongPress: () => displaySnaps(false),
-                  ),
-                  ElevatedButton(
-                    onPressed: gallery.selected.isNotEmpty ? move : null,
-                    child: Text("Move"),
-                  ),
-                ],
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                flex: 1,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      onPressed: showFindPrompt,
+                      child: Text("Find"),
+                    ),
+                    ElevatedButton(
+                      // key: ValueKey("Display"),
+                      onPressed: () => displaySnaps(true),
+                      child: Text("Display"),
+                      onLongPress: () => displaySnaps(false),
+                    ),
+                    ElevatedButton(
+                      key: ValueKey("Move"),
+                      onPressed: gallery.selected.isNotEmpty ? move : null,
+                      child: Text("Move"),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (gallery.images.isNotEmpty) Expanded(
-              flex: 8,
-              child: Container(
-                child: Scrollbar(
-                  isAlwaysShown: true,
-                  showTrackOnHover: true,
-                  thickness: 15,
-                  interactive: true,
-                  controller: gallery.galleryController,
-                  child: PhotoViewGallery(
-                    scrollPhysics: const BouncingScrollPhysics(),
-                    pageOptions: gallery.images,
-                    pageController: gallery.galleryController,
+              if (gallery.images.isNotEmpty) Expanded(
+                flex: 8,
+                child: Container(
+                  child: Scrollbar(
+                    isAlwaysShown: true,
+                    showTrackOnHover: true,
+                    thickness: 15,
+                    interactive: true,
+                    controller: gallery.galleryController,
+                    child: PhotoViewGallery(
+                      scrollPhysics: const BouncingScrollPhysics(),
+                      pageOptions: gallery.images,
+                      pageController: gallery.galleryController,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       persistentFooterButtons: [
@@ -219,16 +244,17 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SocialIcon(snapchat_uri),
-                SocialIcon(gallery_uri),
-                SocialIcon(bumble_uri),
+                (snapchat_icon),
+                (gallery_icon),
+                (bumble_icon),
                 FloatingActionButton(
+                  heroTag: null,
                   tooltip: 'Change current directory',
                   onPressed: changeDir,
                   child: Icon(Icons.drive_folder_upload),
                 ),
-                SocialIcon(instagram_uri),
-                SocialIcon(discord_uri),
+                (instagram_icon),
+                (discord_icon),
               ],
             ),
           ),
@@ -259,7 +285,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      // Pop up detailing no files selected
+      throw Exception("There are no selected files to move");
     }
   }
 
@@ -437,7 +463,8 @@ class _MyHomePageState extends State<MyHomePage> {
     // TODO: implement dispose
     super.dispose();
 
-    FilePicker.platform.clearTemporaryFiles();
+    if( !Platform.environment.containsKey('FLUTTER_TEST'))
+      FilePicker.platform.clearTemporaryFiles();
   }
 
 }

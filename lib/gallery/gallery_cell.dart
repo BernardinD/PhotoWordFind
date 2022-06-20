@@ -27,19 +27,28 @@ class GalleryCell extends StatefulWidget {
 
 class _GalleryCellState extends State<GalleryCell>{
 
-  GlobalKey globalKey;
+  GlobalKey cropBoxKey;
+  Key cellKey;
   String file_name;
+
+
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    // Used for controlling when to take screenshot
+    cropBoxKey = new GlobalKey();
+    file_name = widget.f.path.split("/").last;
+    cellKey = ValueKey(file_name);
+  }
 
   @override
   Widget build(BuildContext context) {
 
-    // Used for controlling when to take screenshot
-    globalKey = new GlobalKey();
-
-    file_name = widget.f.path.split("/").last;
-
     return Container(
-      key: ValueKey(file_name),
+      key: cellKey,
       width: MediaQuery.of(context).size.width * 0.95,
       child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -62,7 +71,7 @@ class _GalleryCellState extends State<GalleryCell>{
                       flex : 9,
                       child: ClipRect(
                         child: RepaintBoundary(
-                          key: globalKey,
+                          key: cropBoxKey,
                           child: Container(
                             child: PhotoView(
                               imageProvider: FileImage(widget.src_image),
@@ -141,7 +150,7 @@ class _GalleryCellState extends State<GalleryCell>{
 
   void redo(String file_name, dynamic src_image) async{
     // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
-    RenderRepaintBoundary boundary = globalKey.currentContext.findRenderObject();
+    RenderRepaintBoundary boundary = cropBoxKey.currentContext.findRenderObject();
     var image = await boundary.toImage();
     ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
     Uint8List pngBytes = byteData.buffer.asUint8List();

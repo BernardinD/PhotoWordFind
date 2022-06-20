@@ -12,6 +12,8 @@ class SocialIcon extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
+      heroTag: null,
+      key: ValueKey(social_uri),
       backgroundColor: Colors.white,
       onPressed: () => DeviceApps.openApp(social_uri),
       child: social_icon?? FutureBuilder(
