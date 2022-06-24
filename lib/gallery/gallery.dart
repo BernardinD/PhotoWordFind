@@ -26,7 +26,7 @@ class Gallery{
   // Getters
   List<PhotoViewGalleryPageOptions> get images => _images;
   Set get selected => _selected;
-  get galleryController => _galleryController;
+  PageController get galleryController => _galleryController;
 
   // Setters
   set selected(Set selected) {

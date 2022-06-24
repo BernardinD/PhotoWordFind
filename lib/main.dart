@@ -218,17 +218,32 @@ class _MyHomePageState extends State<MyHomePage> {
               if (gallery.images.isNotEmpty) Expanded(
                 flex: 8,
                 child: Container(
-                  child: Scrollbar(
-                    isAlwaysShown: true,
-                    showTrackOnHover: true,
-                    thickness: 15,
-                    interactive: true,
-                    controller: gallery.galleryController,
-                    child: PhotoViewGallery(
-                      scrollPhysics: const BouncingScrollPhysics(),
-                      pageOptions: gallery.images,
-                      pageController: gallery.galleryController,
-                    ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: Text("${gallery.galleryController.positions.isNotEmpty ?
+                            gallery.galleryController.page.round()+1 :
+                            gallery.galleryController.initialPage+1}"
+                          "/${gallery.images.length}"),
+                      ),
+                      Expanded(
+                        flex: 19,
+                        child: Scrollbar(
+                          isAlwaysShown: true,
+                          showTrackOnHover: true,
+                          thickness: 15,
+                          interactive: true,
+                          controller: gallery.galleryController,
+                          child: PhotoViewGallery(
+                            onPageChanged: (_) => setState(() {}),
+                            scrollPhysics: const BouncingScrollPhysics(),
+                            pageOptions: gallery.images,
+                            pageController: gallery.galleryController,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
