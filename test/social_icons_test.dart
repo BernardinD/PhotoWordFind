@@ -56,8 +56,13 @@ void main(){
 
     var test = SocialIcon('Test');
     await tester.pumpWidget(MaterialApp(home: test));
+
+    var wheel = find.byType(CircularProgressIndicator);
+    expect(wheel, findsOneWidget);
+
     await tester.pump();
 
     expect(test.social_icon, isNotNull);
+    expect(wheel, findsNothing);
   });
 }
