@@ -84,6 +84,7 @@ flutter:
   assets:
     - assets/
     - assets/tessdata/
+    - android/app/src/main/res/mipmap-hdpi/ic_launcher.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
