@@ -57,7 +57,8 @@ class MyProgressDialog extends ProgressDialog{
   
   void _keepWaiting(){
     debugPrint("Entering _keepWaiting...");
-    _scheduleTimeout = Timer(Duration(seconds: 8), _handleTimeout);
+    if(this.isShowing())
+      _scheduleTimeout = Timer(Duration(seconds: 8), _handleTimeout);
     Navigator.of(_context).pop();
     debugPrint("Entering _keepWaiting...");
   }
