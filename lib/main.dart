@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
+import 'package:PhotoWordFind/utils/MyProgressDialog.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
@@ -36,7 +37,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
-  static ProgressDialog _pr;
+  static MyProgressDialog _pr;
 
   String title;
   static ProgressDialog get pr => _pr;
@@ -52,7 +53,7 @@ class MyApp extends StatelessWidget {
   Future init(BuildContext context)async{
 
     if (_pr == null) {
-      _pr = new ProgressDialog(
+      _pr = new MyProgressDialog(
           context, type: ProgressDialogType.Download, isDismissible: false);
       MyApp._pr.style(
           message: 'Please Waiting...',
@@ -172,11 +173,12 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
 
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => MyApp.pr.show());
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       resizeToAvoidBottomInset : false,
       appBar: AppBar(
@@ -247,6 +249,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
+
             ],
           ),
         ),
@@ -357,7 +360,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void showFindPrompt(){
     final formKey = GlobalKey<FormState>();
 
-    Function submit = (){
+    Function validatePhrase = (){
       if (formKey.currentState.validate()) {
         formKey.currentState.save();
       }
@@ -378,10 +381,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
                     onSaved: (input) => findSnap(input.trim()),
-                    onFieldSubmitted: (String) => submit(),
+                    onFieldSubmitted: (String) => validatePhrase(),
                   ),
                   ElevatedButton(
-                    onPressed: submit,
+                    onPressed: validatePhrase,
                     child: Text('Find'),
                   ),
                 ],
