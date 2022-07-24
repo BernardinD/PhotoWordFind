@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
   static MyProgressDialog _pr;
 
   String title;
-  static ProgressDialog get pr => _pr;
+  static MyProgressDialog get pr => _pr;
 
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
@@ -52,9 +52,11 @@ class MyApp extends StatelessWidget {
   /// Initalizes SharedPreferences [_pref] object and gives default values
   Future init(BuildContext context)async{
 
+
+
     if (_pr == null) {
       _pr = new MyProgressDialog(
-          context, type: ProgressDialogType.Download, isDismissible: false);
+          context, Catcher.navigatorKey, type: ProgressDialogType.Download, isDismissible: false, showLogs: true);
       MyApp._pr.style(
           message: 'Please Waiting...',
           borderRadius: 10.0,
@@ -173,8 +175,23 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
 
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => MyApp.pr.show());
+    /*
+     * Testing ProgressBar timeout
+     */
+    // WidgetsBinding.instance
+    //     .addPostFrameCallback((_) => MyApp.pr.show());
+
+
+    // WidgetsBinding.instance
+    //     .addPostFrameCallback((_)  {
+    //   // debugPrint("came in.");
+    //   MyApp.pr.show();
+    //   WidgetsBinding.instance
+    //       .addPostFrameCallback((_) {
+    //   // Timer(Duration(seconds: 10), ()=>Navigator.pop(context));
+    //   Timer(Duration(seconds: 5), MyApp.pr.hide);
+    //   });
+    // });
   }
 
   @override

@@ -3,16 +3,19 @@ import 'dart:async';
 // import 'dart:ui';
 
 import 'package:PhotoWordFind/main.dart';
+import 'package:catcher/catcher.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter/src/widgets/framework.dart';
 import 'package:progress_dialog/progress_dialog.dart';
 
-BuildContext _context;
+Widget dialog;
+BuildContext _progressContext, _messageContext;
+GlobalKey<NavigatorState> _navigatorKey;
 
 class MyProgressDialog extends ProgressDialog{
   Timer _scheduleTimeout;
-  MyProgressDialog(BuildContext context,
+  MyProgressDialog(BuildContext context, GlobalKey navigatorKey,
       {ProgressDialogType type,
         bool isDismissible,
         bool showLogs,
@@ -22,49 +25,86 @@ class MyProgressDialog extends ProgressDialog{
       showLogs:showLogs,
       textDirection:textDirection,
       customBody:customBody) {
-    _context = context;;
+    _progressContext = context;
+    // _navigatorKey = navigatorKey;
   }
 
   Future<bool> show() async{
     bool ret = await super.show();
-    _scheduleTimeout = Timer(Duration(seconds: 8), _handleTimeout);
+
+    // Make sure previous timer no longer exists before creating new one
+    if(_scheduleTimeout != null && _scheduleTimeout.isActive)
+      _scheduleTimeout.cancel();
+
+    _scheduleTimeout = _createTimer();
     return ret;
   }
 
   Future<bool> hide() async {
     debugPrint("Entering hide...");
     _scheduleTimeout.cancel();
+
+    _removeMessage();
     bool ret = await super.hide();
+
     debugPrint("Leaving hide...");
     return ret;
   }
 
   void _handleTimeout(){
     debugPrint("Entering _handleTimeout...");
-    showDialog(context: _context, builder: (context) => timeoutDialog(), barrierDismissible: false);
+    showDialog(context: _progressContext, builder: (context) => timeoutDialog(context), barrierDismissible: false);
+
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) {
+      debugPrint("message: $_messageContext");
+      debugPrint("progress: $_progressContext");
+    });
     debugPrint("Leaving _handleTimeout...");
   }
   
   void _stopProgressBar() async{
     debugPrint("Entering _stopProgressBar...");
     debugPrint("is showing: ${this.isShowing()}");
-    Navigator.of(_context).pop();
     WidgetsBinding.instance
         .addPostFrameCallback((_) => throw TimeoutException("Progress bar is taking longer than expected"));
     await this.hide();
     debugPrint("Leaving _stopProgressBar...");
   }
+
+  void _removeMessage(){
+    debugPrint("Entering _removeMessage...");
+    if(_messageContext != null){
+      // Check if context of message is present
+      try{
+        ModalRoute.of(_messageContext);
+        if(ModalRoute.of(_messageContext).isCurrent) {
+          debugPrint(
+              "ModalRoute.of(context)?.isCurrent: ${ModalRoute.of(_messageContext)?.isCurrent}");
+          Navigator.of(_messageContext).pop();
+        }
+      }
+      catch(e){}
+    }
+    debugPrint("Leaving _removeMessage...");
+  }
   
   void _keepWaiting(){
     debugPrint("Entering _keepWaiting...");
     if(this.isShowing())
-      _scheduleTimeout = Timer(Duration(seconds: 8), _handleTimeout);
-    Navigator.of(_context).pop();
+      _scheduleTimeout = _createTimer();
+    Navigator.of(_messageContext).pop();
     debugPrint("Entering _keepWaiting...");
   }
 
-  Widget timeoutDialog(){
-    return Center(
+  Timer _createTimer(){
+    return Timer(Duration(seconds: 8), _handleTimeout);;
+  }
+
+  Widget timeoutDialog(BuildContext context){
+    _messageContext = context;
+    if(dialog == null)
+      dialog = Center(
       child: Wrap(
         children: [
           Container(
@@ -92,7 +132,7 @@ class MyProgressDialog extends ProgressDialog{
                     Expanded(
                       flex: 3,
                       child: Container(
-                        width: MediaQuery.of(_context).size.width,
+                        width: MediaQuery.of(_progressContext).size.width,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           // crossAxisAlignment: CrossAxisAlignment.sp,
@@ -118,5 +158,7 @@ class MyProgressDialog extends ProgressDialog{
         ],
       ),
     );
+
+    return dialog;
   }
 }
