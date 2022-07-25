@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
+import 'package:PhotoWordFind/utils/MyProgressDialog.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
@@ -36,10 +37,10 @@ void main() {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
-  static ProgressDialog _pr;
+  static MyProgressDialog _pr;
 
   String title;
-  static ProgressDialog get pr => _pr;
+  static MyProgressDialog get pr => _pr;
 
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
@@ -51,9 +52,11 @@ class MyApp extends StatelessWidget {
   /// Initalizes SharedPreferences [_pref] object and gives default values
   Future init(BuildContext context)async{
 
+
+
     if (_pr == null) {
-      _pr = new ProgressDialog(
-          context, type: ProgressDialogType.Download, isDismissible: false);
+      _pr = new MyProgressDialog(
+          context, Catcher.navigatorKey, type: ProgressDialogType.Download, isDismissible: false, showLogs: true);
       MyApp._pr.style(
           message: 'Please Waiting...',
           borderRadius: 10.0,
@@ -172,11 +175,27 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
 
+    /*
+     * Testing ProgressBar timeout
+     */
+    // WidgetsBinding.instance
+    //     .addPostFrameCallback((_) => MyApp.pr.show());
+
+
+    // WidgetsBinding.instance
+    //     .addPostFrameCallback((_)  {
+    //   // debugPrint("came in.");
+    //   MyApp.pr.show();
+    //   WidgetsBinding.instance
+    //       .addPostFrameCallback((_) {
+    //   // Timer(Duration(seconds: 10), ()=>Navigator.pop(context));
+    //   Timer(Duration(seconds: 5), MyApp.pr.hide);
+    //   });
+    // });
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       resizeToAvoidBottomInset : false,
       appBar: AppBar(
@@ -247,6 +266,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
+
             ],
           ),
         ),
@@ -357,7 +377,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void showFindPrompt(){
     final formKey = GlobalKey<FormState>();
 
-    Function submit = (){
+    Function validatePhrase = (){
       if (formKey.currentState.validate()) {
         formKey.currentState.save();
       }
@@ -378,10 +398,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
                     onSaved: (input) => findSnap(input.trim()),
-                    onFieldSubmitted: (String) => submit(),
+                    onFieldSubmitted: (String) => validatePhrase(),
                   ),
                   ElevatedButton(
-                    onPressed: submit,
+                    onPressed: validatePhrase,
                     child: Text('Find'),
                   ),
                 ],
