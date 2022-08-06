@@ -101,12 +101,14 @@ class _GalleryCellState extends State<GalleryCell>{
 
                       ),
                       Expanded(
+                        flex: 1,
                           child: ElevatedButton(
                             child: Text("Select"),
                             onPressed: () => widget.onPressedHandler(file_name),
                             onLongPress: () => widget.onLongPressedHandler(file_name),
                           )
                       ),
+
                       Spacer(
 
                       ),
@@ -115,13 +117,11 @@ class _GalleryCellState extends State<GalleryCell>{
                       Expanded(
                         flex: 1,
                         child: Container(
-                          child: ListTile(
-                            title: SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),),
-                          ),
+                          child: SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
                         ),
                       ),
 
-                      Spacer(
+                      Spacer(flex: 1,
 
                       ),
 
@@ -136,7 +136,7 @@ class _GalleryCellState extends State<GalleryCell>{
                             )
                         ),
                       ),
-                      Spacer(
+                      Spacer(flex: 2,
 
                       )
                     ],
