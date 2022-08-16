@@ -12,9 +12,9 @@ import 'package:flutter/material.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:progress_dialog/progress_dialog.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
+import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 
 import 'constants/constants.dart';
 
@@ -52,28 +52,43 @@ class MyApp extends StatelessWidget {
   Future init(BuildContext context)async{
 
     if (_pr == null) {
-      _pr = new ProgressDialog(
-          context, type: ProgressDialogType.Download, isDismissible: false);
-      MyApp._pr.style(
-          message: 'Please Waiting...',
-          borderRadius: 10.0,
-          backgroundColor: Colors.white,
-          progressWidget: CircularProgressIndicator(),
-          elevation: 10.0,
-          insetAnimCurve: Curves.easeInOut,
-          progress: 0.0,
-          maxProgress: 100.0,
-          progressTextStyle: TextStyle(
-              color: Colors.black, fontSize: 13.0, fontWeight: FontWeight.w400),
-          messageTextStyle: TextStyle(
-              color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
-      );
+      _pr = new ProgressDialog(context: context);
     }
 
     if(_gallery == null) {
       _gallery = Gallery();
     }
   }
+
+  static showProgress({int limit=1}){
+    if(!pr.isOpen()){
+      pr.update(value: 0);
+    }
+    pr.show(
+      msg: 'Please Waiting...',
+      max: limit,
+      backgroundColor: Colors.white,
+      elevation: 10.0,
+      msgColor: Colors.black, msgFontSize: 19.0, msgFontWeight: FontWeight.w600,
+      // progressValueColor: Colors.black,
+      completed: Completed(
+        completedMsg: "Done!",
+        closedDelay: 1000,
+      ),
+    );
+    // MyApp._pr.style(
+    //     borderRadius: 10.0,
+    //     progressWidget: CircularProgressIndicator(),
+    //     insetAnimCurve: Curves.easeInOut,
+    //     progress: 0.0,
+    //     maxProgress: 100.0,
+    //     progressTextStyle: TextStyle(
+    //         color:  fontSize: 13.0, fontWeight: FontWeight.w400),
+    //     messageTextStyle: TextStyle(
+    //         color: )
+    // );
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -328,7 +343,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
       Stopwatch timer = new Stopwatch();
-      await MyApp._pr.show();
+      await MyApp.showProgress();
       paths = (await FilePicker.platform.pickFiles(
           type: _pickingType,
           allowMultiple: _multiPick
@@ -342,7 +357,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      await MyApp._pr.show();
+      await MyApp._pr.close();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
 
@@ -410,7 +425,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("paths: " + paths.toString());
     if(paths == null) {
-      await MyApp._pr.hide();
+      // await MyApp._pr.hide();
       return;
     }
 
@@ -449,7 +464,7 @@ class _MyHomePageState extends State<MyHomePage> {
     };
 
     if(paths == null) {
-      await MyApp._pr.hide();
+      await MyApp._pr.close();
       return;
     }
 
