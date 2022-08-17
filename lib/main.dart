@@ -357,7 +357,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      await MyApp._pr.close();
+      await MyApp.showProgress();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
 
@@ -372,7 +372,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void showFindPrompt(){
     final formKey = GlobalKey<FormState>();
 
-    Function submit = (){
+    Function validatePhrase = (){
       if (formKey.currentState.validate()) {
         formKey.currentState.save();
       }
@@ -393,10 +393,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
                     onSaved: (input) => findSnap(input.trim()),
-                    onFieldSubmitted: (String) => submit(),
+                    onFieldSubmitted: (String) => validatePhrase(),
                   ),
                   ElevatedButton(
-                    onPressed: submit,
+                    onPressed: validatePhrase,
                     child: Text('Find'),
                   ),
                 ],
@@ -425,7 +425,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("paths: " + paths.toString());
     if(paths == null) {
-      // await MyApp._pr.hide();
+      await MyApp._pr.close();
       return;
     }
 
