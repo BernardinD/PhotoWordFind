@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
-import 'package:PhotoWordFind/utils/MyProgressDialog.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
@@ -13,9 +12,9 @@ import 'package:flutter/material.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:progress_dialog/progress_dialog.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
+import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 
 import 'constants/constants.dart';
 
@@ -37,10 +36,10 @@ void main() {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
-  static MyProgressDialog _pr;
+  static ProgressDialog _pr;
 
   String title;
-  static MyProgressDialog get pr => _pr;
+  static ProgressDialog get pr => _pr;
 
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
@@ -52,31 +51,44 @@ class MyApp extends StatelessWidget {
   /// Initalizes SharedPreferences [_pref] object and gives default values
   Future init(BuildContext context)async{
 
-
-
     if (_pr == null) {
-      _pr = new MyProgressDialog(
-          context, Catcher.navigatorKey, type: ProgressDialogType.Download, isDismissible: false, showLogs: true);
-      MyApp._pr.style(
-          message: 'Please Waiting...',
-          borderRadius: 10.0,
-          backgroundColor: Colors.white,
-          progressWidget: CircularProgressIndicator(),
-          elevation: 10.0,
-          insetAnimCurve: Curves.easeInOut,
-          progress: 0.0,
-          maxProgress: 100.0,
-          progressTextStyle: TextStyle(
-              color: Colors.black, fontSize: 13.0, fontWeight: FontWeight.w400),
-          messageTextStyle: TextStyle(
-              color: Colors.black, fontSize: 19.0, fontWeight: FontWeight.w600)
-      );
+      _pr = new ProgressDialog(context: context);
     }
 
     if(_gallery == null) {
       _gallery = Gallery();
     }
   }
+
+  static showProgress({int limit=1}){
+    if(!pr.isOpen()){
+      pr.update(value: 0);
+    }
+    pr.show(
+      msg: 'Please Waiting...',
+      max: limit,
+      backgroundColor: Colors.white,
+      elevation: 10.0,
+      msgColor: Colors.black, msgFontSize: 19.0, msgFontWeight: FontWeight.w600,
+      // progressValueColor: Colors.black,
+      completed: Completed(
+        completedMsg: "Done!",
+        closedDelay: 1000,
+      ),
+    );
+    // MyApp._pr.style(
+    //     borderRadius: 10.0,
+    //     progressWidget: CircularProgressIndicator(),
+    //     insetAnimCurve: Curves.easeInOut,
+    //     progress: 0.0,
+    //     maxProgress: 100.0,
+    //     progressTextStyle: TextStyle(
+    //         color:  fontSize: 13.0, fontWeight: FontWeight.w400),
+    //     messageTextStyle: TextStyle(
+    //         color: )
+    // );
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -175,27 +187,11 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
 
-    /*
-     * Testing ProgressBar timeout
-     */
-    // WidgetsBinding.instance
-    //     .addPostFrameCallback((_) => MyApp.pr.show());
-
-
-    // WidgetsBinding.instance
-    //     .addPostFrameCallback((_)  {
-    //   // debugPrint("came in.");
-    //   MyApp.pr.show();
-    //   WidgetsBinding.instance
-    //       .addPostFrameCallback((_) {
-    //   // Timer(Duration(seconds: 10), ()=>Navigator.pop(context));
-    //   Timer(Duration(seconds: 5), MyApp.pr.hide);
-    //   });
-    // });
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       resizeToAvoidBottomInset : false,
       appBar: AppBar(
@@ -237,21 +233,35 @@ class _MyHomePageState extends State<MyHomePage> {
               if (gallery.images.isNotEmpty) Expanded(
                 flex: 8,
                 child: Container(
-                  child: Scrollbar(
-                    isAlwaysShown: true,
-                    showTrackOnHover: true,
-                    thickness: 15,
-                    interactive: true,
-                    controller: gallery.galleryController,
-                    child: PhotoViewGallery(
-                      scrollPhysics: const BouncingScrollPhysics(),
-                      pageOptions: gallery.images,
-                      pageController: gallery.galleryController,
-                    ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: Text("${gallery.galleryController.positions.isNotEmpty ?
+                            gallery.galleryController.page.round()+1 :
+                            gallery.galleryController.initialPage+1}"
+                          "/${gallery.images.length}"),
+                      ),
+                      Expanded(
+                        flex: 19,
+                        child: Scrollbar(
+                          isAlwaysShown: true,
+                          showTrackOnHover: true,
+                          thickness: 15,
+                          interactive: true,
+                          controller: gallery.galleryController,
+                          child: PhotoViewGallery(
+                            onPageChanged: (_) => setState(() {}),
+                            scrollPhysics: const BouncingScrollPhysics(),
+                            pageOptions: gallery.images,
+                            pageController: gallery.galleryController,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-
             ],
           ),
         ),
@@ -333,7 +343,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
       Stopwatch timer = new Stopwatch();
-      await MyApp._pr.show();
+      await MyApp.showProgress();
       paths = (await FilePicker.platform.pickFiles(
           type: _pickingType,
           allowMultiple: _multiPick
@@ -347,7 +357,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      await MyApp._pr.show();
+      await MyApp.showProgress();
       paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
     }
 
@@ -415,7 +425,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     debugPrint("paths: " + paths.toString());
     if(paths == null) {
-      await MyApp._pr.hide();
+      await MyApp._pr.close();
       return;
     }
 
@@ -454,7 +464,7 @@ class _MyHomePageState extends State<MyHomePage> {
     };
 
     if(paths == null) {
-      await MyApp._pr.hide();
+      await MyApp._pr.close();
       return;
     }
 

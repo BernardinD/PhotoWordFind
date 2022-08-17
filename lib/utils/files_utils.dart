@@ -60,8 +60,8 @@ String getKeyOfFilename(String f){
 
 Future ocrParallel(List filesList, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
 
-  MyApp.pr.update(progress: 0);
-  await MyApp.pr.show();
+  // MyApp.pr.update(value: 0);
+  await MyApp.showProgress();
 
   // Reset Gallery
   if(replace == null) {
@@ -153,12 +153,11 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
 
         // Quick fix for this callback being called twice
         // TODO: Find way to stop isolates immediately so they don't get to this point
-        if(MyApp.pr.isShowing()) {
-          MyApp.pr.hide().then((value) {
-            // setState(() => {});
-            MyApp.updateFrame(() => null);
-            debugPrint(">>> getting in.");
-          });
+        if(MyApp.pr.isOpen()) {
+          MyApp.pr.close();
+
+          MyApp.updateFrame(() => null);
+          debugPrint(">>> getting in.");
         }
       }
       else{
@@ -212,7 +211,7 @@ void increaseProgressBar(int completed, List paths){
   int update = (completed+1)*100~/paths.length;
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
-  MyApp.pr.update(maxProgress: 100.0, progress: update/1.0);
+  MyApp.pr.update(value: completed);
 }
 
 void terminateRunningThreads(String currentThead, IsolateHandler isolates){
