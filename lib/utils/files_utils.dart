@@ -61,7 +61,7 @@ String getKeyOfFilename(String f){
 Future ocrParallel(List filesList, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
 
   // MyApp.pr.update(value: 0);
-  await MyApp.showProgress();
+  await MyApp.showProgress(limit: filesList.length);
 
   // Reset Gallery
   if(replace == null) {
@@ -155,6 +155,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         // TODO: Find way to stop isolates immediately so they don't get to this point
         if(MyApp.pr.isOpen()) {
           MyApp.pr.close();
+          MyApp.pr.close();
 
           MyApp.updateFrame(() => null);
           debugPrint(">>> getting in.");
@@ -212,6 +213,7 @@ void increaseProgressBar(int completed, List paths){
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
   MyApp.pr.update(value: completed);
+  MyApp.pr.update(value: completed, msg: "Loading...");
 }
 
 void terminateRunningThreads(String currentThead, IsolateHandler isolates){
