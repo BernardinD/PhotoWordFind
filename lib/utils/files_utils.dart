@@ -61,7 +61,7 @@ String getKeyOfFilename(String f){
 Future ocrParallel(List filesList, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
 
   // MyApp.pr.update(value: 0);
-  await MyApp.showProgress();
+  await MyApp.showProgress(limit: filesList.length);
 
   // Reset Gallery
   if(replace == null) {
@@ -155,6 +155,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         // TODO: Find way to stop isolates immediately so they don't get to this point
         if(MyApp.pr.isOpen()) {
           MyApp.pr.close();
+          MyApp.pr.close();
 
           MyApp.updateFrame(() => null);
           debugPrint(">>> getting in.");
@@ -212,6 +213,7 @@ void increaseProgressBar(int completed, List paths){
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
   MyApp.pr.update(value: completed);
+  MyApp.pr.update(value: completed, msg: "Loading...");
 }
 
 void terminateRunningThreads(String currentThead, IsolateHandler isolates){
@@ -256,8 +258,17 @@ void ocrThread(Map<String, dynamic> context) {
 
       debugPrint("Running thread for >> $filePath");
 
-      runOCR(filePath, size: size).then((result) {
-        if (result is String) {
+      dynamic result;
+      try {
+        result = await runOCR(filePath, size: size);
+      }
+      catch(error, stackTrace){
+        result = null;
+        debugPrint("File ($filePath) failed");
+        debugPrint("$error \n $stackTrace");
+        debugPrint("Leaving try-catch");
+      }
+      if (result is String) {
           String key = getKeyOfFilename(filePath);
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
@@ -266,11 +277,10 @@ void ocrThread(Map<String, dynamic> context) {
           // Send back result to main thread
           debugPrint("Sending OCR result...");
           messenger.send(result);
-        }
-        else{
-          messenger.send("");
-        }
-      });
+      }
+      else{
+        messenger.send("");
+      }
     }
     else{
       debugPrint("did NOT detect string...");

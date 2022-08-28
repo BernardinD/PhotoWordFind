@@ -60,11 +60,19 @@ class MyApp extends StatelessWidget {
     }
   }
 
-  static showProgress({int limit=1}){
-    if(!pr.isOpen()){
+  static showProgress({int limit=1}) async{
+    debugPrint("Entering showProgress()...");
+    if(pr.isOpen()){
+      debugPrint("Closing.");
+      pr.close();
+    }
+    else{
+      debugPrint("Not open.");
       pr.update(value: 0);
     }
-    pr.show(
+
+    debugPrint("limit: $limit");
+    var temp =  pr.show(
       msg: 'Please Waiting...',
       max: limit,
       backgroundColor: Colors.white,
@@ -76,6 +84,7 @@ class MyApp extends StatelessWidget {
         closedDelay: 1000,
       ),
     );
+    debugPrint("show return: $temp");
     // MyApp._pr.style(
     //     borderRadius: 10.0,
     //     progressWidget: CircularProgressIndicator(),
@@ -87,6 +96,7 @@ class MyApp extends StatelessWidget {
     //     messageTextStyle: TextStyle(
     //         color: )
     // );
+    debugPrint("Leaving showProgress()...");
   }
 
   @override
