@@ -258,8 +258,17 @@ void ocrThread(Map<String, dynamic> context) {
 
       debugPrint("Running thread for >> $filePath");
 
-      runOCR(filePath, size: size).then((result) {
-        if (result is String) {
+      dynamic result;
+      try {
+        result = await runOCR(filePath, size: size);
+      }
+      catch(error, stackTrace){
+        result = null;
+        debugPrint("File ($filePath) failed");
+        debugPrint("$error \n $stackTrace");
+        debugPrint("Leaving try-catch");
+      }
+      if (result is String) {
           String key = getKeyOfFilename(filePath);
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
@@ -268,11 +277,10 @@ void ocrThread(Map<String, dynamic> context) {
           // Send back result to main thread
           debugPrint("Sending OCR result...");
           messenger.send(result);
-        }
-        else{
-          messenger.send("");
-        }
-      });
+      }
+      else{
+        messenger.send("");
+      }
     }
     else{
       debugPrint("did NOT detect string...");
