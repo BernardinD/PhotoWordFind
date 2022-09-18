@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
 
@@ -429,26 +430,28 @@ class _MyHomePageState extends State<MyHomePage> {
       await changeDir();
       print("After changeDir");
     }
+    //
+    // paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
+    //
+    //
+    // debugPrint("paths: " + paths.toString());
+    // if(paths == null) {
+    //   await MyApp._pr.close();
+    //   return;
+    // }
+    //
+    // Function post = (String text, query){
+    //
+    //   // If query word has been found
+    //   return text.toString().toLowerCase().contains(query.toLowerCase()) ? query : null;
+    // };
+    //
+    // // Remove prompt
+    // Navigator.pop(context);
+    //
+    // await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
-    paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
-
-
-    debugPrint("paths: " + paths.toString());
-    if(paths == null) {
-      await MyApp._pr.close();
-      return;
-    }
-
-    Function post = (String text, query){
-
-      // If query word has been found
-      return text.toString().toLowerCase().contains(query.toLowerCase()) ? query : null;
-    };
-
-    // Remove prompt
-    Navigator.pop(context);
-
-    await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
+    Operation.run(Operations.FIND, findQuery: query, context: context, directoryPath: _directoryPath);
 
 
 
