@@ -17,7 +17,7 @@ class Operation{
 
   static Operations retry = null;
   static Function retryOp, _envChange;
-  static run(Operations operation, Function envChange, {BuildContext context, String directoryPath, String findQuery}){
+  static run(Operations operation, Function envChange, {BuildContext context, Function directoryPath, String findQuery}){
 
     retry = operation;
     _envChange = envChange;
@@ -45,14 +45,15 @@ class Operation{
     retry = null;
   }
 
-  bool isRetyOp(){
+  static bool isRetryOp(){
     return retry != null;
   }
 
-  static void find(String directoryPath, String query, BuildContext context) async{
+  static void find(Function directoryPath, String query, BuildContext context) async{
+    debugPrint("Entering find()...");
 
     List<dynamic> paths;
-    paths = Directory(directoryPath).listSync(recursive: false, followLinks:false);
+    paths = Directory(directoryPath()).listSync(recursive: false, followLinks:false);
 
 
     debugPrint("paths: " + paths.toString());
@@ -68,23 +69,31 @@ class Operation{
     };
 
     // Remove prompt
-    Navigator.pop(context);
+    if(ModalRoute.of(context)?.isCurrent != true)
+      Navigator.pop(context);
 
+    debugPrint("Query: $query");
     await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
+    debugPrint("Leaving find()...");
   }
 
-  Widget displayRetry(){
-    return Container(
-      child: Center(
-        child: Column(
-          children: [
-            Text("The last operation did not return any files. Would you like to try a different folder?"),
-            ElevatedButton(onPressed: _envChange, child: Text("Yes")),
-            ElevatedButton(onPressed: (){retry = null; MyApp.updateFrame();}, child: Text("No.")),
-          ],
+  static Widget displayRetry(){
+    if(!isRetryOp()) return null;
+
+    return Expanded(
+      flex: 2,
+      child: Container(
+        child: Center(
+          child: Column(
+            children: [
+              Text("The last operation did not return any files. Would you like to try a different folder?"),
+              ElevatedButton(onPressed: ()async {await _envChange(); await retryOp();}, child: Text("Yes")),
+              ElevatedButton(onPressed: (){retry = null; MyApp.updateFrame(() => null);}, child: Text("No.")),
+            ],
+          )
         )
-      )
+      ),
     );
   }
 }
