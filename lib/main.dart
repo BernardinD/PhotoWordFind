@@ -414,13 +414,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   // Displays all images with a detectable snapchat username in their bio
-  Future displaySnaps(bool select) async{
+  Future
+  displaySnaps(bool select) async{
+    debugPrint("Entering displaySnaps()...");
 
     // _pr.show();
 
     // Choose files to extract text from
     List paths = await selectImages(select);
-
+    //
     // Returns suggested snap username or empty string
     Function post = (String text, String _){
       String result = findSnapKeyword(keys, text)?? "";
@@ -430,13 +432,9 @@ class _MyHomePageState extends State<MyHomePage> {
       return result;
     };
 
-    if(paths == null) {
-      await MyApp._pr.close();
-      return;
-    }
+    Operation.run(Operations.DISPLAY_ALL, changeDir, displayImagesList: paths, displayPostprocess: post, context: context);
 
-    ocrParallel(paths, post, MediaQuery.of(context).size);
-
+    debugPrint("Leaving displaySnaps()...");
   }
 
 

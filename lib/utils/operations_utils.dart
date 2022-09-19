@@ -17,16 +17,20 @@ class Operation{
 
   static Operations retry = null;
   static Function retryOp, _envChange;
-  static run(Operations operation, Function envChange, {BuildContext context, Function directoryPath, String findQuery}){
+  static run(Operations operation, Function envChange, {
+    BuildContext context,
+    Function directoryPath,
+    String findQuery,
+    Function displayPostprocess,
+    List displayImagesList,
+  }){
 
     retry = operation;
     _envChange = envChange;
 
     switch(operation){
       case(Operations.MOVE):
-        retryOp = (){
 
-        };
         return;
       case(Operations.FIND):
         retryOp = () {
@@ -35,6 +39,10 @@ class Operation{
         retryOp();
         return;
       case(Operations.DISPLAY_ALL):
+        retryOp = (){
+          _displayAllImages(displayImagesList, displayPostprocess, context);
+        };
+        retryOp();
         break;
       case(Operations.DISPLAY_SELECT):
         return;
@@ -76,6 +84,19 @@ class Operation{
     await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
     debugPrint("Leaving find()...");
+  }
+
+  static _displayAllImages(List paths, Function post, BuildContext context) async{
+    debugPrint("Entering _displayAllImages()...");
+    print("paths: $paths");
+
+    if(paths == null) {
+      await MyApp.pr.close();
+      return;
+    }
+
+    ocrParallel(paths, post, MediaQuery.of(context).size);
+    debugPrint("Leaving _displayAllImages()...");
   }
 
   static Widget displayRetry(){
