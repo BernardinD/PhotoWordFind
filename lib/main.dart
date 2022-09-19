@@ -451,7 +451,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //
     // await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
-    Operation.run(Operations.FIND, findQuery: query, context: context, directoryPath: _directoryPath);
+    Operation.run(Operations.FIND, changeDir, findQuery: query, context: context, directoryPath: _directoryPath);
 
 
 
