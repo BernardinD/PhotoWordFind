@@ -40,11 +40,12 @@ class Operation{
         return;
       case(Operations.DISPLAY_ALL):
         retryOp = (){
-          _displayAllImages(displayImagesList, displayPostprocess, context);
+          _displayImages(displayImagesList, displayPostprocess, context);
         };
         retryOp();
         break;
       case(Operations.DISPLAY_SELECT):
+        _displayImages(displayImagesList, displayPostprocess, context);
         return;
       default:
         break;
@@ -86,9 +87,8 @@ class Operation{
     debugPrint("Leaving find()...");
   }
 
-  static _displayAllImages(List paths, Function post, BuildContext context) async{
-    debugPrint("Entering _displayAllImages()...");
-    print("paths: $paths");
+  static _displayImages(List paths, Function post, BuildContext context) async{
+    debugPrint("Entering _displayImages()...");
 
     if(paths == null) {
       await MyApp.pr.close();
@@ -96,7 +96,7 @@ class Operation{
     }
 
     ocrParallel(paths, post, MediaQuery.of(context).size);
-    debugPrint("Leaving _displayAllImages()...");
+    debugPrint("Leaving _displayImages()...");
   }
 
   static Widget displayRetry(){
