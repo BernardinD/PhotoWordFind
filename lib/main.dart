@@ -348,8 +348,11 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
 
-    if(paths!= null)
-      if(!(paths.first is PlatformFile) && !(paths.first is FileSystemEntity)) throw("List of path is is not a PlatformFile or File");
+    // Assure that list is of right file type
+    if(paths!= null && paths.isNotEmpty) {
+      if (!(paths.first is PlatformFile) && !(paths.first is FileSystemEntity))
+        throw ("List of path is is not a PlatformFile or File");
+    }
 
     return paths;
   }
@@ -418,11 +421,13 @@ class _MyHomePageState extends State<MyHomePage> {
   displaySnaps(bool select) async{
     debugPrint("Entering displaySnaps()...");
 
+    Operations op = select ? Operations.DISPLAY_SELECT : Operations.DISPLAY_ALL;
+
     // _pr.show();
 
     // Choose files to extract text from
     List paths = await selectImages(select);
-    //
+
     // Returns suggested snap username or empty string
     Function post = (String text, String _){
       String result = findSnapKeyword(keys, text)?? "";
@@ -432,7 +437,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return result;
     };
 
-    Operation.run(Operations.DISPLAY_ALL, changeDir, displayImagesList: paths, displayPostprocess: post, context: context);
+    Operation.run(op, changeDir, displayImagesList: paths, displayPostprocess: post, context: context);
 
     debugPrint("Leaving displaySnaps()...");
   }
