@@ -286,15 +286,9 @@ class _MyHomePageState extends State<MyHomePage> {
       String new_dir = await FilePicker.platform.getDirectoryPath();
 
       if(new_dir != null) {
-        var lst = gallery.selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
 
-        debugPrint("List:" + lst.toString());
-        String src, dst;
-        for(List<String> pair in lst){
-          src = pair[0];
-          dst = pair[1];
-          File(src).renameSync(dst);
-        }
+        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList(), moveDesDir: new_dir, directoryPath: getDirectoryPath);
+
         setState(() {
           gallery.removeSelected();
         });
@@ -303,6 +297,7 @@ class _MyHomePageState extends State<MyHomePage> {
     else{
       throw Exception("There are no selected files to move");
     }
+
   }
 
 

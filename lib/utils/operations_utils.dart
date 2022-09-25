@@ -23,6 +23,8 @@ class Operation{
     String findQuery,
     Function displayPostprocess,
     List displayImagesList,
+    List<String> moveSrcList,
+    String moveDesDir,
   }){
 
     retry = operation;
@@ -30,7 +32,7 @@ class Operation{
 
     switch(operation){
       case(Operations.MOVE):
-
+        move(moveSrcList, moveDesDir, directoryPath);
         return;
       case(Operations.FIND):
         retryOp = () {
@@ -85,6 +87,19 @@ class Operation{
     await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
 
     debugPrint("Leaving find()...");
+  }
+
+  static void move(List<String> srcList, destDir, Function directoryPath){
+
+    var lst = srcList.map((x) => [(directoryPath() +"/"+ x), (destDir +"/"+ x)] ).toList();
+
+    debugPrint("List:" + lst.toString());
+    String src, dst;
+    for(List<String> pair in lst){
+      src = pair[0];
+      dst = pair[1];
+      File(src).renameSync(dst);
+    }
   }
 
   static _displayImages(List paths, Function post, BuildContext context) async{
