@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:PhotoWordFind/utils/storate_utils.dart';
 import 'package:flutter/foundation.dart';
+import 'package:_discoveryapis_commons/src/requests.dart' as client_requests;
 
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -34,7 +36,7 @@ class GoogleAuthClient extends http.BaseClient {
 class CloudUtils{
 
   static drive.File _cloudRef = null;
-  static Map<String, String> cloud_local_json = Map();
+  static Map<String, String > cloud_local_json = Map();
 
   static String _json_mimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
@@ -95,10 +97,13 @@ class CloudUtils{
     /*
     Create JSON file
      */
+    List<int> uInt8List = "{}".codeUnits;
+    var uploadMedia = drive.Media(Future.value(uInt8List).asStream(), uInt8List.length);
     useDriveAPI((drive.DriveApi api) async {
       api.files.create(drive.File()
         ..name = '$filename'
-        ..mimeType = '$_json_mimetype'
+        ..mimeType = '$_json_mimetype',
+        uploadMedia: uploadMedia,
         /*..parents=[]*/
       );
     });
@@ -107,7 +112,7 @@ class CloudUtils{
 
 
   /// Returns list of existing directories names along a given path
-  static Future<bool> findJSON(String name) async{
+  static Future<bool> getJSON(String name) async{
     return await useDriveAPI((drive.DriveApi api) async{
 
       _cloudRef = await api.files.list(
@@ -120,18 +125,17 @@ class CloudUtils{
         return sub_;
       }, onError: (e) => print("Create: " + e.toString()));
 
-      /*
-      Try Directly form reference
-       */
-      cloud_local_json = _cloudRef.toJson();
-      debugPrint("Json seen: $cloud_local_json");
 
       /*
-      Try downloading raw data
+      Download raw data
        */
-      Stream jsonStream = (await api.files.export(_cloudRef.driveId, _json_mimetype)).stream;
+      drive.Media jsonMediafile = (await api.files.get(_cloudRef.id, downloadOptions: client_requests.DownloadOptions.fullMedia));
+      Stream jsonStream = jsonMediafile.stream;
       String rawJSON = String.fromCharCodes((await jsonStream.toList()).expand((list) => list));
-      cloud_local_json = json.decode(rawJSON);
+      debugPrint("Json seen(raw): ${json.decode(rawJSON)}");
+      cloud_local_json = new Map.from(json.decode(rawJSON));
+
+      // StorageUtils.merge(cloud_local_json);
 
       return _cloudRef == null;
     });
