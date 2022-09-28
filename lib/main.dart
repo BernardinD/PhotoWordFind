@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
+import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
@@ -15,6 +16,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
+
 
 import 'constants/constants.dart';
 
@@ -44,6 +46,8 @@ class MyApp extends StatelessWidget {
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
   static Function updateFrame;
+  static String _cloudBackupFile = "PWF_cloud_backup.json";
+
 
   MyApp({@required this.title});
 
@@ -130,6 +134,8 @@ class MyApp extends StatelessWidget {
     );
   }
 
+
+
 }
 
 class MyHomePage extends StatefulWidget {
@@ -163,7 +169,7 @@ class _MyHomePageState extends State<MyHomePage> {
   discord_uri = 'com.discord';
 
 
-  void requestPermissions() async{
+  Future requestPermissions() async{
     var status = await Permission.manageExternalStorage.status;
     if(!status.isGranted){
       await Permission.manageExternalStorage.request();
@@ -184,14 +190,29 @@ class _MyHomePageState extends State<MyHomePage> {
     // Initalize toast for user alerts
     Toasts.initToasts(context);
 
+
     // Request storage permissions
-    requestPermissions();
+    requestPermissions().then((value) {
+
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) {
+        // Sign into cloud account
+        MyApp.pr.show(max: 1);
+        MyApp.pr.update(value: 0, msg: "Setting up...");
+
+        CloudUtils.handleSignIn().then((value) {
+
+          MyApp.pr.update(value: 1);
+        });
+
+      });
+    });
 
     // Load app images and links
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
-        if(app.appName.toLowerCase().contains("discord"))
+        if(app.appName.toLowerCase().contains("kik"))
           debugPrint("$app");
       }
     });
@@ -240,7 +261,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-              if (gallery.images.isNotEmpty) Expanded(
+              (gallery.images.isEmpty) ? Column(
+                children: [
+                  ElevatedButton(onPressed: () => CloudUtils.createJson("test2.json"), child: Text("Create test JSON")),
+                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.findJSON("test2.json")}"), child: Text("Find test JSON")),
+                ],
+              ) : Expanded(
                 flex: 8,
                 child: Container(
                   child: Column(
