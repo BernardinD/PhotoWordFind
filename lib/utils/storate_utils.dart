@@ -34,4 +34,15 @@ class StorageUtils{
       }
     }
   }
+
+  static Future<Map<String, String>> toJson() async{
+    var store = await _getStorageInstance(reload: true);
+    Map<String, String> ret = Map();
+
+    for(String key in store.getKeys()){
+      ret[key] = store.getString(key);
+    }
+
+    return ret;
+  }
 }

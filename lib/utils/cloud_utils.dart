@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:PhotoWordFind/utils/storate_utils.dart';
 import 'package:flutter/foundation.dart';
@@ -36,7 +37,6 @@ class GoogleAuthClient extends http.BaseClient {
 class CloudUtils{
 
   static drive.File _cloudRef = null;
-  static Map<String, String > cloud_local_json = Map();
 
   static String _json_mimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
@@ -113,6 +113,7 @@ class CloudUtils{
 
   /// Returns list of existing directories names along a given path
   static Future<bool> getJSON(String name) async{
+
     return await useDriveAPI((drive.DriveApi api) async{
 
       _cloudRef = await api.files.list(
@@ -129,24 +130,52 @@ class CloudUtils{
       /*
       Download raw data
        */
-      drive.Media jsonMediafile = (await api.files.get(_cloudRef.id, downloadOptions: client_requests.DownloadOptions.fullMedia));
-      Stream jsonStream = jsonMediafile.stream;
-      String rawJSON = String.fromCharCodes((await jsonStream.toList()).expand((list) => list));
-      debugPrint("Json seen(raw): ${json.decode(rawJSON)}");
-      cloud_local_json = new Map.from(json.decode(rawJSON));
+      drive.Media jsonMediaFile = (await api.files.get(_cloudRef.id, downloadOptions: client_requests.DownloadOptions.fullMedia));
+      Stream jsonStream = jsonMediaFile.stream;
+      Codec<String, String> stringToBase64 = utf8.fuse(base64);
+      List<int> uInt8List = ((await jsonStream.toList())).expand(( list) => list as Uint8List).toList();
+      String rawBase64 = base64.encode(uInt8List);
+      String rawJSON = stringToBase64.decode(rawBase64);
+      debugPrint("Raw: $rawJSON");
+      Map<String, String > cloud_local_json = new Map.from(json.decode(rawJSON));
+
 
       // StorageUtils.merge(cloud_local_json);
 
-      return _cloudRef == null;
+      return _cloudRef != null;
     });
   }
 
   static Future updateCloudJson() async{
 
     return await useDriveAPI((drive.DriveApi api) async {
-      List uInt8List = json.encode(cloud_local_json).codeUnits;
-      var uploadMedia = drive.Media(Future.value(uInt8List).asStream(), uInt8List.length);
-      _cloudRef = await api.files.update(_cloudRef, _cloudRef.driveId, uploadMedia: uploadMedia);
+
+      /*
+       Convert data to bytes
+       */
+      String jsonStr = json.encode(await StorageUtils.toJson());
+
+      Codec<String, String> stringToBase64 = utf8.fuse(base64);
+      String encoded = stringToBase64.encode(jsonStr);
+      debugPrint("base64 encoded: $encoded}");
+      debugPrint("base46: ${base64.decode(encoded)}");
+      debugPrint("json: $jsonStr");
+      List<int> uInt8List = base64.decode(encoded);
+      debugPrint("decoded: ${String.fromCharCodes(uInt8List)}");
+
+
+      /*
+      Convert bytes to Drive file
+       */
+      Stream<List<int>> fileStream = Future.value(uInt8List).asStream();
+      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_json_mimetype; charset=base64");
+
+      /*
+      Upload file
+       */
+      _cloudRef = await api.files.update(drive.File()
+        ..name = '${_cloudRef.name}'
+        ..mimeType = '${_cloudRef.mimeType}; charset=UTF-16', _cloudRef.id, uploadMedia: uploadMedia, uploadOptions: drive.UploadOptions.defaultOptions);
     });
   }
 

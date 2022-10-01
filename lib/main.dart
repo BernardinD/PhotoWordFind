@@ -160,13 +160,14 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
-  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon;
+  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon, kik_icon;
 
   String snapchat_uri = 'com.snapchat.android',
   gallery_uri = 'com.sec.android.gallery3d',
   bumble_uri = 'com.bumble.app',
   instagram_uri = 'com.instagram.android',
-  discord_uri = 'com.discord';
+  discord_uri = 'com.discord',
+  kik_uri = 'kik.android';
 
 
   Future requestPermissions() async{
@@ -186,6 +187,7 @@ class _MyHomePageState extends State<MyHomePage> {
     bumble_icon = SocialIcon(bumble_uri);
     instagram_icon = SocialIcon(instagram_uri);
     discord_icon = SocialIcon(discord_uri);
+    kik_icon = SocialIcon(kik_uri);
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
@@ -263,9 +265,9 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               (gallery.images.isEmpty) ? Column(
                 children: [
-                  ElevatedButton(onPressed: () => CloudUtils.createJson("test_pull_empty_data.json"), child: Text("Create test JSON")),
-                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.getJSON("test_pull_empty_data.json")}"), child: Text("Find test JSON")),
-                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.updateCloudJson()}"), child: Text("Update test JSON")),
+                  ElevatedButton(onPressed: () => CloudUtils.createJson("test_push_utf16_data.json"), child: Text("Create test JSON")),
+                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.getJSON("test_push_utf16_data.json")}"), child: Text("Find test JSON")),
+                  ElevatedButton(onPressed: () async => debugPrint("Drive file updated: ${await CloudUtils.updateCloudJson()}"), child: Text("Update test JSON")),
                 ],
               ) : Expanded(
                 flex: 8,
@@ -312,16 +314,23 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 (snapchat_icon),
+                Spacer(),
                 (gallery_icon),
+                Spacer(),
                 (bumble_icon),
+                Spacer(),
                 FloatingActionButton(
                   heroTag: null,
                   tooltip: 'Change current directory',
                   onPressed: changeDir,
                   child: Icon(Icons.drive_folder_upload),
                 ),
+                Spacer(),
                 (instagram_icon),
+                Spacer(),
                 (discord_icon),
+                Spacer(),
+                (kik_icon),
               ],
             ),
           ),
