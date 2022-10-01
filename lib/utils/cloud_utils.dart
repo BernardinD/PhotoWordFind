@@ -81,16 +81,12 @@ class CloudUtils{
   }
 
 
-  static Future<AuthClient> getAuthClient() async{
+  static Future<AuthClient> _getAuthClient() async{
     handleSignIn();
     return await _googleSignIn.authenticatedClient();
   }
-  static Future<GoogleAuthClient> getGoogleAuthClient() async{
-    handleSignIn();
-    return GoogleAuthClient((await _googleSignIn.currentUser.authHeaders));
-  }
 
-  static Future createJson(String filename)async{
+  static Future<bool> createCloudJson(String filename)async{
 
     // Check connection
     if(!(await isConnected())) throw NoInternetException();
@@ -100,7 +96,7 @@ class CloudUtils{
      */
     List<int> uInt8List = "{}".codeUnits;
     var uploadMedia = drive.Media(Future.value(uInt8List).asStream(), uInt8List.length);
-    useDriveAPI((drive.DriveApi api) async {
+    _useDriveAPI((drive.DriveApi api) async {
       api.files.create(drive.File()
         ..name = '$filename'
         ..mimeType = '$_json_mimetype',
@@ -109,13 +105,14 @@ class CloudUtils{
       );
     });
 
+    // return getCloudJson(filename);
   }
 
 
   /// Returns list of existing directories names along a given path
-  static Future<bool> getJSON(String name) async{
+  static Future<bool> getCloudJson(String name) async{
 
-    return await useDriveAPI((drive.DriveApi api) async{
+    return await _useDriveAPI((drive.DriveApi api) async{
 
       _cloudRef = await api.files.list(
         // Set parentID if idx is passed root
@@ -149,7 +146,7 @@ class CloudUtils{
 
   static Future updateCloudJson() async{
 
-    return await useDriveAPI((drive.DriveApi api) async {
+    return await _useDriveAPI((drive.DriveApi api) async {
 
       /*
        Convert data to bytes
@@ -180,11 +177,11 @@ class CloudUtils{
     });
   }
 
-  static Future useDriveAPI(Function callback) async{
+  static Future _useDriveAPI(Function callback) async{
     if(!(await _googleSignIn.isSignedIn())){
       throw Exception();
     }
-    final AuthClient client = await getAuthClient();
+    final AuthClient client = await _getAuthClient();
 
     // Initialize DriveAPI
     // developer.log("getting DriveApi");
