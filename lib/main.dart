@@ -265,8 +265,8 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               (gallery.images.isEmpty) ? Column(
                 children: [
-                  ElevatedButton(onPressed: () => CloudUtils.createJson("test_push_utf16_data.json"), child: Text("Create test JSON")),
-                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.getJSON("test_push_utf16_data.json")}"), child: Text("Find test JSON")),
+                  ElevatedButton(onPressed: () => CloudUtils.createJson("test_version_control.json"), child: Text("Create test JSON")),
+                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.getJSON("test_version_control.json")}"), child: Text("Find test JSON")),
                   ElevatedButton(onPressed: () async => debugPrint("Drive file updated: ${await CloudUtils.updateCloudJson()}"), child: Text("Update test JSON")),
                 ],
               ) : Expanded(

@@ -40,6 +40,7 @@ class CloudUtils{
 
   static String _json_mimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
+  static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -153,7 +154,8 @@ class CloudUtils{
       /*
        Convert data to bytes
        */
-      String jsonStr = json.encode(await StorageUtils.toJson());
+      String jsonStr = _jsonEncoder.convert(await StorageUtils.toMap());
+      debugPrint("jsonStr: $jsonStr");
 
       Codec<String, String> stringToBase64 = utf8.fuse(base64);
       String encoded = stringToBase64.encode(jsonStr);
@@ -161,21 +163,20 @@ class CloudUtils{
       debugPrint("base46: ${base64.decode(encoded)}");
       debugPrint("json: $jsonStr");
       List<int> uInt8List = base64.decode(encoded);
-      debugPrint("decoded: ${String.fromCharCodes(uInt8List)}");
 
 
       /*
       Convert bytes to Drive file
        */
       Stream<List<int>> fileStream = Future.value(uInt8List).asStream();
-      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_json_mimetype; charset=base64");
+      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_json_mimetype");
 
       /*
       Upload file
        */
       _cloudRef = await api.files.update(drive.File()
         ..name = '${_cloudRef.name}'
-        ..mimeType = '${_cloudRef.mimeType}; charset=UTF-16', _cloudRef.id, uploadMedia: uploadMedia, uploadOptions: drive.UploadOptions.defaultOptions);
+        ..mimeType = '${_cloudRef.mimeType}', _cloudRef.id, uploadMedia: uploadMedia, uploadOptions: drive.UploadOptions.defaultOptions);
     });
   }
 
