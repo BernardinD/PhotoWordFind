@@ -96,8 +96,8 @@ class CloudUtils{
      */
     List<int> uInt8List = "{}".codeUnits;
     var uploadMedia = drive.Media(Future.value(uInt8List).asStream(), uInt8List.length);
-    _useDriveAPI((drive.DriveApi api) async {
-      api.files.create(drive.File()
+    Future response = _useDriveAPI((drive.DriveApi api) async {
+      return api.files.create(drive.File()
         ..name = '$filename'
         ..mimeType = '$_json_mimetype',
         uploadMedia: uploadMedia,
@@ -105,7 +105,9 @@ class CloudUtils{
       );
     });
 
-    // return getCloudJson(filename);
+
+
+    return response.then((value) => getCloudJson(filename));
   }
 
 
