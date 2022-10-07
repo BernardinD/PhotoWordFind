@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/storate_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:_discoveryapis_commons/src/requests.dart' as client_requests;
@@ -72,13 +73,20 @@ class CloudUtils{
     });
   }
 
-  static Future signOut() async{
+  static Future possibleSignOut() async {
     // TODO: Show confirmation dialog
     // ...
+    
+    return signOut();
+  }
 
+  static Future signOut() async{
+
+    MyApp.pr.show(max: 1);
+    MyApp.pr.update(value: 0, msg: "Signing out...");
     await updateCloudJson();
 
-    return handleSignOut();
+    return handleSignOut().then((value) => MyApp.pr.update(value: 1));
   }
 
   static Future<bool> handleSignIn() async {

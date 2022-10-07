@@ -238,7 +238,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   )
                 : ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
-                    onPressed: () => CloudUtils.signOut().then((value) => MyApp.updateFrame(() => null)),
+                    onPressed: () => CloudUtils.possibleSignOut().then((value) => MyApp.updateFrame(() => null)),
                     child: IconButton(
                       icon: Icon(Icons.logout),
                     ));
