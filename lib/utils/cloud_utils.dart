@@ -42,8 +42,8 @@ class CloudUtils{
   static String _json_mimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
   static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
-  // static String _jsonBackupFile = "PWF_scans_backup.json";
-  static String _jsonBackupFile = "test_auto_create_file2.json";
+  static String _jsonBackupFile = "PWF_scans_backup.json";
+  // static String _jsonBackupFile = "test_auto_create_file2.json";
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -85,6 +85,9 @@ class CloudUtils{
     MyApp.pr.show(max: 1);
     MyApp.pr.update(value: 0, msg: "Signing out...");
     await updateCloudJson();
+
+    // TODO: Clear current local storage
+    // ...
 
     return handleSignOut().then((value) => MyApp.pr.update(value: 1));
   }
@@ -181,11 +184,11 @@ class CloudUtils{
       List<int> uInt8List = ((await jsonStream.toList())).expand(( list) => list as Uint8List).toList();
       String rawBase64 = base64.encode(uInt8List);
       String rawJSON = stringToBase64.decode(rawBase64);
-      debugPrint("Raw: $rawJSON");
+      // debugPrint("Raw: $rawJSON");
       Map<String, String > cloud_local_json = new Map.from(json.decode(rawJSON));
 
 
-      // StorageUtils.merge(cloud_local_json);
+      StorageUtils.merge(cloud_local_json);
 
       return _cloudRef != null;
     });
@@ -199,13 +202,15 @@ class CloudUtils{
        Convert data to bytes
        */
       String jsonStr = _jsonEncoder.convert(await StorageUtils.toMap());
-      debugPrint("jsonStr: $jsonStr");
+      // debugPrint("jsonStr: $jsonStr");
 
       Codec<String, String> stringToBase64 = utf8.fuse(base64);
       String encoded = stringToBase64.encode(jsonStr);
-      debugPrint("base64 encoded: $encoded}");
-      debugPrint("base46: ${base64.decode(encoded)}");
-      debugPrint("json: $jsonStr");
+
+      // debugPrint("base64 encoded: $encoded}");
+      // debugPrint("base46: ${base64.decode(encoded)}");
+      // debugPrint("json: $jsonStr");
+
       List<int> uInt8List = base64.decode(encoded);
 
 

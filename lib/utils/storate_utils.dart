@@ -17,9 +17,8 @@ class StorageUtils{
     (await _getStorageInstance(reload: false)).setString(key, value);
 
     // Save to cloud
-    debugPrint("Checking if signed in...");
+    // TODO: Put this inside a timer that saves a few seconds after a save call
     if(await CloudUtils.isSignedin()){
-      debugPrint("About to save new json");
       await CloudUtils.updateCloudJson();
     }
   }
@@ -31,8 +30,19 @@ class StorageUtils{
 
   static Future merge(Map<String, String> cloud){
     for(String key in cloud.keys){
-      if(get(key) != null){
+      if(get(key, reload: true) == null){
         save(key, cloud[key]);
+        debugPrint("Saving...");
+      }
+      else{
+        // Print whether cloud value and Storage values match
+        get(key, reload: false).then((value) {
+          // debugPrint("String ($key) matches: ${(value == cloud[key])}");
+
+          if(value != cloud[key]){
+            throw Exception("Cloud and local copies don't match");
+          }
+        });
       }
     }
   }
@@ -42,7 +52,7 @@ class StorageUtils{
     Map<String, String> ret = Map();
 
     for(String key in store.getKeys()){
-      ret[key] = store.getString(key).replaceAll(":", " ").replaceAll("\"", "");
+      ret[key] = store.getString(key);
     }
 
     return ret;

@@ -227,7 +227,6 @@ class _MyHomePageState extends State<MyHomePage> {
               debugPrint("Sign-in hasn't finished. Skipping...");
               return Icon(Icons.sync_disabled_rounded);
             }
-            debugPrint("snapshot.data: ${snapshot.data}");
             return (!snapshot.data)
                 ? ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
