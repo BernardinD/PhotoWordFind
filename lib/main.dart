@@ -89,17 +89,6 @@ class MyApp extends StatelessWidget {
       ),
     );
     debugPrint("show return: $temp");
-    // MyApp._pr.style(
-    //     borderRadius: 10.0,
-    //     progressWidget: CircularProgressIndicator(),
-    //     insetAnimCurve: Curves.easeInOut,
-    //     progress: 0.0,
-    //     maxProgress: 100.0,
-    //     progressTextStyle: TextStyle(
-    //         color:  fontSize: 13.0, fontWeight: FontWeight.w400),
-    //     messageTextStyle: TextStyle(
-    //         color: )
-    // );
     debugPrint("Leaving showProgress()...");
   }
 
@@ -202,10 +191,9 @@ class _MyHomePageState extends State<MyHomePage> {
         MyApp.pr.show(max: 1);
         MyApp.pr.update(value: 0, msg: "Setting up...");
 
-        CloudUtils.handleSignIn().then((value) {
-
-          MyApp.pr.update(value: 1);
-        });
+        CloudUtils.firstSignIn().then((bool value) {}).
+        onError((error, stackTrace) async => debugPrint("Sign in error: $error \n$stackTrace")).
+        whenComplete(() => MyApp.pr.update(value: 1));
 
       });
     });
@@ -231,6 +219,31 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
+        leading: FutureBuilder(
+          future: CloudUtils.isSignedin(),
+          builder: (BuildContext context, AsyncSnapshot<bool> snapshot){
+            if(snapshot.hasError) throw Exception(snapshot.error);
+            if(!snapshot.hasData){
+              debugPrint("Sign-in hasn't finished. Skipping...");
+              return Icon(Icons.sync_disabled_rounded);
+            }
+            debugPrint("snapshot.data: ${snapshot.data}");
+            return (!snapshot.data)
+                ? ElevatedButton(
+                    key: ValueKey(snapshot.data.toString()),
+                    child: IconButton(
+                      icon: Icon(Icons.cloud_upload_rounded),
+                    ),
+                    onPressed: () => CloudUtils.firstSignIn().then((value) => MyApp.updateFrame(() => null)),
+                  )
+                : ElevatedButton(
+                    key: ValueKey(snapshot.data.toString()),
+                    onPressed: () => CloudUtils.signOut().then((value) => MyApp.updateFrame(() => null)),
+                    child: IconButton(
+                      icon: Icon(Icons.logout),
+                    ));
+          },
+        ),
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
@@ -263,13 +276,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-              (gallery.images.isEmpty) ? Column(
-                children: [
-                  ElevatedButton(onPressed: () => CloudUtils.createCloudJson("test_create_and_get4.json"), child: Text("Create test JSON")),
-                  ElevatedButton(onPressed: () async => debugPrint("Drive file found: ${await CloudUtils.getCloudJson("test_create_and_get4.json")}"), child: Text("Find test JSON")),
-                  ElevatedButton(onPressed: () async => debugPrint("Drive file updated: ${await CloudUtils.updateCloudJson()}"), child: Text("Update test JSON")),
-                ],
-              ) : Expanded(
+              if(gallery.images.isNotEmpty) Expanded(
                 flex: 8,
                 child: Container(
                   child: Column(

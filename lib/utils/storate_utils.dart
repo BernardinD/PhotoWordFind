@@ -17,13 +17,15 @@ class StorageUtils{
     (await _getStorageInstance(reload: false)).setString(key, value);
 
     // Save to cloud
-    if(CloudUtils.isSignedin()){
-      // ...
+    debugPrint("Checking if signed in...");
+    if(await CloudUtils.isSignedin()){
+      debugPrint("About to save new json");
+      await CloudUtils.updateCloudJson();
     }
   }
 
-  static Future get(String key, {@required bool reload}) async{
-    (await _getStorageInstance(reload: reload)).getString(key);
+  static Future<String> get(String key, {@required bool reload}) async{
+    return (await _getStorageInstance(reload: reload)).getString(key);
 
   }
 

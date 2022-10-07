@@ -41,6 +41,8 @@ class CloudUtils{
   static String _json_mimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
   static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
+  // static String _jsonBackupFile = "PWF_scans_backup.json";
+  static String _jsonBackupFile = "test_auto_create_file2.json";
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -53,7 +55,33 @@ class CloudUtils{
     ],
   );
 
-  static Future handleSignIn() async {
+  static Future<bool> firstSignIn(){
+    return handleSignIn().then((bool value) {
+
+      if(value){
+        CloudUtils.getCloudJson().then((bool found) {
+          if(!found){
+            CloudUtils.createCloudJson();
+          }
+        }).
+        onError((error, stackTrace) async => debugPrint("$error \n $stackTrace"));
+      }
+
+      return value;
+
+    });
+  }
+
+  static Future signOut() async{
+    // TODO: Show confirmation dialog
+    // ...
+
+    await updateCloudJson();
+
+    return handleSignOut();
+  }
+
+  static Future<bool> handleSignIn() async {
     try {
       if(!(await _googleSignIn.isSignedIn()) || (await _googleSignIn.authenticatedClient()) == null) {
         debugPrint("Signing in...");
@@ -62,11 +90,13 @@ class CloudUtils{
         debugPrint("authHeader-beginning: ${(await googleUser.authHeaders)}");
         final GoogleSignInAuthentication googleAuth = await googleUser?.authentication;
         debugPrint("user signed in: ${googleUser.email}");
-
+        return _googleSignIn.isSignedIn();
       }
     } catch (error) {
       debugPrint("Google sign-in error: $error");
     }
+
+    return false;
 
   }
 
@@ -86,7 +116,7 @@ class CloudUtils{
     return await _googleSignIn.authenticatedClient();
   }
 
-  static Future<bool> createCloudJson(String filename)async{
+  static Future<bool> createCloudJson()async{
 
     // Check connection
     if(!(await isConnected())) throw NoInternetException();
@@ -94,11 +124,12 @@ class CloudUtils{
     /*
     Create JSON file
      */
+    debugPrint("Creating new json");
     List<int> uInt8List = "{}".codeUnits;
     var uploadMedia = drive.Media(Future.value(uInt8List).asStream(), uInt8List.length);
     Future response = _useDriveAPI((drive.DriveApi api) async {
       return api.files.create(drive.File()
-        ..name = '$filename'
+        ..name = '$_jsonBackupFile'
         ..mimeType = '$_json_mimetype',
         uploadMedia: uploadMedia,
         /*..parents=[]*/
@@ -107,30 +138,36 @@ class CloudUtils{
 
 
 
-    return response.then((value) => getCloudJson(filename));
+    return response.then((value) => getCloudJson()).then((value) {if(value) debugPrint("File created"); return value;});
   }
 
 
   /// Returns list of existing directories names along a given path
-  static Future<bool> getCloudJson(String name) async{
+  static Future<bool> getCloudJson() async{
 
     return await _useDriveAPI((drive.DriveApi api) async{
 
       _cloudRef = await api.files.list(
         // Set parentID if idx is passed root
-          q: """mimeType = '$_json_mimetype' and name = '$name'""",
+          q: """mimeType = '$_json_mimetype' and name = '$_jsonBackupFile'""",
           spaces: 'drive').then((folders) {
         drive.File sub_ = folders.files.length > 0
             ? folders.files[0]
             : null;
         return sub_;
-      }, onError: (e) => print("Create: " + e.toString()));
+      });
+
+      if(_cloudRef == null){
+        debugPrint("Could not find file");
+        return false;
+      }
 
 
       /*
       Download raw data
        */
-      drive.Media jsonMediaFile = (await api.files.get(_cloudRef.id, downloadOptions: client_requests.DownloadOptions.fullMedia));
+      drive.Media jsonMediaFile = (await api.files.get(_cloudRef.id,
+          downloadOptions: client_requests.DownloadOptions.fullMedia));
       Stream jsonStream = jsonMediaFile.stream;
       Codec<String, String> stringToBase64 = utf8.fuse(base64);
       List<int> uInt8List = ((await jsonStream.toList())).expand(( list) => list as Uint8List).toList();
