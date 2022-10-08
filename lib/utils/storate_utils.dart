@@ -43,7 +43,7 @@ class StorageUtils{
       }
       else {
         // Print whether cloud value and Storage values match
-        debugPrint("String ($key) matches: ${(value == cloud[key])}");
+        // debugPrint("String ($key) matches: ${(value == cloud[key])}");
 
         if (value != cloud[key]) {
           throw Exception("Cloud and local copies don't match");
