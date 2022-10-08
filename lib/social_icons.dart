@@ -6,7 +6,15 @@ import 'package:flutter/material.dart';
 class SocialIcon extends StatelessWidget{
 
   String social_uri;
-  Image social_icon;
+  Widget social_icon;
+  Widget not_found =  CircleAvatar(
+      child:Icon(
+        Icons.not_interested,
+        color: Colors.red,
+        size: 24.0,
+        semanticLabel: 'Text to announce in accessibility modes',
+      )
+  );
   SocialIcon(String this.social_uri);
 
   @override
@@ -25,7 +33,7 @@ class SocialIcon extends StatelessWidget{
               var value = snapshot.data;
               ApplicationWithIcon app;
               app = (value as ApplicationWithIcon);
-              social_icon = Image.memory(app.icon);
+              social_icon = (app != null) ? Image.memory(app.icon) : not_found;
               return social_icon;
             }
             else{
