@@ -5,6 +5,7 @@ import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
 
@@ -151,6 +152,12 @@ class _MyHomePageState extends State<MyHomePage> {
   Gallery gallery = MyApp._gallery;
   var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon, kik_icon;
 
+
+  String get directoryPath => _directoryPath;
+  String getDirectoryPath(){
+    return directoryPath;
+  }
+
   String snapchat_uri = 'com.snapchat.android',
   gallery_uri = 'com.sec.android.gallery3d',
   bumble_uri = 'com.bumble.app',
@@ -275,38 +282,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-              if(gallery.images.isNotEmpty) Expanded(
-                flex: 8,
-                child: Container(
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Text("${gallery.galleryController.positions.isNotEmpty ?
-                            gallery.galleryController.page.round()+1 :
-                            gallery.galleryController.initialPage+1}"
-                          "/${gallery.images.length}"),
-                      ),
-                      Expanded(
-                        flex: 19,
-                        child: Scrollbar(
-                          isAlwaysShown: true,
-                          showTrackOnHover: true,
-                          thickness: 15,
-                          interactive: true,
-                          controller: gallery.galleryController,
-                          child: PhotoViewGallery(
-                            onPageChanged: (_) => setState(() {}),
-                            scrollPhysics: const BouncingScrollPhysics(),
-                            pageOptions: gallery.images,
-                            pageController: gallery.galleryController,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              if (gallery.images.isNotEmpty) showGallery() else if(Operation.isRetryOp()) showRetry(),
             ],
           ),
         ),
@@ -352,15 +328,9 @@ class _MyHomePageState extends State<MyHomePage> {
       String new_dir = await FilePicker.platform.getDirectoryPath();
 
       if(new_dir != null) {
-        var lst = gallery.selected.toList().map((x) => [(_directoryPath +"/"+ x), (new_dir +"/"+ x)] ).toList();
 
-        debugPrint("List:" + lst.toString());
-        String src, dst;
-        for(List<String> pair in lst){
-          src = pair[0];
-          dst = pair[1];
-          File(src).renameSync(dst);
-        }
+        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList(), moveDesDir: new_dir, directoryPath: getDirectoryPath);
+
         setState(() {
           gallery.removeSelected();
         });
@@ -369,6 +339,7 @@ class _MyHomePageState extends State<MyHomePage> {
     else{
       throw Exception("There are no selected files to move");
     }
+
   }
 
 
@@ -414,8 +385,11 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
 
-    if(paths!= null)
-      if(!(paths.first is PlatformFile) && !(paths.first is FileSystemEntity)) throw("List of path is is not a PlatformFile or File");
+    // Assure that list is of right file type
+    if(paths!= null && paths.isNotEmpty) {
+      if (!(paths.first is PlatformFile) && !(paths.first is FileSystemEntity))
+        throw ("List of path is is not a PlatformFile or File");
+    }
 
     return paths;
   }
@@ -471,26 +445,7 @@ class _MyHomePageState extends State<MyHomePage> {
       await changeDir();
       print("After changeDir");
     }
-
-    paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
-
-
-    debugPrint("paths: " + paths.toString());
-    if(paths == null) {
-      await MyApp._pr.close();
-      return;
-    }
-
-    Function post = (String text, query){
-
-      // If query word has been found
-      return text.toString().toLowerCase().contains(query.toLowerCase()) ? query : null;
-    };
-
-    // Remove prompt
-    Navigator.pop(context);
-
-    await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
+    Operation.run(Operations.FIND, changeDir, findQuery: query, context: context, directoryPath: getDirectoryPath);
 
 
 
@@ -499,7 +454,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   // Displays all images with a detectable snapchat username in their bio
-  Future displaySnaps(bool select) async{
+  Future
+  displaySnaps(bool select) async{
+    debugPrint("Entering displaySnaps()...");
+
+    Operations op = select ? Operations.DISPLAY_SELECT : Operations.DISPLAY_ALL;
 
     // _pr.show();
 
@@ -515,17 +474,14 @@ class _MyHomePageState extends State<MyHomePage> {
       return result;
     };
 
-    if(paths == null) {
-      await MyApp._pr.close();
-      return;
-    }
+    Operation.run(op, changeDir, displayImagesList: paths, displayPostprocess: post, context: context);
 
-    ocrParallel(paths, post, MediaQuery.of(context).size);
-
+    debugPrint("Leaving displaySnaps()...");
   }
 
 
   Future changeDir() async{
+    debugPrint("Entering changeDir()...");
 
     // Reset callback function
     try {
@@ -538,6 +494,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // sleep(Duration(seconds:1));
     _directoryPath =  await FilePicker.platform.getDirectoryPath();
 
+    debugPrint("Leaving changeDir()...");
   }
 
   @override
@@ -547,6 +504,45 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if( !Platform.environment.containsKey('FLUTTER_TEST'))
       FilePicker.platform.clearTemporaryFiles();
+  }
+
+  showGallery() {
+    return Expanded(
+      flex: 8,
+      child: Container(
+        child: Column(
+          children: [
+            Expanded(
+              flex: 1,
+              child: Text("${gallery.galleryController.positions.isNotEmpty ?
+              gallery.galleryController.page.round()+1 :
+              gallery.galleryController.initialPage+1}"
+                  "/${gallery.images.length}"),
+            ),
+            Expanded(
+              flex: 19,
+              child: Scrollbar(
+                isAlwaysShown: true,
+                showTrackOnHover: true,
+                thickness: 15,
+                interactive: true,
+                controller: gallery.galleryController,
+                child: PhotoViewGallery(
+                  onPageChanged: (_) => setState(() {}),
+                  scrollPhysics: const BouncingScrollPhysics(),
+                  pageOptions: gallery.images,
+                  pageController: gallery.galleryController,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  showRetry() {
+    return Operation.displayRetry();
   }
 
 }
