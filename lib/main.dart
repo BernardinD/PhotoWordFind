@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
+import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
@@ -15,6 +16,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
+
 
 import 'constants/constants.dart';
 
@@ -44,6 +46,8 @@ class MyApp extends StatelessWidget {
   static Gallery _gallery;
   static Gallery get gallery => _gallery;
   static Function updateFrame;
+  static String _cloudBackupFile = "PWF_cloud_backup.json";
+
 
   MyApp({@required this.title});
 
@@ -85,17 +89,6 @@ class MyApp extends StatelessWidget {
       ),
     );
     debugPrint("show return: $temp");
-    // MyApp._pr.style(
-    //     borderRadius: 10.0,
-    //     progressWidget: CircularProgressIndicator(),
-    //     insetAnimCurve: Curves.easeInOut,
-    //     progress: 0.0,
-    //     maxProgress: 100.0,
-    //     progressTextStyle: TextStyle(
-    //         color:  fontSize: 13.0, fontWeight: FontWeight.w400),
-    //     messageTextStyle: TextStyle(
-    //         color: )
-    // );
     debugPrint("Leaving showProgress()...");
   }
 
@@ -130,6 +123,8 @@ class MyApp extends StatelessWidget {
     );
   }
 
+
+
 }
 
 class MyHomePage extends StatefulWidget {
@@ -154,16 +149,17 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
-  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon;
+  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon, kik_icon;
 
   String snapchat_uri = 'com.snapchat.android',
   gallery_uri = 'com.sec.android.gallery3d',
   bumble_uri = 'com.bumble.app',
   instagram_uri = 'com.instagram.android',
-  discord_uri = 'com.discord';
+  discord_uri = 'com.discord',
+  kik_uri = 'kik.android';
 
 
-  void requestPermissions() async{
+  Future requestPermissions() async{
     var status = await Permission.manageExternalStorage.status;
     if(!status.isGranted){
       await Permission.manageExternalStorage.request();
@@ -180,18 +176,33 @@ class _MyHomePageState extends State<MyHomePage> {
     bumble_icon = SocialIcon(bumble_uri);
     instagram_icon = SocialIcon(instagram_uri);
     discord_icon = SocialIcon(discord_uri);
+    kik_icon = SocialIcon(kik_uri);
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
 
+
     // Request storage permissions
-    requestPermissions();
+    requestPermissions().then((value) {
+
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) {
+        // Sign into cloud account
+        MyApp.pr.show(max: 1);
+        MyApp.pr.update(value: 0, msg: "Setting up...");
+
+        CloudUtils.firstSignIn().then((bool value) {}).
+        onError((error, stackTrace) async => debugPrint("Sign in error: $error \n$stackTrace")).
+        whenComplete(() => MyApp.pr.update(value: 1));
+
+      });
+    });
 
     // Load app images and links
     DeviceApps.getInstalledApplications(onlyAppsWithLaunchIntent: true, includeSystemApps: true).then((apps) {
 
       for(var app in apps){
-        if(app.appName.toLowerCase().contains("discord"))
+        if(app.appName.toLowerCase().contains("kik"))
           debugPrint("$app");
       }
     });
@@ -208,6 +219,30 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
+        leading: FutureBuilder(
+          future: CloudUtils.isSignedin(),
+          builder: (BuildContext context, AsyncSnapshot<bool> snapshot){
+            if(snapshot.hasError) throw Exception(snapshot.error);
+            if(!snapshot.hasData){
+              debugPrint("Sign-in hasn't finished. Skipping...");
+              return Icon(Icons.sync_disabled_rounded);
+            }
+            return (!snapshot.data)
+                ? ElevatedButton(
+                    key: ValueKey(snapshot.data.toString()),
+                    child: IconButton(
+                      icon: Icon(Icons.cloud_upload_rounded),
+                    ),
+                    onPressed: () => CloudUtils.firstSignIn().then((value) => MyApp.updateFrame(() => null)),
+                  )
+                : ElevatedButton(
+                    key: ValueKey(snapshot.data.toString()),
+                    onPressed: () => CloudUtils.possibleSignOut().then((value) => MyApp.updateFrame(() => null)),
+                    child: IconButton(
+                      icon: Icon(Icons.logout),
+                    ));
+          },
+        ),
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
@@ -240,7 +275,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-              if (gallery.images.isNotEmpty) Expanded(
+              if(gallery.images.isNotEmpty) Expanded(
                 flex: 8,
                 child: Container(
                   child: Column(
@@ -285,16 +320,23 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 (snapchat_icon),
+                Spacer(),
                 (gallery_icon),
+                Spacer(),
                 (bumble_icon),
+                Spacer(),
                 FloatingActionButton(
                   heroTag: null,
                   tooltip: 'Change current directory',
                   onPressed: changeDir,
                   child: Icon(Icons.drive_folder_upload),
                 ),
+                Spacer(),
                 (instagram_icon),
+                Spacer(),
                 (discord_icon),
+                Spacer(),
+                (kik_icon),
               ],
             ),
           ),

@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:PhotoWordFind/utils/image_utils.dart';
+import 'package:PhotoWordFind/utils/storate_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
@@ -186,14 +187,14 @@ createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onE
     debugPrint("Running OCR redo in main thread...");
     String result = await runOCR(src_filePath.path, crop: false);
 
-    prefs.setString(key, result);
+    StorageUtils.save(key, result, backup: true);
     onEachOcrResult(result);
   }
 
   // Check if this file needs to OCR or has been cached
-  else if(prefs.getString(key) != null){
+  else if(await StorageUtils.get(key, reload: true) != null){
     debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
-    String result = prefs.getString(key);
+    String result = await StorageUtils.get(key, reload: false);
     onEachOcrResult(result);
   }
   else {
@@ -272,7 +273,8 @@ void ocrThread(Map<String, dynamic> context) {
           String key = getKeyOfFilename(filePath);
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
-          prefs.setString(key, result);
+
+          StorageUtils.save(key, result, backup: true);
 
           // Send back result to main thread
           debugPrint("Sending OCR result...");
