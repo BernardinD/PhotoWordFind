@@ -187,7 +187,7 @@ createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onE
     debugPrint("Running OCR redo in main thread...");
     String result = await runOCR(src_filePath.path, crop: false);
 
-    StorageUtils.save(key, result);
+    StorageUtils.save(key, result, backup: true);
     onEachOcrResult(result);
   }
 
@@ -274,7 +274,7 @@ void ocrThread(Map<String, dynamic> context) {
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
 
-          StorageUtils.save(key, result);
+          StorageUtils.save(key, result, backup: true);
 
           // Send back result to main thread
           debugPrint("Sending OCR result...");

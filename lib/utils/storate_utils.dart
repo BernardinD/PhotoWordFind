@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,12 +16,12 @@ class StorageUtils{
     return ret;
   }
 
-  static Future save(String key, String value) async{
+  static Future save(String key, String value, {@required bool backup}) async{
     (await _getStorageInstance(reload: false)).setString(key, value);
 
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
-    if(await CloudUtils.isSignedin()){
+    if(backup && await CloudUtils.isSignedin()){
       await CloudUtils.updateCloudJson();
     }
   }
@@ -28,23 +31,27 @@ class StorageUtils{
 
   }
 
-  static Future merge(Map<String, String> cloud){
+  static Future merge(Map<String, String> cloud) async{
+    debugPrint("Entering merge()...");
+
+    int i = 0;
     for(String key in cloud.keys){
-      if(get(key, reload: true) == null){
-        save(key, cloud[key]);
+      String value = await get(key, reload: false);
+      if (value == null) {
+        save(key, cloud[key], backup: false);
         debugPrint("Saving...");
       }
-      else{
+      else {
         // Print whether cloud value and Storage values match
-        get(key, reload: false).then((value) {
-          // debugPrint("String ($key) matches: ${(value == cloud[key])}");
+        debugPrint("String ($key) matches: ${(value == cloud[key])}");
 
-          if(value != cloud[key]){
-            throw Exception("Cloud and local copies don't match");
-          }
-        });
+        if (value != cloud[key]) {
+          throw Exception("Cloud and local copies don't match");
+        }
       }
+
     }
+    debugPrint("Leaving merge()...");
   }
 
   static Future<Map<String, String>> toMap() async{

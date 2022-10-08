@@ -42,8 +42,8 @@ class CloudUtils{
   static String _json_mimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
   static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
-  static String _jsonBackupFile = "PWF_scans_backup.json";
-  // static String _jsonBackupFile = "test_auto_create_file2.json";
+  // static String _jsonBackupFile = "PWF_scans_backup.json";
+  static String _jsonBackupFile = "test_auto_create_file2.json";
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -155,6 +155,7 @@ class CloudUtils{
 
   /// Returns list of existing directories names along a given path
   static Future<bool> getCloudJson() async{
+    debugPrint("Entering getCloudJson()...");
 
     return await _useDriveAPI((drive.DriveApi api) async{
 
@@ -188,8 +189,9 @@ class CloudUtils{
       Map<String, String > cloud_local_json = new Map.from(json.decode(rawJSON));
 
 
-      StorageUtils.merge(cloud_local_json);
+      StorageUtils.merge(cloud_local_json).then((value) => MyApp.updateFrame(() => null));
 
+      debugPrint("Leaving getCloudJson()...");
       return _cloudRef != null;
     });
   }
