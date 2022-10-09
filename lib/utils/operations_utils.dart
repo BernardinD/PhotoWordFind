@@ -33,7 +33,7 @@ class Operation{
     switch(operation){
       case(Operations.MOVE):
         move(moveSrcList, moveDesDir, directoryPath);
-        return;
+        break;
       case(Operations.FIND):
         retryOp = () {
           find(directoryPath, findQuery, context);
