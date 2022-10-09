@@ -329,7 +329,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if(new_dir != null) {
 
-        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList(), moveDesDir: new_dir, directoryPath: getDirectoryPath);
+        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList() as List<String>, moveDesDir: new_dir, directoryPath: getDirectoryPath);
 
         setState(() {
           gallery.removeSelected();
