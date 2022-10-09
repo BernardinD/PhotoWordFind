@@ -20,12 +20,12 @@ class Gallery{
 
   List<PhotoViewGalleryPageOptions> _images;
 
-  Set _selected;
+  Set<String> _selected;
   PageController _galleryController;
 
   // Getters
   List<PhotoViewGalleryPageOptions> get images => _images;
-  Set get selected => _selected;
+  Set<String> get selected => _selected;
   get galleryController => _galleryController;
 
   // Setters
