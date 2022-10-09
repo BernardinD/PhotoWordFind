@@ -89,9 +89,9 @@ class Operation{
     debugPrint("Leaving find()...");
   }
 
-  static void move(List<String> srcList, destDir, Function directoryPath){
+  static void move(List<String> srcList, String destDir, Function directoryPath){
 
-    var lst = srcList.map((x) => [(directoryPath() +"/"+ x), (destDir +"/"+ x)] ).toList();
+    var lst = srcList.map((x) => [(directoryPath().toString() +"/"+ x), (destDir +"/"+ x)] ).toList();
 
     debugPrint("List:" + lst.toString());
     String src, dst;
