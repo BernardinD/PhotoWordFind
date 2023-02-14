@@ -15,8 +15,8 @@ import 'package:image_size_getter/image_size_getter.dart';
 Future<String> OCR(String path) async {
 
   final inputImage = InputImage.fromFilePath(path);
-  final textDetector = GoogleMlKit.vision.textDetector();
-  final RecognisedText recognisedText = await textDetector.processImage(inputImage);
+  final textDetector = TextRecognizer();
+  final RecognizedText recognisedText = await textDetector.processImage(inputImage);
   textDetector.close();
   return recognisedText.text;
   // return await FlutterTesseractOcr.extractText(path, language: 'eng');
@@ -34,7 +34,6 @@ crop_image.Image getImage(String filePath){
 crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSize){
 
   debugPrint("Entering crop()...");
-  Size size = ImageSizeGetter.getSize(FileInput(File(filePath)));
   var physicalScreenSize = ui.window.physicalSize;
   ui.Size screenSize_ = physicalScreenSize/ui.window.devicePixelRatio;
 
@@ -42,13 +41,13 @@ crop_image.Image crop(crop_image.Image image, String filePath, ui.Size screenSiz
   debugPrint("screenSize vs. screenSize_  >> $screenSize vs. $screenSize_");
 
   int originX = 0,
-      originY = min(size.height, (2.5 * screenSize.height).toInt() ),
-      width = size.width,
-      height = min(size.height, (1.5 * screenSize.height).toInt() );
+      originY = min(image.height, (2.5 * screenSize.height).toInt() ),
+      width = image.width,
+      height = min(image.height, (1.5 * screenSize.height).toInt() );
 
 
   debugPrint("Leaving crop()...");
-  return crop_image.copyCrop(image, originX, originY, width, height);
+  return crop_image.copyCrop(image, x: originX, y: originY, width: width, height: height);
 }
 
 /// Creates a cropped and resized image by passing the file and the `parent` directory to save the temporary image
@@ -64,7 +63,7 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   // Save temp image
   String file_name = filePath.split("/").last;
   File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(croppedFile, filePath));
+  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile));
 
   debugPrint("Leaving createCroppedImage()...");
   return temp_cropped;

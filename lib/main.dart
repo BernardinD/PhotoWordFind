@@ -86,7 +86,7 @@ class MyApp extends StatelessWidget {
       // progressValueColor: Colors.black,
       completed: Completed(
         completedMsg: "Done!",
-        closedDelay: 1000,
+        completionDelay: 1000,
       ),
     );
     debugPrint("show return: $temp");

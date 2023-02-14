@@ -6,10 +6,10 @@ import FlutterMacOS
 import Foundation
 
 import catcher
-import connectivity_plus_macos
-import device_info_plus_macos
-import package_info_plus_macos
-import shared_preferences_macos
+import connectivity_plus
+import device_info_plus
+import package_info_plus
+import shared_preferences_foundation
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   CatcherPlugin.register(with: registry.registrar(forPlugin: "CatcherPlugin"))

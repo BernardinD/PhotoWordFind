@@ -15,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<String> runOCR(String filePath, {bool crop=true, ui.Size size}) async {
   print("Entering runOCR()...");
-  debugPrint("Running OCR on $filePath}");
+  debugPrint("Running OCR on $filePath");
   File temp_cropped = crop ? createCroppedImage(
       filePath, Directory.systemTemp, size) : new File(filePath);
 
