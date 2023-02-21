@@ -7,11 +7,9 @@ import 'dart:ui';
 
 
 import 'package:path/path.dart' as path;
-import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -22,9 +20,13 @@ class Gallery{
 
   Set<String> _selected;
   PageController _galleryController;
+  Sorts _sort = Sorts.Default;
 
   // Getters
-  List<PhotoViewGalleryPageOptions> get images => _images;
+  List<PhotoViewGalleryPageOptions> get images {
+    _images.sort(Sortings.sort(_sort));
+    return _images;
+  }
   Set<String> get selected => _selected;
   get galleryController => _galleryController;
 
@@ -130,6 +132,62 @@ class Gallery{
   }
 
   void dispose(){
+
+  }
+}
+
+enum Sorts{
+  Default,
+  Date,
+  Insertion,
+  AddedOnSnap,
+  AddedOnInsta,
+  Filename,
+  DateFriendOnSocials,
+  DateFoundOnBumble,
+}
+class Sortings{
+
+  static int sortByFileDate(GalleryCell a, GalleryCell b){
+    var aDate = a.src_image.lastModifiedSync();
+    var bDate = b.src_image.lastModifiedSync();
+
+    return aDate.compareTo(bDate);
+  }
+  static Function sort(Sorts s){
+    switch(s) {
+      case Sorts.Default:
+      case Sorts.Date:
+        return sortByFileDate;
+      case Sorts.Insertion:
+
+        break;
+      case Sorts.AddedOnSnap:
+
+        break;
+      case Sorts.AddedOnInsta:
+
+        break;
+      case Sorts.Filename:
+
+        break;
+      case Sorts.DateFriendOnSocials:
+
+        break;
+      case Sorts.DateFoundOnBumble:
+
+        break;
+      // case :
+      //
+      //   break;
+      // case :
+      //
+      //   break;
+      // case :
+
+        break;
+      default:
+    }
 
   }
 }
