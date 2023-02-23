@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:PhotoWordFind/utils/image_utils.dart';
+import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storate_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
@@ -84,7 +85,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
   final prefs = await SharedPreferences.getInstance();
   await prefs.reload();
 
-
+  filesList.sort(Sortings.getSorting());
   for(files_idx = 0; files_idx < filesList.length; files_idx++){
 
 

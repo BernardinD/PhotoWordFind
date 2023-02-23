@@ -282,6 +282,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
+              Row(
+
+              ),
               if (gallery.images.isNotEmpty) showGallery() else if(Operation.isRetryOp()) showRetry(),
             ],
           ),
