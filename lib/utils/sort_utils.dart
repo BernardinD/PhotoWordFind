@@ -7,6 +7,8 @@ import 'package:photo_view/photo_view_gallery.dart';
 
 
 Sorts _current_sort = Sorts.Default;
+get current_sort => _current_sort;
+
 // The direction of the sort
 bool _reverse = true;
 get reverse => _reverse;
@@ -24,8 +26,13 @@ enum Sorts{
 class Sortings{
 
   static updateSortType(Sorts s){
-    _current_sort = s;
-    _reverse = false;
+    if(_current_sort == s){
+      _reverse = !_reverse;
+    }
+    else {
+      _current_sort = s;
+      _reverse = false;
+    }
   }
 
   static File convertToStdDartFile(file){

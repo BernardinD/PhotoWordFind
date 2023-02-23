@@ -6,6 +6,7 @@ import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
+import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:catcher/catcher.dart';
 
@@ -152,6 +153,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Gallery gallery = MyApp._gallery;
   var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon, kik_icon;
 
+  Map<String, Sorts> sortings = {"First": Sorts.Default, "Second": Sorts.Default};
+  String dropdownValue = "First";
+
 
   String get directoryPath => _directoryPath;
   String getDirectoryPath(){
@@ -220,6 +224,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
 
+
     return Scaffold(
       resizeToAvoidBottomInset : false,
       appBar: AppBar(
@@ -281,9 +286,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ],
                 ),
-              ),
-              Row(
-
               ),
               if (gallery.images.isNotEmpty) showGallery() else if(Operation.isRetryOp()) showRetry(),
             ],
@@ -516,11 +518,50 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           children: [
             Expanded(
-              flex: 1,
-              child: Text("${gallery.galleryController.positions.isNotEmpty ?
-              gallery.galleryController.page.round()+1 :
-              gallery.galleryController.initialPage+1}"
-                  "/${gallery.images.length}"),
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(width: MediaQuery.of(context).size.width/3,),
+                  VerticalDivider(width: 1.0),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width/3,
+                    child: Center(
+                      child: Text("${gallery.galleryController.positions.isNotEmpty ?
+                      gallery.galleryController.page.round()+1 :
+                      gallery.galleryController.initialPage+1}"
+                          "/${gallery.images.length}"),
+                    ),
+                  ),
+                  VerticalDivider(width: 1.0),
+                  Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width/3-2,
+                      child: FittedBox(
+                        child: DropdownButton<String>(
+                          value: dropdownValue,
+                          alignment: AlignmentDirectional.topEnd,
+                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<String, Sorts> value) {
+                            return DropdownMenuItem<String>(
+                              value: value.key,
+                              child: Text(value.key),
+                            );
+                          }).toList(),
+                          onChanged: (String value) {
+                            // This is called when the user selects an item.
+                            setState(() {
+                              dropdownValue = value;
+                              Sortings.updateSortType(sortings[dropdownValue]);
+                              gallery.images.sort(Sortings.getSorting());
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             Expanded(
               flex: 19,
