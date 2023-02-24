@@ -6,25 +6,29 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 
+import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:path/path.dart' as path;
-import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:collection/collection.dart';
 
 class Gallery{
 
+  // PriorityQueue<PhotoViewGalleryPageOptions> _images;
   List<PhotoViewGalleryPageOptions> _images;
 
   Set<String> _selected;
   PageController _galleryController;
 
   // Getters
-  List<PhotoViewGalleryPageOptions> get images => _images;
+  List<PhotoViewGalleryPageOptions> get images {
+    _images.sort(Sortings.getSorting());
+    return _images;
+  }
   Set<String> get selected => _selected;
   get galleryController => _galleryController;
 

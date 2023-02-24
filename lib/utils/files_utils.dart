@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:PhotoWordFind/utils/image_utils.dart';
+import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storate_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
@@ -84,7 +85,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
   final prefs = await SharedPreferences.getInstance();
   await prefs.reload();
 
-
+  filesList.sort(Sortings.getSorting());
   for(files_idx = 0; files_idx < filesList.length; files_idx++){
 
 
@@ -101,13 +102,26 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
     debugPrint("srcFilePath [${srcFile.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
 
     // Define callback
-    void onEachOcrResult (dynamic signal) {
+    void onEachOcrResult (dynamic signal) async {
       debugPrint("Entering onOCRResult...");
       debugPrint("Checking type of OCR result: ${signal.runtimeType}");
       if(signal is String){
         String text = signal;
         // If query word has been found
-        String suggestedUsername = post(text, query);
+        String key = getKeyOfFilename(srcFile.path);
+        String savedUser = await StorageUtils.get(key, reload: true, snap: true);
+        String suggestedUsername;
+        if (savedUser.isNotEmpty && savedUser != null){
+          suggestedUsername = savedUser;
+        }
+        else{
+          String snap = post(text, query);
+          String value = await StorageUtils.get(key, reload: false);
+          StorageUtils.save(key, value, backup: true, snap: snap);
+          suggestedUsername = snap;
+        }
+
+        debugPrint("--- Got snap: $suggestedUsername ---");
         if(suggestedUsername != null) {
 
           if(replace == null)
