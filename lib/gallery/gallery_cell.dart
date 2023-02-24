@@ -4,11 +4,14 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:PhotoWordFind/constants/constants.dart';
+import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GalleryCell extends StatefulWidget {
   const GalleryCell(String this.text, String this.suggestedUsername, dynamic this.f, File this.src_image, this.list_pos, this.onPressedHandler, this.onLongPressedHandler, {@required ValueKey<String> key}) : super(key: key);
@@ -117,7 +120,47 @@ class _GalleryCellState extends State<GalleryCell>{
                       Expanded(
                         flex: 1,
                         child: Container(
-                          child: SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
+                          child: Column(
+                            children: [
+                              FittedBox(
+                                child: Row(
+                                  children: [
+                                    Text("Snap: ", style: TextStyle(color: Colors.redAccent)),
+                                    SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
+                                    ElevatedButton(
+                                        onPressed: () async {
+                                          MyApp.pr.show(max: 1);
+                                          String key = getKeyOfFilename(widget.src_image.path);
+                                          String value = await StorageUtils.get(key, reload: false);
+                                          await StorageUtils.save(key, value, backup: true, snapAdded: true);
+                                          final Uri _site = Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}");
+                                          debugPrint("site URI: $_site");
+                                          launchUrl(_site, mode: LaunchMode.externalApplication).then((value) => MyApp.pr.close(delay: 500));
+                                        },
+                                        child: Text("Open in snapchat")
+                                    ),
+                                    // Row(
+                                    //     children: [
+                                    //       Text("Instagram:"),
+                                    //       SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
+                                    //       ElevatedButton(
+                                    //           onPressed: () async {
+                                    //             MyApp.pr.show(max: 1);
+                                    //             String key = getKeyOfFilename(widget.src_image.path);
+                                    //             String value = await StorageUtils.get(key, reload: false);
+                                    //             await StorageUtils.save(key, value, backup: true, snapAdded: true);
+                                    //             final Uri _site = Uri.parse("instagram.com/${widget.suggestedUsername}");
+                                    //             launchUrl(_site).then((value) => MyApp.pr.close(delay: 500));
+                                    //           },
+                                    //           child: Text("Open in instagram")
+                                    //       )
+                                    //     ],
+                                    // ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 

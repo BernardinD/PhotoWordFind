@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:PhotoWordFind/utils/image_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
-import 'package:PhotoWordFind/utils/storate_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
@@ -117,7 +117,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         else{
           String snap = post(text, query);
           String value = await StorageUtils.get(key, reload: false);
-          StorageUtils.save(key, value, backup: true, snap: snap);
+          await StorageUtils.save(key, value, backup: true, snap: snap);
           suggestedUsername = snap;
         }
 

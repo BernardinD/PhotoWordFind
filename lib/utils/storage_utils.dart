@@ -18,18 +18,21 @@ class StorageUtils{
     return ret;
   }
 
-  static convertValueToMap(String value){
-    Map<String, String> map = {
+  static Map<String, dynamic> convertValueToMap(String value){
+    Map<String, dynamic> map = {
       "ocr" : value,
       "snap" : "",
-      "insta" : ""
+      "insta" : "",
+      "addedOnSnap" : false,
+      "addedOnInsta" : false
     };
     return map;
   }
 
-  static Future save(String key, String value, {@required bool backup, String snap = ""}) async{
-    Map<String, String> map = convertValueToMap(value);
+  static Future save(String key, String value, {@required bool backup, String snap = "", bool snapAdded = false}) async{
+    Map<String, dynamic> map = convertValueToMap(value);
     if (snap.isNotEmpty) map['snap'] = snap;
+    map['addedOnSnap'] |= snapAdded;
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: false)).setString(key, rawJson);
     // (await _getStorageInstance(reload: false)).setString(key, value);

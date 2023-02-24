@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:PhotoWordFind/main.dart';
-import 'package:PhotoWordFind/utils/storate_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:_discoveryapis_commons/src/requests.dart' as client_requests;
 
