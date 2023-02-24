@@ -566,8 +566,8 @@ class _MyHomePageState extends State<MyHomePage> {
             Expanded(
               flex: 19,
               child: Scrollbar(
-                isAlwaysShown: true,
-                showTrackOnHover: true,
+                thumbVisibility: true,
+                trackVisibility: true,
                 thickness: 15,
                 interactive: true,
                 controller: gallery.galleryController,
