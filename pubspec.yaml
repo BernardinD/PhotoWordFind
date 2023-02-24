@@ -60,6 +60,7 @@ dependencies:
   google_sign_in: ^5.2.3
   extension_google_sign_in_as_googleapis_auth: ^2.0.4
   googleapis: ^10.1.0
+  validators: ^3.0.0
 
   # For checking internet connection
   connectivity_plus: ^3.0.3
