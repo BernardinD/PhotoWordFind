@@ -117,7 +117,8 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         else{
           String snap = post(text, query);
           String value = await StorageUtils.get(key, reload: false);
-          await StorageUtils.save(key, value, backup: true, snap: snap);
+          if (value.isNotEmpty && value != null)
+            StorageUtils.save(key, value, backup: true, snap: snap);
           suggestedUsername = snap;
         }
 

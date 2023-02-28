@@ -118,7 +118,7 @@ class _GalleryCellState extends State<GalleryCell>{
 
                       // Snap suggestion
                       Expanded(
-                        flex: 1,
+                        flex: 2,
                         child: Container(
                           child: Column(
                             children: [
@@ -128,34 +128,22 @@ class _GalleryCellState extends State<GalleryCell>{
                                     Text("Snap: ", style: TextStyle(color: Colors.redAccent)),
                                     SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
                                     ElevatedButton(
-                                        onPressed: () async {
-                                          MyApp.pr.show(max: 1);
-                                          String key = getKeyOfFilename(widget.src_image.path);
-                                          String value = await StorageUtils.get(key, reload: false);
-                                          await StorageUtils.save(key, value, backup: true, snapAdded: true);
-                                          final Uri _site = Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}");
-                                          debugPrint("site URI: $_site");
-                                          launchUrl(_site, mode: LaunchMode.externalApplication).then((value) => MyApp.pr.close(delay: 500));
-                                        },
+                                        onPressed: () => openUserAppPage(true),
                                         child: Text("Open in snapchat")
                                     ),
-                                    // Row(
-                                    //     children: [
-                                    //       Text("Instagram:"),
-                                    //       SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
-                                    //       ElevatedButton(
-                                    //           onPressed: () async {
-                                    //             MyApp.pr.show(max: 1);
-                                    //             String key = getKeyOfFilename(widget.src_image.path);
-                                    //             String value = await StorageUtils.get(key, reload: false);
-                                    //             await StorageUtils.save(key, value, backup: true, snapAdded: true);
-                                    //             final Uri _site = Uri.parse("instagram.com/${widget.suggestedUsername}");
-                                    //             launchUrl(_site).then((value) => MyApp.pr.close(delay: 500));
-                                    //           },
-                                    //           child: Text("Open in instagram")
-                                    //       )
-                                    //     ],
-                                    // ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(),
+                              FittedBox(
+                                child: Row(
+                                  children: [
+                                    Text("Instagram:", style: TextStyle(color: Colors.redAccent)),
+                                    SelectableText(widget.suggestedUsername, style: TextStyle(color: Colors.redAccent),showCursor: true,),
+                                    ElevatedButton(
+                                        onPressed: () => openUserAppPage(false),
+                                        child: Text("Open in instagram")
+                                    )
                                   ],
                                 ),
                               ),
@@ -227,4 +215,13 @@ class _GalleryCellState extends State<GalleryCell>{
     ocrParallel([file], post, MediaQuery.of(context).size, replace: {widget.list_pos(widget) : src_image.path}).then((value) => setState((){}));
   }
 
+  openUserAppPage(bool snap) async {
+    MyApp.pr.show(max: 1);
+    String key = getKeyOfFilename(widget.src_image.path);
+    String value = await StorageUtils.get(key, reload: false);
+    await StorageUtils.save(key, value, backup: true, snapAdded: true);
+    final Uri _site = snap ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}") : Uri.parse("https://www.instagram.com/${widget.suggestedUsername}");
+    debugPrint("site URI: $_site");
+    launchUrl(_site, mode: LaunchMode.externalApplication).then((value) => MyApp.pr.close(delay: 500));
+  }
 }
