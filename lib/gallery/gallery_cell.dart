@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -218,10 +219,10 @@ class _GalleryCellState extends State<GalleryCell>{
   openUserAppPage(bool snap) async {
     MyApp.pr.show(max: 1);
     String key = getKeyOfFilename(widget.src_image.path);
-    String value = await StorageUtils.get(key, reload: false);
-    await StorageUtils.save(key, value, backup: true, snapAdded: true);
+    await StorageUtils.save(key, backup: true, snapAdded: true);
     final Uri _site = snap ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}") : Uri.parse("https://www.instagram.com/${widget.suggestedUsername}");
     debugPrint("site URI: $_site");
+    await Sortings.updateCache();
     launchUrl(_site, mode: LaunchMode.externalApplication).then((value) => MyApp.pr.close(delay: 500));
   }
 }

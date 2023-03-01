@@ -85,6 +85,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
   final prefs = await SharedPreferences.getInstance();
   await prefs.reload();
 
+  await Sortings.updateCache();
   filesList.sort(Sortings.getSorting());
   for(files_idx = 0; files_idx < filesList.length; files_idx++){
 
@@ -116,9 +117,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         }
         else{
           String snap = post(text, query);
-          String value = await StorageUtils.get(key, reload: false);
-          if (value.isNotEmpty && value != null)
-            StorageUtils.save(key, value, backup: true, snap: snap);
+          StorageUtils.save(key, backup: true, snap: snap);
           suggestedUsername = snap;
         }
 
@@ -202,7 +201,7 @@ createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onE
     debugPrint("Running OCR redo in main thread...");
     String result = await runOCR(src_filePath.path, crop: false);
 
-    StorageUtils.save(key, result, backup: true);
+    StorageUtils.save(key, value: result, backup: true);
     onEachOcrResult(result);
   }
 
@@ -289,7 +288,7 @@ void ocrThread(Map<String, dynamic> context) {
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
 
-          StorageUtils.save(key, result, backup: true);
+          StorageUtils.save(key, value: result, backup: true);
 
           // Send back result to main thread
           debugPrint("Sending OCR result...");

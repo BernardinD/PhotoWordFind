@@ -26,6 +26,7 @@ class Gallery{
 
   // Getters
   List<PhotoViewGalleryPageOptions> get images {
+    Sortings.updateCache();
     _images.sort(Sortings.getSorting());
     return _images;
   }
