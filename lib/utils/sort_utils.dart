@@ -150,7 +150,7 @@ class Sortings{
     bool bSnap = localCache[bKey]['addedOnSnap']??false;
 
     Function sort = getSortBy();
-    return (aSnap != bSnap) ? (aSnap ? 1 : -1) * (_reverseGroupBy ? -1 : 1) : sort(a, b);
+    return (aSnap != bSnap) ? (aSnap ? -1 : 1) * (_reverseGroupBy ? -1 : 1) : sort(a, b);
   }
   
   static Function getSorting(){
