@@ -27,7 +27,7 @@ class Gallery{
   // Getters
   List<PhotoViewGalleryPageOptions> get images {
     Sortings.updateCache();
-    _images.sort(Sortings.getSorting());
+    sort();
     return _images;
   }
   Set<String> get selected => _selected;
@@ -48,6 +48,10 @@ class Gallery{
 
     _galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
     _images = [];
+  }
+
+  void sort(){
+    _images.sort(Sortings.getSorting());
   }
 
   int length(){

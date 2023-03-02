@@ -13,9 +13,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 Sorts _current_sort = Sorts.Default;
 get current_sort => _current_sort;
 
+Sorts _currentSortBy = Sorts.Default, _currentGroupBy = null;
+
 // The direction of the sort
-bool _reverse = true;
-get reverse => _reverse;
+bool _reverseSortBy = false, _reverseGroupBy = false;
+get reverseSortBy => _reverseSortBy;
+get reverseGroupBy => _reverseGroupBy;
 
 Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
@@ -29,16 +32,54 @@ enum Sorts{
   Filename,
   DateFriendOnSocials,
   DateFoundOnBumble,
+  Null,
 }
+
+Set<Sorts> sortBy = {
+  Sorts.Default,
+  Sorts.Date,
+  Sorts.Insertion,
+  Sorts.Filename,
+  Sorts.DateFoundOnBumble,
+  Sorts.DateFriendOnSocials
+};
+
+Set<Sorts> groupBy = {
+  Sorts.Null,
+  Sorts.AddedOnSnap,
+  Sorts.AddedOnInsta,
+};
+
 class Sortings{
 
   static updateSortType(Sorts s){
-    if(_current_sort == s){
-      _reverse = !_reverse;
+    // Reverse recently selected sort
+    if(_currentSortBy == s || _currentGroupBy == s){
+
+      if (sortBy.contains(s))
+        _reverseSortBy = !_reverseSortBy;
+      else
+        _reverseGroupBy = !_reverseGroupBy;
     }
+    // If selected a currently unused sort
     else {
-      _current_sort = s;
-      _reverse = false;
+
+      // If s is null then it's a groupBy sort that's being disabled
+      if (s == Sorts.Null) {
+        _reverseGroupBy = false;
+        _currentGroupBy = null;
+      }
+      // If new groupBy sort
+      else if(groupBy.contains(s)){
+        _reverseGroupBy = false;
+        _currentGroupBy = s;
+      }
+      // If new sortBy sort
+      else {
+      _reverseSortBy = false;
+      _currentSortBy = s;
+      _currentGroupBy = null;
+      }
     }
   }
 
@@ -93,7 +134,7 @@ class Sortings{
 
     aDate = aFile.lastModifiedSync();
     bDate = bFile.lastModifiedSync();
-    return aDate.compareTo(bDate) * (_reverse ? -1 : 1);
+    return aDate.compareTo(bDate) * (_reverseSortBy ? -1 : 1);
   }
 
   static int _sortByAddedOnSnapchat(a, b) {
@@ -108,9 +149,8 @@ class Sortings{
     bool aSnap = localCache[aKey]['addedOnSnap']??false;
     bool bSnap = localCache[bKey]['addedOnSnap']??false;
 
-
-    Function internalSorting = getSorting();
-    return (aSnap != bSnap) ? (aSnap ? 1 : -1) : _sortByFileDate(a, b);
+    Function sort = getSortBy();
+    return (aSnap != bSnap) ? (aSnap ? 1 : -1) * (_reverseGroupBy ? -1 : 1) : sort(a, b);
   }
   
   static Function getSorting(){
@@ -118,16 +158,28 @@ class Sortings{
   }
 
   static Function _sort(){
-    switch(_current_sort) {
+    Function sort = _currentGroupBy != null ? getGroupBy() : getSortBy();
+    return sort;
+  }
+
+  static Function getGroupBy(){
+    switch(_currentGroupBy) {
+      case Sorts.AddedOnSnap:
+        return _sortByAddedOnSnapchat;
+      case Sorts.AddedOnInsta:
+
+        break;
+      default:
+        return _sortByAddedOnSnapchat;
+    }
+  }
+
+  static Function getSortBy(){
+
+    switch(_currentSortBy) {
       case Sorts.Date:
         return _sortByFileDate;
       case Sorts.Insertion:
-
-        break;
-      case Sorts.AddedOnSnap:
-
-        break;
-      case Sorts.AddedOnInsta:
 
         break;
       case Sorts.Filename:
@@ -151,6 +203,5 @@ class Sortings{
       default:
         return _sortByFileDate;
     }
-
   }
 }

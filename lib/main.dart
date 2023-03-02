@@ -152,11 +152,8 @@ class _MyHomePageState extends State<MyHomePage> {
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
 
-  Map<String, Sorts> sortings = {"First": Sorts.Default, "Second": Sorts.Default};
-  String dropdownValue = "First";
-
-  Map<String, Sorts> sortings = {"First": Sorts.Default, "Second": Sorts.Default};
-  String dropdownValue = "First";
+  Map<String, Sorts> sortings = {"Sort By": null, "Default": Sorts.Default, "Date": Sorts.Date, "Group By" : null, "None" : Sorts.Null, "Snap Added" : Sorts.AddedOnSnap};
+  String dropdownValue = "Default";
 
 
   String get directoryPath => _directoryPath;
@@ -533,18 +530,32 @@ class _MyHomePageState extends State<MyHomePage> {
                         child: DropdownButton<String>(
                           value: dropdownValue,
                           alignment: AlignmentDirectional.topEnd,
-                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<String, Sorts> value) {
-                            return DropdownMenuItem<String>(
-                              value: value.key,
-                              child: Text(value.key),
-                            );
+                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<String, Sorts> val) {
+                            if (val.value == null) {
+                              return DropdownMenuItem(
+                                enabled: false,
+                                  child: Column(
+                                    children: [
+                                      Divider(),
+                                      Text(val.key),
+                                      // Divider(),
+                                    ],
+                                  )
+                              );
+                            }
+                            else {
+                              return DropdownMenuItem<String>(
+                                value: val.key,
+                                child: Text(val.key),
+                              );
+                            }
                           }).toList(),
                           onChanged: (String value) {
                             // This is called when the user selects an item.
                             setState(() {
                               dropdownValue = value;
                               Sortings.updateSortType(sortings[dropdownValue]);
-                              gallery.images.sort(Sortings.getSorting());
+                              gallery.sort();
                             });
                           },
                         ),

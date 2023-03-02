@@ -163,6 +163,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         debugPrint("Terminate all running isolates...");
 
         terminateRunningThreads(iso_name, isolates);
+        MyApp.gallery.sort();
 
         debugPrint("popping...");
 
