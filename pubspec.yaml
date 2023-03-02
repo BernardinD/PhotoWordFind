@@ -62,6 +62,9 @@ dependencies:
   googleapis: ^10.1.0
   validators: ^3.0.0
 
+  # Open app
+  url_launcher: ^6.1.10
+
   # For checking internet connection
   connectivity_plus: ^3.0.3
 

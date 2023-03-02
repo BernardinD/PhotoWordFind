@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:PhotoWordFind/main.dart';
-import 'package:PhotoWordFind/utils/storate_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:_discoveryapis_commons/src/requests.dart' as client_requests;
 
@@ -204,14 +204,9 @@ class CloudUtils{
        Convert data to bytes
        */
       String jsonStr = _jsonEncoder.convert(await StorageUtils.toMap());
-      // debugPrint("jsonStr: $jsonStr");
 
       Codec<String, String> stringToBase64 = utf8.fuse(base64);
       String encoded = stringToBase64.encode(jsonStr);
-
-      // debugPrint("base64 encoded: $encoded}");
-      // debugPrint("base46: ${base64.decode(encoded)}");
-      // debugPrint("json: $jsonStr");
 
       List<int> uInt8List = base64.decode(encoded);
 

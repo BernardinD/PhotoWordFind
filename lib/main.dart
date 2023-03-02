@@ -151,7 +151,9 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
-  var snapchat_icon, gallery_icon, bumble_icon, instagram_icon, discord_icon, kik_icon;
+
+  Map<String, Sorts> sortings = {"First": Sorts.Default, "Second": Sorts.Default};
+  String dropdownValue = "First";
 
   Map<String, Sorts> sortings = {"First": Sorts.Default, "Second": Sorts.Default};
   String dropdownValue = "First";
@@ -162,12 +164,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return directoryPath;
   }
 
-  String snapchat_uri = 'com.snapchat.android',
-  gallery_uri = 'com.sec.android.gallery3d',
-  bumble_uri = 'com.bumble.app',
-  instagram_uri = 'com.instagram.android',
-  discord_uri = 'com.discord',
-  kik_uri = 'kik.android';
 
 
   Future requestPermissions() async{
@@ -182,12 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     MyApp.updateFrame = setState;
 
-    snapchat_icon = SocialIcon(snapchat_uri);
-    gallery_icon = SocialIcon(gallery_uri);
-    bumble_icon = SocialIcon(bumble_uri);
-    instagram_icon = SocialIcon(instagram_uri);
-    discord_icon = SocialIcon(discord_uri);
-    kik_icon = SocialIcon(kik_uri);
+    SocialIcon.initializeIcons();
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
@@ -300,11 +291,11 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                (snapchat_icon),
+                (SocialIcon.snapchat_icon),
                 Spacer(),
-                (gallery_icon),
+                (SocialIcon.gallery_icon),
                 Spacer(),
-                (bumble_icon),
+                (SocialIcon.bumble_icon),
                 Spacer(),
                 FloatingActionButton(
                   heroTag: null,
@@ -313,11 +304,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Icon(Icons.drive_folder_upload),
                 ),
                 Spacer(),
-                (instagram_icon),
+                (SocialIcon.instagram_icon),
                 Spacer(),
-                (discord_icon),
+                (SocialIcon.discord_icon),
                 Spacer(),
-                (kik_icon),
+                (SocialIcon.kik_icon),
               ],
             ),
           ),
