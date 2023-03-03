@@ -10,15 +10,9 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
-Sorts _current_sort = Sorts.Default;
-get current_sort => _current_sort;
-
 Sorts _currentSortBy = Sorts.Default, _currentGroupBy = null;
-
-// The direction of the sort
-bool _reverseSortBy = false, _reverseGroupBy = false;
-get reverseSortBy => _reverseSortBy;
-get reverseGroupBy => _reverseGroupBy;
+Sorts get currentSortBy  => _currentSortBy;
+Sorts get currentGroupBy => _currentGroupBy;
 
 Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
@@ -32,8 +26,14 @@ enum Sorts{
   Filename,
   DateFriendOnSocials,
   DateFoundOnBumble,
-  Null,
+  GroupByTitle,
+  SortByTitle,
 }
+
+Set<Sorts> sortsTitles = {
+  Sorts.GroupByTitle,
+  Sorts.SortByTitle,
+};
 
 Set<Sorts> sortBy = {
   Sorts.Default,
@@ -45,16 +45,21 @@ Set<Sorts> sortBy = {
 };
 
 Set<Sorts> groupBy = {
-  Sorts.Null,
   Sorts.AddedOnSnap,
   Sorts.AddedOnInsta,
 };
 
+
+
 class Sortings{
+  // The direction of the sort
+  static bool _reverseSortBy = false, _reverseGroupBy = false;
+  static get reverseSortBy => _reverseSortBy;
+  static get reverseGroupBy => _reverseGroupBy;
 
   static updateSortType(Sorts s){
     // Reverse recently selected sort
-    if(_currentSortBy == s || _currentGroupBy == s){
+    if(s != null && (_currentSortBy == s || _currentGroupBy == s)){
 
       if (sortBy.contains(s))
         _reverseSortBy = !_reverseSortBy;
@@ -65,7 +70,7 @@ class Sortings{
     else {
 
       // If s is null then it's a groupBy sort that's being disabled
-      if (s == Sorts.Null) {
+      if (s == null) {
         _reverseGroupBy = false;
         _currentGroupBy = null;
       }
