@@ -118,7 +118,8 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
         }
         else{
           String snap =  suggestionSnapName(text) ?? "";
-          StorageUtils.save(key, backup: true, snap: snap);
+          if (snap.isNotEmpty)
+            StorageUtils.save(key, backup: true, snap: snap);
           suggestedUsername = snap;
         }
 
