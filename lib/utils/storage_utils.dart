@@ -42,7 +42,7 @@ class StorageUtils{
       value = await get(key, reload: false, raw: true);
     }
     Map<String, dynamic> map = await convertValueToMap(value);
-    if (snap.isNotEmpty) map['snap'] = snap;
+    if (snap != null) map['snap'] = snap;
     map['addedOnSnap'] |= snapAdded;
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: false)).setString(key, rawJson);

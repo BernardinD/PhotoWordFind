@@ -197,16 +197,8 @@ class _GalleryCellState extends State<GalleryCell> {
     print("image file path: " + (await file.path));
 
     // Run OCR
-    // Returns suggested snap username or empty string
-    Function post = (String text, String _) {
-      String result = findSnapKeyword(keys, text) ?? "";
-
-      debugPrint("ran display Post");
-
-      return result;
-    };
-    ocrParallel([file], post, MediaQuery.of(context).size,
-            replace: {widget.list_pos(widget): src_image.path})
+    ocrParallel([file], MediaQuery.of(context).size,
+        replace: {widget.list_pos(widget): src_image.path})
         .then((value) => setState(() {}));
   }
 

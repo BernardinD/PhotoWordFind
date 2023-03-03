@@ -152,8 +152,8 @@ class _MyHomePageState extends State<MyHomePage> {
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
 
-  Map<String, Sorts> sortings = {"First": Sorts.Default, "Second": Sorts.Default};
-  String dropdownValue = "First";
+  Map<Sorts, String> sortings = {Sorts.SortByTitle : "Sort By", Sorts.Default : "Default", Sorts.Date : "Date", Sorts.GroupByTitle : "Group By", null : "None", Sorts.AddedOnSnap : "Snap Added"};
+  Sorts dropdownValue = Sorts.Default;
 
 
   String get directoryPath => _directoryPath;
@@ -458,16 +458,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // Choose files to extract text from
     List paths = await selectImages(select);
 
-    // Returns suggested snap username or empty string
-    Function post = (String text, String _){
-      String result = findSnapKeyword(keys, text)?? "";
-
-      debugPrint("ran display Post");
-
-      return result;
-    };
-
-    Operation.run(op, changeDir, displayImagesList: paths, displayPostprocess: post, context: context);
+    Operation.run(op, changeDir, displayImagesList: paths, context: context);
 
     debugPrint("Leaving displaySnaps()...");
   }
@@ -528,20 +519,45 @@ class _MyHomePageState extends State<MyHomePage> {
                       width: MediaQuery.of(context).size.width/3-2,
                       child: FittedBox(
                         child: DropdownButton<String>(
-                          value: dropdownValue,
+                          value: sortings[dropdownValue],
                           alignment: AlignmentDirectional.topEnd,
-                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<String, Sorts> value) {
-                            return DropdownMenuItem<String>(
-                              value: value.key,
-                              child: Text(value.key),
-                            );
+                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<Sorts, String> entry) {
+                            if (sortsTitles.contains(entry.key) ) {
+                              return DropdownMenuItem(
+                                enabled: false,
+                                  child: Column(
+                                    children: [
+                                      // Divider(),
+                                      Text(entry.value),
+                                      Divider(),
+                                    ],
+                                  )
+                              );
+                            }
+                            else {
+                              return DropdownMenuItem<String>(
+                                value: entry.value,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Text(entry.value),
+                                    if(dropdownValue == entry.key || (entry.key == currentSortBy && dropdownValue == currentGroupBy) )
+                                      groupBy.contains(entry.value) ?
+                                        Icon(Sortings.reverseSortBy  ? Icons.arrow_back : Icons.arrow_forward) :
+                                        Icon(Sortings.reverseGroupBy ? Icons.arrow_back : Icons.arrow_forward),
+                                  ],
+                                ),
+                              );
+                            }
                           }).toList(),
                           onChanged: (String value) {
                             // This is called when the user selects an item.
                             setState(() {
-                              dropdownValue = value;
-                              Sortings.updateSortType(sortings[dropdownValue]);
-                              gallery.images.sort(Sortings.getSorting());
+                              dropdownValue = sortings.entries.firstWhere((entry) => entry.value == value).key;
+                              Sortings.updateSortType(dropdownValue);
+                              gallery.sort();
+                              if(currentGroupBy != null && sortBy.contains(dropdownValue) )
+                                dropdownValue = currentGroupBy;
                             });
                           },
                         ),
