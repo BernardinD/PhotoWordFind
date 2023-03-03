@@ -17,9 +17,6 @@ Sorts get currentGroupBy => _currentGroupBy;
 Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
 
-Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
-Map<String, Map<String, dynamic>> localCache = {};
-
 enum Sorts{
   Default,
   Date,
@@ -114,29 +111,6 @@ class Sortings{
     }
   }
 
-  static Future updateCache() async{
-    if (_localPrefs == null) {
-      await _localPrefs;
-    }
-
-    SharedPreferences localPrefs = await _localPrefs;
-    localPrefs.reload();
-
-    for (String key in localPrefs.getKeys()) {
-      String rawJson = localPrefs.getString(key);
-      Map<String, dynamic> map;
-      try {
-        map = json.decode(rawJson);
-      }
-      on FormatException catch (e) {
-        // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
-        map = await StorageUtils.convertValueToMap(rawJson);
-      }
-
-      localCache[key] = map;
-    }
-  }
-
   static File convertToStdDartFile(file){
 
     if (file is PhotoViewGalleryPageOptions){
@@ -182,23 +156,6 @@ class Sortings{
 
     Function sort = getSortBy();
     return (aSnap != bSnap) ? (aSnap ? -1 : 1) * (_reverseGroupBy ? -1 : 1) : sort(a, b);
-  }
-
-  static int _sortByAddedOnSnapchat(a, b) {
-
-    DateTime aDate, bDate;
-    File aFile = convertToStdDartFile(a);
-    File bFile = convertToStdDartFile(b);
-
-    String aKey = getKeyOfFilename(aFile.path);
-    String bKey = getKeyOfFilename(bFile.path);
-
-    bool aSnap = localCache[aKey]['addedOnSnap']??false;
-    bool bSnap = localCache[bKey]['addedOnSnap']??false;
-
-
-    Function internalSorting = getSorting();
-    return (aSnap != bSnap) ? (aSnap ? 1 : -1) : _sortByFileDate(a, b);
   }
   
   static Function getSorting(){
@@ -249,7 +206,7 @@ class Sortings{
 
         break;
       default:
-        return _sortByAddedOnSnapchat;
+        return _sortByFileDate;
     }
   }
 }
