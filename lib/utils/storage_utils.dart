@@ -15,7 +15,7 @@ class StorageUtils {
     return ret;
   }
 
-  static Future<Map<String, dynamic>> convertValueToMap(String value) async {
+  static Map<String, dynamic> convertValueToMap(String value) {
     Map<String, dynamic> _map;
     try {
       _map = json.decode(value);
@@ -28,7 +28,9 @@ class StorageUtils {
       "snap": _map["snap"] ?? "",
       "insta": _map["insta"] ?? "",
       "addedOnSnap": _map["addedOnSnap"] ?? false,
-      "addedOnInsta": _map["addedOnInsta"] ?? false
+      "addedOnInsta": _map["addedOnInsta"] ?? false,
+      "dateAddedOnSnap": _map["dateAddedOnSnap"],
+      "dateAddedOnInsta": _map["dateAddedOnInsta"],
     };
     return map;
   }
