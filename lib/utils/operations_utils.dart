@@ -21,7 +21,6 @@ class Operation{
     BuildContext context,
     Function directoryPath,
     String findQuery,
-    Function displayPostprocess,
     List displayImagesList,
     List<String> moveSrcList,
     String moveDesDir,
@@ -42,12 +41,12 @@ class Operation{
         return;
       case(Operations.DISPLAY_ALL):
         retryOp = (){
-          _displayImages(displayImagesList, displayPostprocess, context);
+          _displayImages(displayImagesList, context);
         };
         retryOp();
         break;
       case(Operations.DISPLAY_SELECT):
-        _displayImages(displayImagesList, displayPostprocess, context);
+        _displayImages(displayImagesList, context);
         return;
       default:
         break;
@@ -84,7 +83,7 @@ class Operation{
       Navigator.pop(context);
 
     debugPrint("Query: $query");
-    await ocrParallel(paths, post, MediaQuery.of(context).size, query: query);
+    await ocrParallel(paths, MediaQuery.of(context).size, query: query);
 
     debugPrint("Leaving find()...");
   }
@@ -102,7 +101,7 @@ class Operation{
     }
   }
 
-  static _displayImages(List paths, Function post, BuildContext context) async{
+  static _displayImages(List paths, BuildContext context) async{
     debugPrint("Entering _displayImages()...");
 
     if(paths == null) {
@@ -110,7 +109,7 @@ class Operation{
       return;
     }
 
-    ocrParallel(paths, post, MediaQuery.of(context).size);
+    ocrParallel(paths, MediaQuery.of(context).size);
     debugPrint("Leaving _displayImages()...");
   }
 

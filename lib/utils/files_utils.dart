@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui' as ui;
 
+import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/utils/image_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
@@ -25,7 +26,7 @@ Future<String> runOCR(String filePath, {bool crop=true, ui.Size size}) async {
 }
 
 /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
-String findSnapKeyword(List<String> keys, String text){
+String suggestionSnapName(String text){
   // TODO: Change so tha it finds the next word in the series, not the row
   text = text.toLowerCase();
   // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
@@ -60,7 +61,7 @@ String getKeyOfFilename(String f){
   return key;
 }
 
-Future ocrParallel(List filesList, Function post, Size size, {String query, bool findFirst = false, Map<int, String> replace}) async{
+Future ocrParallel(List filesList, Size size, { String query, bool findFirst = false, Map<int, String> replace}) async{
 
   // MyApp.pr.update(value: 0);
   await MyApp.showProgress(limit: filesList.length);
@@ -116,13 +117,19 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
           suggestedUsername = savedUser;
         }
         else{
-          String snap = post(text, query);
-          StorageUtils.save(key, backup: true, snap: snap);
+          String snap =  suggestionSnapName(text) ?? "";
+          if (snap.isNotEmpty)
+            StorageUtils.save(key, backup: true, snap: snap);
           suggestedUsername = snap;
         }
 
-        debugPrint("--- Got snap: $suggestedUsername ---");
-        if(suggestedUsername != null) {
+        // Skip this image if query word has not been found
+        bool skipImage = false;
+        if (query != null && suggestedUsername != null && !suggestedUsername.toLowerCase().contains(query.toLowerCase())){
+          skipImage = true;
+        }
+
+        if(!skipImage) {
 
           if(replace == null)
             MyApp.gallery.addNewCell(text, suggestedUsername, srcFile, new File(srcFile.path));
@@ -163,6 +170,7 @@ Future ocrParallel(List filesList, Function post, Size size, {String query, bool
         debugPrint("Terminate all running isolates...");
 
         terminateRunningThreads(iso_name, isolates);
+        MyApp.gallery.sort();
 
         debugPrint("popping...");
 
