@@ -119,7 +119,7 @@ class Sortings{
 
     File ret;
     if(file is GalleryCell) {
-      ret = file.src_image;
+      ret = file.srcImage;
     }
     else if (file is FileSystemEntity || file is PlatformFile){
       ret = File(file.path);

@@ -38,12 +38,9 @@ class StorageUtils {
       @required bool backup,
       String snap = "",
       bool snapAdded = false}) async {
-    if (value == null) {
-      value = await get(key, reload: false, raw: true);
-    }
-    Map<String, dynamic> map = await convertValueToMap(value);
+    Map<String, dynamic> map = await get(key, reload: false, asMap: true);
     if (snap != null) map['snap'] = snap;
-    map['addedOnSnap'] |= snapAdded;
+    map['addedOnSnap'] = snapAdded;
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: false)).setString(key, rawJson);
     // (await _getStorageInstance(reload: false)).setString(key, value);
@@ -55,8 +52,8 @@ class StorageUtils {
     }
   }
 
-  static Future<String> get(String key,
-      {@required bool reload, bool snap = false, bool raw = false}) async {
+  static Future get(String key,
+      {@required bool reload, bool snap = false, bool asMap = false, bool snapAdded = false}) async {
     String rawJson = (await _getStorageInstance(reload: reload)).getString(key);
 
     Map<String, dynamic> map;
@@ -67,10 +64,12 @@ class StorageUtils {
       map = await convertValueToMap(rawJson);
     }
 
-    if (raw) {
-      return rawJson;
+    if (asMap) {
+      return map;
     } else if (snap) {
       return map['snap'];
+    } else if(snapAdded) {
+      return map['addedOnSnap']??false;
     } else {
       return map['ocr'];
     }

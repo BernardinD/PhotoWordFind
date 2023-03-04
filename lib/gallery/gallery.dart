@@ -100,7 +100,7 @@ class Gallery{
 
 
     GalleryCell replacing = _images[idx].child as GalleryCell;
-    var display_image = replacing.src_image;
+    var display_image = replacing.srcImage;
     var f = replacing.f;
     var key = replacing.key;
 

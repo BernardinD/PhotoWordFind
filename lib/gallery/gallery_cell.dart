@@ -8,18 +8,18 @@ import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GalleryCell extends StatefulWidget {
   const GalleryCell(
-      String this.text,
-      String this.suggestedUsername,
-      dynamic this.f,
-      File this.src_image,
+      this.text,
+      this.suggestedUsername,
+      this.f,
+      this.srcImage,
       this.list_pos,
       this.onPressedHandler,
       this.onLongPressedHandler,
@@ -29,7 +29,7 @@ class GalleryCell extends StatefulWidget {
   final String text;
   final String suggestedUsername;
   final dynamic f;
-  final File src_image;
+  final File srcImage;
   final int Function(GalleryCell cell) list_pos;
   final void Function(String file_name) onPressedHandler;
   final void Function(String file_name) onLongPressedHandler;
@@ -84,7 +84,7 @@ class _GalleryCellState extends State<GalleryCell> {
                       key: cropBoxKey,
                       child: Container(
                         child: PhotoView(
-                          imageProvider: FileImage(widget.src_image),
+                          imageProvider: FileImage(widget.srcImage),
                           initialScale: PhotoViewComputedScale.covered,
                           minScale: PhotoViewComputedScale.contained * 0.4,
                           maxScale: PhotoViewComputedScale.covered * 1.5,
@@ -132,12 +132,10 @@ class _GalleryCellState extends State<GalleryCell> {
                           2: FlexColumnWidth(2),
                         },
                         children: [
-                          if (widget.suggestedUsername.isNotEmpty &&
-                              SocialIcon.snapchat_icon != null)
-                            getSocialRow("snap"),
-                          if (widget.suggestedUsername.isNotEmpty &&
-                              SocialIcon.instagram_icon != null)
-                            getSocialRow("insta"),
+                          getSocialRow((widget.suggestedUsername.isNotEmpty &&
+                              SocialIcon.snapchat_icon != null), "snap"),
+                          getSocialRow((widget.suggestedUsername.isNotEmpty &&
+                              SocialIcon.instagram_icon != null), "insta"),
                         ],
                       ),
                     ),
@@ -202,9 +200,19 @@ class _GalleryCellState extends State<GalleryCell> {
         .then((value) => setState(() {}));
   }
 
+  String getStorageKey(){
+    return getKeyOfFilename(widget.srcImage.path);
+  }
+
+  unaddUser(bool snap){
+    StorageUtils.save(getStorageKey(), backup: true, snapAdded: false);
+    Toasts.showToast(true, (_) => "Marked as unadded");
+    MyApp.updateFrame(() => null);
+  }
+
   openUserAppPage(bool snap) async {
     MyApp.pr.show(max: 1);
-    String key = getKeyOfFilename(widget.src_image.path);
+    String key = getStorageKey();
     await StorageUtils.save(key, backup: true, snapAdded: true);
     final Uri _site = snap
         ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}")
@@ -215,31 +223,83 @@ class _GalleryCellState extends State<GalleryCell> {
         .then((value) => MyApp.pr.close(delay: 500));
   }
 
-  TableRow getSocialRow(String social) {
-    var socialPlatform =
-        social == "snap" ? SocialIcon.snapchat_icon : SocialIcon.instagram_icon;
-    String action = "Open in  ${social == "snap" ? 'snapchat' : 'instagram'}";
+  TableRow getSocialRow(bool hasUser, String social) {
 
-    return TableRow(
-      children: [
-        TableCell(child: socialPlatform.social_icon),
-        TableCell(
+    var socialPlatform =
+      social == "snap" ? SocialIcon.snapchat_icon : SocialIcon.instagram_icon;
+    String action = "Open in  ${social == "snap" ? 'snapchat' : 'instagram'}";
+    bool app = social == "snap";
+
+    if (hasUser) {
+      return TableRow(
+        children: [
+          TableCell(child: socialPlatform.social_icon),
+          TableCell(
+              // verticalAlignment: TableCellVerticalAlignment.middle,
+              child: Center(
+            child: SelectableText(
+              widget.suggestedUsername,
+              style: TextStyle(color: Colors.redAccent, fontSize: 10),
+              showCursor: true,
+              maxLines: 1,
+            ),
+          )),
+          FutureBuilder(
+            future: StorageUtils.get(getStorageKey(), reload: false, snapAdded: true),
+            builder: (context, snapshot) {
+              if (snapshot.hasError){
+                return TableCell(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red
+                    ),
+                    child: Text(
+                        "Errored", maxLines: 2, style: TextStyle(fontSize: 8)),
+                  ),
+                );
+              } else {
+                bool snapAdded = snapshot.connectionState == ConnectionState.done && snapshot.data;
+                if(snapAdded){
+                  action = "Mark as Unadded";
+                }
+                return TableCell(
+                  key: ValueKey(snapAdded),
+                  child: ElevatedButton(
+                    onPressed: () => !snapAdded ? openUserAppPage(app) : unaddUser(app),
+                    child: Text(
+                        action, maxLines: 2, style: TextStyle(fontSize: 8)),
+                  ),
+                );
+              }/* else{
+                return CircularProgressIndicator();
+              }*/
+            },
+          ),
+        ],
+      );
+    }
+    else{
+      return TableRow(
+        children: [
+          TableCell(child: socialPlatform.social_icon),
+          TableCell(
             // verticalAlignment: TableCellVerticalAlignment.middle,
-            child: Center(
-          child: SelectableText(
-            widget.suggestedUsername,
-            style: TextStyle(color: Colors.redAccent, fontSize: 10),
-            showCursor: true,
-            maxLines: 1,
+              child: Center(
+                child: SelectableText(
+                  widget.suggestedUsername,
+                  style: TextStyle(color: Colors.redAccent, fontSize: 10),
+                  showCursor: true,
+                  maxLines: 1,
+                ),
+              )),
+          TableCell(
+            child: ElevatedButton(
+              onPressed: null,
+              child: Text(action, maxLines: 2, style: TextStyle(fontSize: 8)),
+            ),
           ),
-        )),
-        TableCell(
-          child: ElevatedButton(
-            onPressed: () => openUserAppPage(true),
-            child: Text(action, maxLines: 2, style: TextStyle(fontSize: 8)),
-          ),
-        ),
-      ],
-    );
+        ],
+      );
+    }
   }
 }
