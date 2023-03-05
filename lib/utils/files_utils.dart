@@ -40,8 +40,8 @@ String suggestionSnapName(String text){
     int i = 0;
     List<String> words= line.split(" ");
     for(String word in words){
-      // word;
-      if(keys.contains(word.replaceAll(new RegExp('[^A-Za-z0-9]'),'').trim())) return (i+1 < words.length) ? words[++i].trim() : "";
+      if (keys.contains(word.replaceAll(new RegExp('[^A-Za-z0-9]'), '').trim()))
+        return (i + 1 < words.length) ? words[++i].trim().replaceAll(new RegExp('^[@]'), "") : "";
       i++;
     }
   }
@@ -114,7 +114,7 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
         String savedUser = await StorageUtils.get(key, reload: true, snap: true);
         String suggestedUsername;
         if (savedUser.isNotEmpty && savedUser != null){
-          suggestedUsername = savedUser;
+          suggestedUsername = savedUser.replaceAll(new RegExp('^[@]'), "");
         }
         else{
           String snap =  suggestionSnapName(text) ?? "";
@@ -170,6 +170,7 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
         debugPrint("Terminate all running isolates...");
 
         terminateRunningThreads(iso_name, isolates);
+        await Sortings.updateCache();
         MyApp.gallery.sort();
 
         debugPrint("popping...");
@@ -192,6 +193,8 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
     await createOCRJob(iso_name, srcFile, rawJson, onEachOcrResult, isolates, replace != null);
 
   }
+
+
 }
 
 createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates, bool replacing) async{
@@ -209,11 +212,11 @@ createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onE
     debugPrint("Running OCR redo in main thread...");
     String result = await runOCR(src_filePath.path, crop: false);
 
-    StorageUtils.save(key, value: result, backup: true);
+    await StorageUtils.save(key, ocrResult: result, backup: true); //The "await" is needed for synchronization with main thread
     onEachOcrResult(result);
   }
 
-  // Check if this file needs to OCR or has been cached
+  // Check if this file's' OCR has been cached
   else if(await StorageUtils.get(key, reload: true) != null){
     debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
     String result = await StorageUtils.get(key, reload: false);
@@ -296,7 +299,7 @@ void ocrThread(Map<String, dynamic> context) {
           // Save OCR result
           debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
 
-          StorageUtils.save(key, value: result, backup: true);
+          StorageUtils.save(key, ocrResult: result, backup: true);
 
           // Send back result to main thread
           debugPrint("Sending OCR result...");

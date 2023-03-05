@@ -204,8 +204,8 @@ class _GalleryCellState extends State<GalleryCell> {
     return getKeyOfFilename(widget.srcImage.path);
   }
 
-  unaddUser(bool snap){
-    StorageUtils.save(getStorageKey(), backup: true, snapAdded: false);
+  unAddUser(bool snap) async{
+    await StorageUtils.save(getStorageKey(), backup: true, snapAdded: false);
     Toasts.showToast(true, (_) => "Marked as unadded");
     MyApp.updateFrame(() => null);
   }
@@ -213,7 +213,7 @@ class _GalleryCellState extends State<GalleryCell> {
   openUserAppPage(bool snap) async {
     MyApp.pr.show(max: 1);
     String key = getStorageKey();
-    await StorageUtils.save(key, backup: true, snapAdded: true);
+    await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     final Uri _site = snap
         ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}")
         : Uri.parse("https://www.instagram.com/${widget.suggestedUsername}");
@@ -250,6 +250,7 @@ class _GalleryCellState extends State<GalleryCell> {
               if (snapshot.hasError){
                 return TableCell(
                   child: ElevatedButton(
+                    onPressed: null,
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red
                     ),
@@ -265,7 +266,7 @@ class _GalleryCellState extends State<GalleryCell> {
                 return TableCell(
                   key: ValueKey(snapAdded),
                   child: ElevatedButton(
-                    onPressed: () => !snapAdded ? openUserAppPage(app) : unaddUser(app),
+                    onPressed: () => !snapAdded ? openUserAppPage(app) : unAddUser(app),
                     child: Text(
                         action, maxLines: 2, style: TextStyle(fontSize: 8)),
                   ),

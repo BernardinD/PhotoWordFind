@@ -152,7 +152,15 @@ class _MyHomePageState extends State<MyHomePage> {
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
 
-  Map<Sorts, String> sortings = {Sorts.SortByTitle : "Sort By", Sorts.Default : "Default", Sorts.Date : "Date", Sorts.GroupByTitle : "Group By", null : "None", Sorts.AddedOnSnap : "Snap Added"};
+  Map<Sorts, String> sortings = {
+    Sorts.SortByTitle: "Sort By",
+    Sorts.Default: "Default",
+    Sorts.Date: "Date",
+    Sorts.SnapDetected : "Snap Name",
+    Sorts.GroupByTitle: "Group By",
+    null: "None", // Disable GroupBy
+    Sorts.AddedOnSnap: "Snap Added"
+  };
   Sorts dropdownValue = Sorts.Default;
 
 

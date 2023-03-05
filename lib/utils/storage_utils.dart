@@ -29,23 +29,25 @@ class StorageUtils {
       "insta": _map["insta"] ?? "",
       "addedOnSnap": _map["addedOnSnap"] ?? false,
       "addedOnInsta": _map["addedOnInsta"] ?? false,
-      "dateAddedOnSnap": _map["dateAddedOnSnap"],
-      "dateAddedOnInsta": _map["dateAddedOnInsta"],
+      "dateAddedOnSnap":  _map["dateAddedOnSnap"]  != null && _map["dateAddedOnSnap"].isNotEmpty  ? DateTime.parse(_map["dateAddedOnSnap"]).toIso8601String()  : "",
+      "dateAddedOnInsta": _map["dateAddedOnInsta"] != null && _map["dateAddedOnInsta"].isNotEmpty ? DateTime.parse(_map["dateAddedOnInsta"]).toIso8601String() : "",
     };
     return map;
   }
 
   static Future save(String key,
-      {String value,
+      {String ocrResult,
       @required bool backup,
       String snap = "",
-      bool snapAdded = false}) async {
+      bool snapAdded, DateTime snapAddedDate}) async {
     Map<String, dynamic> map = await get(key, reload: false, asMap: true);
-    if (snap != null) map['snap'] = snap;
-    map['addedOnSnap'] = snapAdded;
+    if (ocrResult     != null) map['ocr']             = ocrResult;
+    if (snap          != null) map['snap']            = snap;
+    if (snapAdded     != null) map['addedOnSnap']     = snapAdded;
+    if (snapAddedDate != null) map['dateAddedOnSnap'] = snapAddedDate.toIso8601String();
+
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: false)).setString(key, rawJson);
-    // (await _getStorageInstance(reload: false)).setString(key, value);
 
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
@@ -58,13 +60,13 @@ class StorageUtils {
       {@required bool reload, bool snap = false, bool asMap = false, bool snapAdded = false}) async {
     String rawJson = (await _getStorageInstance(reload: reload)).getString(key);
 
-    Map<String, dynamic> map;
-    try {
-      map = json.decode(rawJson);
-    } on FormatException catch (e) {
-      // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
-      map = await convertValueToMap(rawJson);
-    }
+    Map<String, dynamic> map = convertValueToMap(rawJson);;
+    // try {
+    //   map = json.decode(rawJson);
+    // } on FormatException catch (e) {
+    //   // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
+    //   map = await convertValueToMap(rawJson);
+    // }
 
     if (asMap) {
       return map;
@@ -85,7 +87,7 @@ class StorageUtils {
     for (String key in cloud.keys) {
       String localValue = await get(key, reload: false);
       if (localValue == null) {
-        save(key, value: cloud[key], backup: false);
+        save(key, ocrResult: cloud[key], backup: false);
         debugPrint("Saving...");
       } else {
         // Print whether cloud value and Storage values match
