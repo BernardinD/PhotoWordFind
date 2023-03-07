@@ -153,6 +153,29 @@ class _GalleryCellState extends State<GalleryCell> {
                         child: SelectableText(
                           widget.text.toString(),
                           showCursor: true,
+                          contextMenuBuilder: (context, editableTextState) {
+                            final TextEditingValue value =
+                                editableTextState.textEditingValue;
+                            final List<ContextMenuButtonItem> buttonItems =
+                                editableTextState.contextMenuButtonItems;
+                            buttonItems.insert(
+                                0,
+                                ContextMenuButtonItem(
+                                  label: 'Select snap',
+                                  onPressed: () {
+                                    ContextMenuController.removeAny();
+                                    String snap = value.selection.textInside(value.text);
+                                    StorageUtils.save(getKeyOfFilename(widget.srcImage.path), backup: true, snap: snap);
+                                    MyApp.gallery.redoCell(widget.text, snap, widget.list_pos(widget));
+                                    Sortings.updateCache();
+                                    MyApp.updateFrame(() => null);
+                                  },
+                                ));
+                            return AdaptiveTextSelectionToolbar.buttonItems(
+                              anchors: editableTextState.contextMenuAnchors,
+                              buttonItems: buttonItems,
+                            );
+                          },
                         )),
                   ),
                   Spacer(
@@ -204,7 +227,7 @@ class _GalleryCellState extends State<GalleryCell> {
     return getKeyOfFilename(widget.srcImage.path);
   }
 
-  unAddUser(bool snap) async{
+  unAddUser(bool snap) async {
     await StorageUtils.save(getStorageKey(), backup: true, snapAdded: false);
     Toasts.showToast(true, (_) => "Marked as unadded");
     MyApp.updateFrame(() => null);
@@ -215,7 +238,7 @@ class _GalleryCellState extends State<GalleryCell> {
     String key = getStorageKey();
     await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     final Uri _site = snap
-        ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}")
+        ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername.toLowerCase()}")
         : Uri.parse("https://www.instagram.com/${widget.suggestedUsername}");
     debugPrint("site URI: $_site");
     await Sortings.updateCache();
