@@ -32,7 +32,7 @@ String suggestionSnapName(String text){
   // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
   // text = text.replaceAll(new RegExp('[^A-Za-z0-9]'),'');
   // Remove all non-alphanumeric characters
-  debugPrint("text: " + text.replaceAll(new RegExp('[^A-Za-z0-9]'),''));
+  debugPrint("text: " + text.replaceAll(new RegExp('[^A-Za-z0-9]'),' '));
 
   // Split up lines
   for(String line in text.split("\n")){
@@ -125,9 +125,11 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
 
         // Skip this image if query word has not been found
         bool skipImage = false;
-        if (query != null && suggestedUsername != null && !suggestedUsername.toLowerCase().contains(query.toLowerCase())){
+        if (query != null && suggestedUsername != null &&
+            !suggestedUsername.toLowerCase().contains(query.toLowerCase()) && !text.toLowerCase().contains(query.toLowerCase())){
           skipImage = true;
         }
+        // debugPrint
 
         if(!skipImage) {
 
