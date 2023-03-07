@@ -562,7 +562,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             // This is called when the user selects an item.
                             setState(() {
                               dropdownValue = sortings.entries.firstWhere((entry) => entry.value == value).key;
-                              Sortings.updateSortType(dropdownValue);
+                              Sortings.updateSortType(dropdownValue, resetGroupBy: false);
                               gallery.sort();
                               if(currentGroupBy != null && sortBy.contains(dropdownValue) )
                                 dropdownValue = currentGroupBy;

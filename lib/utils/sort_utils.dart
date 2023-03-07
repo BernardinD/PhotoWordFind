@@ -54,7 +54,7 @@ class Sortings {
   static get reverseSortBy => _reverseSortBy;
   static get reverseGroupBy => _reverseGroupBy;
 
-  static updateSortType(Sorts s) {
+  static updateSortType(Sorts s, {bool resetGroupBy = true}) {
     // Reverse recently selected sort
     if (s != null && (_currentSortBy == s || _currentGroupBy == s)) {
       if (sortBy.contains(s))
@@ -78,7 +78,8 @@ class Sortings {
       else {
         _reverseSortBy = false;
         _currentSortBy = s;
-        _currentGroupBy = null;
+        if (resetGroupBy)
+          _currentGroupBy = null;
       }
     }
   }
