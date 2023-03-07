@@ -152,16 +152,16 @@ class _MyHomePageState extends State<MyHomePage> {
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
 
-  Map<Sorts, String> sortings = {
+  Map<Sorts, String> sortings = Map.from({
     Sorts.SortByTitle: "Sort By",
-    Sorts.Default: "Default",
-    Sorts.Date: "Date",
+    Sorts.Date: "Date Found",
+    Sorts.DateAddedOnSnap: "Date Added on Snap",
     Sorts.SnapDetected : "Snap Name",
     Sorts.GroupByTitle: "Group By",
     null: "None", // Disable GroupBy
     Sorts.AddedOnSnap: "Snap Added"
-  };
-  Sorts dropdownValue = Sorts.Default;
+  });
+  Sorts dropdownValue = Sorts.Date;
 
 
   String get directoryPath => _directoryPath;
@@ -550,9 +550,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                   children: [
                                     Text(entry.value),
                                     if(dropdownValue == entry.key || (entry.key == currentSortBy && dropdownValue == currentGroupBy) )
-                                      groupBy.contains(entry.value) ?
-                                        Icon(Sortings.reverseSortBy  ? Icons.arrow_back : Icons.arrow_forward) :
-                                        Icon(Sortings.reverseGroupBy ? Icons.arrow_back : Icons.arrow_forward),
+                                      groupBy.contains(entry.key) ?
+                                        Icon(Sortings.reverseGroupBy  ? Icons.arrow_back : Icons.arrow_forward) :
+                                        Icon(Sortings.reverseSortBy ? Icons.arrow_back : Icons.arrow_forward),
                                   ],
                                 ),
                               );
