@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Sorts _currentSortBy = Sorts.Default, _currentGroupBy = null;
+Sorts _currentSortBy = Sorts.Date, _currentGroupBy = null;
 Sorts get currentSortBy => _currentSortBy;
 Sorts get currentGroupBy => _currentGroupBy;
 
@@ -17,13 +17,12 @@ Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
 
 enum Sorts {
-  Default,
   Date,
   Insertion,
   AddedOnSnap,
   AddedOnInsta,
   Filename,
-  DateFriendOnSocials,
+  DateAddedOnSnap,
   DateFoundOnBumble,
   GroupByTitle,
   SortByTitle,
@@ -36,12 +35,11 @@ Set<Sorts> sortsTitles = {
 };
 
 Set<Sorts> sortBy = {
-  Sorts.Default,
   Sorts.Date,
   Sorts.Insertion,
   Sorts.Filename,
   Sorts.DateFoundOnBumble,
-  Sorts.DateFriendOnSocials,
+  Sorts.DateAddedOnSnap,
   Sorts.SnapDetected,
 };
 
@@ -105,6 +103,7 @@ class Sortings {
 
       localCache[key] = map;
     }
+    // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
   }
 
   static File convertToStdDartFile(file) {
@@ -132,6 +131,35 @@ class Sortings {
     aDate = aFile.lastModifiedSync();
     bDate = bFile.lastModifiedSync();
     return aDate.compareTo(bDate) * (_reverseSortBy ? -1 : 1);
+  }
+
+  static int _sortByDateAddedOnSnapchat(a, b){
+    File aFile = convertToStdDartFile(a);
+    File bFile = convertToStdDartFile(b);
+
+    String aKey = getKeyOfFilename(aFile.path);
+    String bKey = getKeyOfFilename(bFile.path);
+
+    String aDateStr = localCache[aKey]['dateAddedOnSnap'] ?? "";
+    String bDateStr = localCache[bKey]['dateAddedOnSnap'] ?? "";
+
+    int ret;
+    if (aDateStr.isEmpty && bDateStr.isEmpty) {
+      ret = 0;
+    }
+    else if (aDateStr.isEmpty) {
+      ret = 1;
+    }
+    else if (bDateStr.isEmpty) {
+      ret = -1;
+    }
+    else {
+      DateTime aDate = DateTime.parse(aDateStr);
+      DateTime bDate = DateTime.parse(bDateStr);
+      ret =  aDate.compareTo(bDate);
+    }
+
+    return ret * (_reverseSortBy ? -1 : 1);
   }
 
   static int _sortByAddedOnSnapchat(a, b) {
@@ -206,8 +234,8 @@ class Sortings {
         break;
       case Sorts.Filename:
         break;
-      case Sorts.DateFriendOnSocials:
-        break;
+      case Sorts.DateAddedOnSnap:
+        return _sortByDateAddedOnSnapchat;
       case Sorts.DateFoundOnBumble:
         break;
       case Sorts.SnapDetected:
