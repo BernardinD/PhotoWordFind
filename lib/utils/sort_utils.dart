@@ -141,8 +141,8 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aDateStr = localCache[aKey]['dateAddedOnSnap'] ?? "";
-    String bDateStr = localCache[bKey]['dateAddedOnSnap'] ?? "";
+    String aDateStr = localCache[aKey][SubKeys.snapDate] ?? "";
+    String bDateStr = localCache[bKey][SubKeys.snapDate] ?? "";
 
     int ret;
     if (aDateStr.isEmpty && bDateStr.isEmpty) {
@@ -171,8 +171,8 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    bool aSnap = localCache[aKey]['addedOnSnap'] ?? false;
-    bool bSnap = localCache[bKey]['addedOnSnap'] ?? false;
+    bool aSnap = localCache[aKey][SubKeys.AddedOnSnap] ?? false;
+    bool bSnap = localCache[bKey][SubKeys.AddedOnSnap] ?? false;
 
     Function secondarySort = getSortBy();
     return (aSnap != bSnap)
@@ -188,8 +188,8 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aSnap = localCache[aKey]['snap'];
-    String bSnap = localCache[bKey]['snap'];
+    String aSnap = localCache[aKey][SubKeys.SnapUsername];
+    String bSnap = localCache[bKey][SubKeys.SnapUsername];
 
     Function secondarySort = getSortBy();
     // If both exist throw them in the front and sort them, else throw it to the back

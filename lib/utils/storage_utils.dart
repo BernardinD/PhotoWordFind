@@ -7,6 +7,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 
+class SubKeys{
+  static String get OCR => "ocr";
+  static String get SnapUsername => "snap";
+  static String get InstaUsername => "insta";
+  static String get AddedOnSnap => "addedOnSnap";
+  static String get AddedOnInsta => "addedOnInsta";
+  static String get snapDate => "dateAddedOnSnap";
+  static String get instaDate => "dateAddedOnInsta";
+
+}
+
 class StorageUtils {
   static Future<SharedPreferences> _getStorageInstance({@required bool reload}) async {
     var ret = await SharedPreferences.getInstance();
@@ -24,13 +35,13 @@ class StorageUtils {
       _map = {};
     }
     Map<String, dynamic> map = {
-      "ocr": _map["ocr"] ?? value,
-      "snap": _map["snap"] ?? "",
-      "insta": _map["insta"] ?? "",
-      "addedOnSnap": _map["addedOnSnap"] ?? false,
-      "addedOnInsta": _map["addedOnInsta"] ?? false,
-      "dateAddedOnSnap":  _map["dateAddedOnSnap"]  != null && _map["dateAddedOnSnap"].isNotEmpty  ? DateTime.parse(_map["dateAddedOnSnap"]).toIso8601String()  : "",
-      "dateAddedOnInsta": _map["dateAddedOnInsta"] != null && _map["dateAddedOnInsta"].isNotEmpty ? DateTime.parse(_map["dateAddedOnInsta"]).toIso8601String() : "",
+      SubKeys.OCR:           _map[SubKeys.OCR] ?? value,
+      SubKeys.SnapUsername:  _map[SubKeys.SnapUsername] ?? "",
+      SubKeys.InstaUsername: _map[SubKeys.InstaUsername] ?? "",
+      SubKeys.AddedOnSnap:   _map[SubKeys.AddedOnSnap] ?? false,
+      SubKeys.AddedOnInsta:  _map[SubKeys.AddedOnInsta] ?? false,
+      SubKeys.snapDate:      _map[SubKeys.snapDate]  != null && _map[SubKeys.snapDate].isNotEmpty  ? DateTime.parse(_map[SubKeys.snapDate]).toIso8601String()  : "",
+      SubKeys.instaDate:     _map[SubKeys.instaDate] != null && _map[SubKeys.instaDate].isNotEmpty ? DateTime.parse(_map[SubKeys.instaDate  ]).toIso8601String() : "",
     };
     return map;
   }
@@ -41,10 +52,10 @@ class StorageUtils {
       String snap = "",
       bool snapAdded, DateTime snapAddedDate}) async {
     Map<String, dynamic> map = await get(key, reload: false, asMap: true);
-    if (ocrResult     != null) map['ocr']             = ocrResult;
-    if (snap          != null) map['snap']            = snap;
-    if (snapAdded     != null) map['addedOnSnap']     = snapAdded;
-    if (snapAddedDate != null) map['dateAddedOnSnap'] = snapAddedDate.toIso8601String();
+    if (ocrResult     != null) map[SubKeys.OCR]             = ocrResult;
+    if (snap          != null) map[SubKeys.SnapUsername]    = snap;
+    if (snapAdded     != null) map[SubKeys.AddedOnSnap]     = snapAdded;
+    if (snapAddedDate != null) map[SubKeys.snapDate]        = snapAddedDate.toIso8601String();
 
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: false)).setString(key, rawJson);
