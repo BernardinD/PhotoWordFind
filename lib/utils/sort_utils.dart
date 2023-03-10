@@ -17,8 +17,8 @@ Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
 
 enum Sorts {
-  GroupByTitle,
   SortByTitle,
+  GroupByTitle,
   Date,
   Filename,
   DateAddedOnSnap,
@@ -40,6 +40,7 @@ Set<Sorts> sortBy = {
   Sorts.DateAddedOnSnap,
   Sorts.DateAddedOnInsta,
   Sorts.SnapDetected,
+  Sorts.InstaDetected,
 };
 
 Set<Sorts> groupBy = {
@@ -77,6 +78,7 @@ class Sortings {
       else {
         _reverseSortBy = false;
         _currentSortBy = newSort;
+        // TODO: I believe this can be removed (test at later date)
         if (resetGroupBy)
           _currentGroupBy = null;
       }

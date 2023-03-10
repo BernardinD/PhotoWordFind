@@ -156,10 +156,13 @@ class _MyHomePageState extends State<MyHomePage> {
     Sorts.SortByTitle: "Sort By",
     Sorts.Date: "Date Found",
     Sorts.DateAddedOnSnap: "Date Added on Snap",
-    Sorts.SnapDetected : "Snap Name",
+    Sorts.DateAddedOnInsta: "Date Added on Instagram",
+    Sorts.SnapDetected : "Snap Handle",
+    Sorts.InstaDetected : "Instagram Handle",
     Sorts.GroupByTitle: "Group By",
     null: "None", // Disable GroupBy
-    Sorts.AddedOnSnap: "Snap Added"
+    Sorts.AddedOnSnap: "Snap Added",
+    Sorts.AddedOnInsta: "Insta Added"
   });
   Sorts dropdownValue = Sorts.Date;
 
@@ -546,7 +549,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               return DropdownMenuItem<String>(
                                 value: entry.value,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(entry.value),
                                     if(dropdownValue == entry.key || (entry.key == currentSortBy && dropdownValue == currentGroupBy) )
