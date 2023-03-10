@@ -17,16 +17,16 @@ Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
 
 enum Sorts {
-  Date,
-  Insertion,
-  AddedOnSnap,
-  AddedOnInsta,
-  Filename,
-  DateAddedOnSnap,
-  DateFoundOnBumble,
   GroupByTitle,
   SortByTitle,
+  Date,
+  Filename,
+  DateAddedOnSnap,
+  DateAddedOnInsta,
   SnapDetected,
+  InstaDetected,
+  AddedOnSnap,
+  AddedOnInsta,
 }
 
 Set<Sorts> sortsTitles = {
@@ -36,10 +36,9 @@ Set<Sorts> sortsTitles = {
 
 Set<Sorts> sortBy = {
   Sorts.Date,
-  Sorts.Insertion,
   Sorts.Filename,
-  Sorts.DateFoundOnBumble,
   Sorts.DateAddedOnSnap,
+  Sorts.DateAddedOnInsta,
   Sorts.SnapDetected,
 };
 
@@ -54,10 +53,10 @@ class Sortings {
   static get reverseSortBy => _reverseSortBy;
   static get reverseGroupBy => _reverseGroupBy;
 
-  static updateSortType(Sorts s, {bool resetGroupBy = true}) {
+  static updateSortType(Sorts newSort, {bool resetGroupBy = true}) {
     // Reverse recently selected sort
-    if (s != null && (_currentSortBy == s || _currentGroupBy == s)) {
-      if (sortBy.contains(s))
+    if (newSort != null && (_currentSortBy == newSort || _currentGroupBy == newSort)) {
+      if (sortBy.contains(newSort))
         _reverseSortBy = !_reverseSortBy;
       else
         _reverseGroupBy = !_reverseGroupBy;
@@ -65,19 +64,19 @@ class Sortings {
     // If selected a currently unused sort
     else {
       // If s is null then it's a groupBy sort that's being disabled
-      if (s == null) {
+      if (newSort == null) {
         _reverseGroupBy = false;
         _currentGroupBy = null;
       }
       // If new groupBy sort
-      else if (groupBy.contains(s)) {
+      else if (groupBy.contains(newSort)) {
         _reverseGroupBy = false;
-        _currentGroupBy = s;
+        _currentGroupBy = newSort;
       }
       // If new sortBy sort
       else {
         _reverseSortBy = false;
-        _currentSortBy = s;
+        _currentSortBy = newSort;
         if (resetGroupBy)
           _currentGroupBy = null;
       }
@@ -134,15 +133,22 @@ class Sortings {
     return aDate.compareTo(bDate) * (_reverseSortBy ? -1 : 1);
   }
 
-  static int _sortByDateAddedOnSnapchat(a, b){
+  static int _sortByFileName(a, b) {
+    File aFile = convertToStdDartFile(a);
+    File bFile = convertToStdDartFile(b);
+
+    return aFile.path.compareTo(bFile.path) * (_reverseSortBy ? -1 : 1);
+  }
+
+  static int _sortByDateAddedOnSocial(a, b, String subKey){
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aDateStr = localCache[aKey][SubKeys.snapDate] ?? "";
-    String bDateStr = localCache[bKey][SubKeys.snapDate] ?? "";
+    String aDateStr = localCache[aKey][subKey] ?? "";
+    String bDateStr = localCache[bKey][subKey] ?? "";
 
     int ret;
     if (aDateStr.isEmpty && bDateStr.isEmpty) {
@@ -163,16 +169,23 @@ class Sortings {
     return ret * (_reverseSortBy ? -1 : 1);
   }
 
-  static int _sortByAddedOnSnapchat(a, b) {
-    DateTime aDate, bDate;
+  static int _sortByDateAddedOnSnapchat(a, b){
+    return _sortByDateAddedOnSocial(a, b, SubKeys.snapDate);
+  }
+
+  static int _sortByDateAddedOnInstagram(a, b){
+    return _sortByDateAddedOnSocial(a, b, SubKeys.instaDate);
+  }
+
+  static int _sortByAddedOnSocial(a, b, String subKey) {
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    bool aSnap = localCache[aKey][SubKeys.AddedOnSnap] ?? false;
-    bool bSnap = localCache[bKey][SubKeys.AddedOnSnap] ?? false;
+    bool aSnap = localCache[aKey][subKey] ?? false;
+    bool bSnap = localCache[bKey][subKey] ?? false;
 
     Function secondarySort = getSortBy();
     return (aSnap != bSnap)
@@ -180,18 +193,24 @@ class Sortings {
         : secondarySort(aFile, bFile);
   }
 
-  static int _sortBySnapUser(a, b) {
-    DateTime aDate, bDate;
+  static int _sortByAddedOnSnapchat(a, b) {
+    return _sortByAddedOnSocial(a, b, SubKeys.AddedOnSnap);
+  }
+
+  static int _sortByAddedOnInstagram(a, b) {
+    return _sortByAddedOnSocial(a, b, SubKeys.AddedOnInsta);
+  }
+
+  static int _sortBySocialUsername(a, b, String subKey) {
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aSnap = localCache[aKey][SubKeys.SnapUsername];
-    String bSnap = localCache[bKey][SubKeys.SnapUsername];
+    String aSnap = localCache[aKey][subKey];
+    String bSnap = localCache[bKey][subKey];
 
-    Function secondarySort = getSortBy();
     // If both exist throw them in the front and sort them, else throw it to the back
     int ret=0;
     if (aSnap.isEmpty && bSnap.isEmpty) {
@@ -205,6 +224,14 @@ class Sortings {
     }
 
     return ret * (_reverseSortBy ? -1 : 1);
+  }
+
+  static int _sortBySnapUsername(a, b) {
+    return _sortBySocialUsername(a, b, SubKeys.SnapUsername);
+  }
+
+  static int _sortByInstaUsername(a, b) {
+    return _sortBySocialUsername(a, b, SubKeys.InstaUsername);
   }
 
   static Function getSorting() {
@@ -221,7 +248,7 @@ class Sortings {
       case Sorts.AddedOnSnap:
         return _sortByAddedOnSnapchat;
       case Sorts.AddedOnInsta:
-        break;
+        return _sortByAddedOnInstagram;
       default:
         return _sortByAddedOnSnapchat;
     }
@@ -231,22 +258,16 @@ class Sortings {
     switch (_currentSortBy) {
       case Sorts.Date:
         return _sortByFileDate;
-      case Sorts.Insertion:
-        break;
       case Sorts.Filename:
-        break;
+        return _sortByFileName;
       case Sorts.DateAddedOnSnap:
         return _sortByDateAddedOnSnapchat;
-      case Sorts.DateFoundOnBumble:
-        break;
+      case Sorts.DateAddedOnInsta:
+        return _sortByDateAddedOnInstagram;
       case Sorts.SnapDetected:
-        return _sortBySnapUser;
-        // case :
-        //
-        //   break;
-        // case :
-
-        break;
+        return _sortBySnapUsername;
+      case Sorts.InstaDetected:
+        return _sortByInstaUsername;
       default:
         return _sortByFileDate;
     }
