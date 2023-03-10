@@ -564,7 +564,10 @@ class _MyHomePageState extends State<MyHomePage> {
                               dropdownValue = sortings.entries.firstWhere((entry) => entry.value == value).key;
                               Sortings.updateSortType(dropdownValue, resetGroupBy: false);
                               gallery.sort();
-                              if(currentGroupBy != null && sortBy.contains(dropdownValue) )
+                              if(dropdownValue == null){
+                                dropdownValue = currentSortBy;
+                              }
+                              else if(currentGroupBy != null && sortBy.contains(dropdownValue) )
                                 dropdownValue = currentGroupBy;
                             });
                           },
