@@ -9,25 +9,24 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
-Sorts _currentSortBy = Sorts.Default, _currentGroupBy = null;
-Sorts get currentSortBy  => _currentSortBy;
+Sorts _currentSortBy = Sorts.Date, _currentGroupBy = null;
+Sorts get currentSortBy => _currentSortBy;
 Sorts get currentGroupBy => _currentGroupBy;
 
 Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>> localCache = {};
 
-enum Sorts{
-  Default,
+enum Sorts {
+  SortByTitle,
+  GroupByTitle,
   Date,
-  Insertion,
+  Filename,
+  DateAddedOnSnap,
+  DateAddedOnInsta,
+  SnapDetected,
+  InstaDetected,
   AddedOnSnap,
   AddedOnInsta,
-  Filename,
-  DateFriendOnSocials,
-  DateFoundOnBumble,
-  GroupByTitle,
-  SortByTitle,
 }
 
 Set<Sorts> sortsTitles = {
@@ -36,12 +35,12 @@ Set<Sorts> sortsTitles = {
 };
 
 Set<Sorts> sortBy = {
-  Sorts.Default,
   Sorts.Date,
-  Sorts.Insertion,
   Sorts.Filename,
-  Sorts.DateFoundOnBumble,
-  Sorts.DateFriendOnSocials
+  Sorts.DateAddedOnSnap,
+  Sorts.DateAddedOnInsta,
+  Sorts.SnapDetected,
+  Sorts.InstaDetected,
 };
 
 Set<Sorts> groupBy = {
@@ -49,46 +48,44 @@ Set<Sorts> groupBy = {
   Sorts.AddedOnInsta,
 };
 
-
-
-class Sortings{
+class Sortings {
   // The direction of the sort
   static bool _reverseSortBy = false, _reverseGroupBy = false;
   static get reverseSortBy => _reverseSortBy;
   static get reverseGroupBy => _reverseGroupBy;
 
-  static updateSortType(Sorts s){
+  static updateSortType(Sorts newSort, {bool resetGroupBy = true}) {
     // Reverse recently selected sort
-    if(s != null && (_currentSortBy == s || _currentGroupBy == s)){
-
-      if (sortBy.contains(s))
+    if (newSort != null && (_currentSortBy == newSort || _currentGroupBy == newSort)) {
+      if (sortBy.contains(newSort))
         _reverseSortBy = !_reverseSortBy;
       else
         _reverseGroupBy = !_reverseGroupBy;
     }
     // If selected a currently unused sort
     else {
-
       // If s is null then it's a groupBy sort that's being disabled
-      if (s == null) {
+      if (newSort == null) {
         _reverseGroupBy = false;
         _currentGroupBy = null;
       }
       // If new groupBy sort
-      else if(groupBy.contains(s)){
+      else if (groupBy.contains(newSort)) {
         _reverseGroupBy = false;
-        _currentGroupBy = s;
+        _currentGroupBy = newSort;
       }
       // If new sortBy sort
       else {
-      _reverseSortBy = false;
-      _currentSortBy = s;
-      _currentGroupBy = null;
+        _reverseSortBy = false;
+        _currentSortBy = newSort;
+        // TODO: I believe this can be removed (test at later date)
+        if (resetGroupBy)
+          _currentGroupBy = null;
       }
     }
   }
 
-  static Future updateCache() async{
+  static Future updateCache() async {
     if (_localPrefs == null) {
       await _localPrefs;
     }
@@ -101,30 +98,27 @@ class Sortings{
       Map<String, dynamic> map;
       try {
         map = json.decode(rawJson);
-      }
-      on FormatException catch (e) {
+      } on FormatException catch (e) {
         // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
-        map = await StorageUtils.convertValueToMap(rawJson);
+        map = StorageUtils.convertValueToMap(rawJson);
       }
 
       localCache[key] = map;
     }
+    // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
   }
 
-  static File convertToStdDartFile(file){
-
-    if (file is PhotoViewGalleryPageOptions){
+  static File convertToStdDartFile(file) {
+    if (file is PhotoViewGalleryPageOptions) {
       file = file.child;
     }
 
     File ret;
-    if(file is GalleryCell) {
+    if (file is GalleryCell) {
       ret = file.srcImage;
-    }
-    else if (file is FileSystemEntity || file is PlatformFile){
+    } else if (file is FileSystemEntity || file is PlatformFile) {
       ret = File(file.path);
-    }
-    else{
+    } else {
       ret = File(file as String);
     }
 
@@ -132,7 +126,6 @@ class Sortings{
   }
 
   static int _sortByFileDate(a, b) {
-
     DateTime aDate, bDate;
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
@@ -142,69 +135,141 @@ class Sortings{
     return aDate.compareTo(bDate) * (_reverseSortBy ? -1 : 1);
   }
 
-  static int _sortByAddedOnSnapchat(a, b) {
+  static int _sortByFileName(a, b) {
+    File aFile = convertToStdDartFile(a);
+    File bFile = convertToStdDartFile(b);
 
-    DateTime aDate, bDate;
+    return aFile.path.compareTo(bFile.path) * (_reverseSortBy ? -1 : 1);
+  }
+
+  static int _sortByDateAddedOnSocial(a, b, String subKey){
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    bool aSnap = localCache[aKey]['addedOnSnap']??false;
-    bool bSnap = localCache[bKey]['addedOnSnap']??false;
+    String aDateStr = localCache[aKey][subKey] ?? "";
+    String bDateStr = localCache[bKey][subKey] ?? "";
 
-    Function sort = getSortBy();
-    return (aSnap != bSnap) ? (aSnap ? -1 : 1) * (_reverseGroupBy ? -1 : 1) : sort(a, b);
+    int ret;
+    if (aDateStr.isEmpty && bDateStr.isEmpty) {
+      ret = 0;
+    }
+    else if (aDateStr.isEmpty) {
+      ret = 1;
+    }
+    else if (bDateStr.isEmpty) {
+      ret = -1;
+    }
+    else {
+      DateTime aDate = DateTime.parse(aDateStr);
+      DateTime bDate = DateTime.parse(bDateStr);
+      ret =  aDate.compareTo(bDate);
+    }
+
+    return ret * (_reverseSortBy ? -1 : 1);
   }
-  
-  static Function getSorting(){
+
+  static int _sortByDateAddedOnSnapchat(a, b){
+    return _sortByDateAddedOnSocial(a, b, SubKeys.snapDate);
+  }
+
+  static int _sortByDateAddedOnInstagram(a, b){
+    return _sortByDateAddedOnSocial(a, b, SubKeys.instaDate);
+  }
+
+  static int _sortByAddedOnSocial(a, b, String subKey) {
+    File aFile = convertToStdDartFile(a);
+    File bFile = convertToStdDartFile(b);
+
+    String aKey = getKeyOfFilename(aFile.path);
+    String bKey = getKeyOfFilename(bFile.path);
+
+    bool aSnap = localCache[aKey][subKey] ?? false;
+    bool bSnap = localCache[bKey][subKey] ?? false;
+
+    Function secondarySort = getSortBy();
+    return (aSnap != bSnap)
+        ? (aSnap ? -1 : 1) * (_reverseGroupBy ? -1 : 1)
+        : secondarySort(aFile, bFile);
+  }
+
+  static int _sortByAddedOnSnapchat(a, b) {
+    return _sortByAddedOnSocial(a, b, SubKeys.AddedOnSnap);
+  }
+
+  static int _sortByAddedOnInstagram(a, b) {
+    return _sortByAddedOnSocial(a, b, SubKeys.AddedOnInsta);
+  }
+
+  static int _sortBySocialUsername(a, b, String subKey) {
+    File aFile = convertToStdDartFile(a);
+    File bFile = convertToStdDartFile(b);
+
+    String aKey = getKeyOfFilename(aFile.path);
+    String bKey = getKeyOfFilename(bFile.path);
+
+    String aSnap = localCache[aKey][subKey];
+    String bSnap = localCache[bKey][subKey];
+
+    // If both exist throw them in the front and sort them, else throw it to the back
+    int ret=0;
+    if (aSnap.isEmpty && bSnap.isEmpty) {
+      ret = 0;
+    } else if (aSnap.isEmpty || aSnap.length < 2) {
+      ret = 1;
+    } else if (bSnap.isEmpty) {
+      ret = -1;
+    } else {
+      ret = aSnap.compareTo(bSnap);
+    }
+
+    return ret * (_reverseSortBy ? -1 : 1);
+  }
+
+  static int _sortBySnapUsername(a, b) {
+    return _sortBySocialUsername(a, b, SubKeys.SnapUsername);
+  }
+
+  static int _sortByInstaUsername(a, b) {
+    return _sortBySocialUsername(a, b, SubKeys.InstaUsername);
+  }
+
+  static Function getSorting() {
     return _sort();
   }
 
-  static Function _sort(){
+  static Function _sort() {
     Function sort = _currentGroupBy != null ? getGroupBy() : getSortBy();
     return sort;
   }
 
-  static Function getGroupBy(){
-    switch(_currentGroupBy) {
+  static Function getGroupBy() {
+    switch (_currentGroupBy) {
       case Sorts.AddedOnSnap:
         return _sortByAddedOnSnapchat;
       case Sorts.AddedOnInsta:
-
-        break;
+        return _sortByAddedOnInstagram;
       default:
         return _sortByAddedOnSnapchat;
     }
   }
 
-  static Function getSortBy(){
-
-    switch(_currentSortBy) {
+  static Function getSortBy() {
+    switch (_currentSortBy) {
       case Sorts.Date:
         return _sortByFileDate;
-      case Sorts.Insertion:
-
-        break;
       case Sorts.Filename:
-
-        break;
-      case Sorts.DateFriendOnSocials:
-
-        break;
-      case Sorts.DateFoundOnBumble:
-
-        break;
-        // case :
-        //
-        //   break;
-        // case :
-        //
-        //   break;
-        // case :
-
-        break;
+        return _sortByFileName;
+      case Sorts.DateAddedOnSnap:
+        return _sortByDateAddedOnSnapchat;
+      case Sorts.DateAddedOnInsta:
+        return _sortByDateAddedOnInstagram;
+      case Sorts.SnapDetected:
+        return _sortBySnapUsername;
+      case Sorts.InstaDetected:
+        return _sortByInstaUsername;
       default:
         return _sortByFileDate;
     }

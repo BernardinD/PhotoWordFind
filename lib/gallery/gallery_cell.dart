@@ -153,6 +153,29 @@ class _GalleryCellState extends State<GalleryCell> {
                         child: SelectableText(
                           widget.text.toString(),
                           showCursor: true,
+                          contextMenuBuilder: (context, editableTextState) {
+                            final TextEditingValue value =
+                                editableTextState.textEditingValue;
+                            final List<ContextMenuButtonItem> buttonItems =
+                                editableTextState.contextMenuButtonItems;
+                            buttonItems.insert(
+                                0,
+                                ContextMenuButtonItem(
+                                  label: 'Select snap',
+                                  onPressed: () {
+                                    ContextMenuController.removeAny();
+                                    String snap = value.selection.textInside(value.text);
+                                    StorageUtils.save(getKeyOfFilename(widget.srcImage.path), backup: true, snap: snap);
+                                    MyApp.gallery.redoCell(widget.text, snap, widget.list_pos(widget));
+                                    Sortings.updateCache();
+                                    MyApp.updateFrame(() => null);
+                                  },
+                                ));
+                            return AdaptiveTextSelectionToolbar.buttonItems(
+                              anchors: editableTextState.contextMenuAnchors,
+                              buttonItems: buttonItems,
+                            );
+                          },
                         )),
                   ),
                   Spacer(
@@ -204,8 +227,8 @@ class _GalleryCellState extends State<GalleryCell> {
     return getKeyOfFilename(widget.srcImage.path);
   }
 
-  unaddUser(bool snap){
-    StorageUtils.save(getStorageKey(), backup: true, snapAdded: false);
+  unAddUser(bool snap) async {
+    await StorageUtils.save(getStorageKey(), backup: true, snapAdded: false);
     Toasts.showToast(true, (_) => "Marked as unadded");
     MyApp.updateFrame(() => null);
   }
@@ -213,9 +236,9 @@ class _GalleryCellState extends State<GalleryCell> {
   openUserAppPage(bool snap) async {
     MyApp.pr.show(max: 1);
     String key = getStorageKey();
-    await StorageUtils.save(key, backup: true, snapAdded: true);
+    await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     final Uri _site = snap
-        ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername}")
+        ? Uri.parse("https://www.snapchat.com/add/${widget.suggestedUsername.toLowerCase()}")
         : Uri.parse("https://www.instagram.com/${widget.suggestedUsername}");
     debugPrint("site URI: $_site");
     await Sortings.updateCache();
@@ -250,6 +273,7 @@ class _GalleryCellState extends State<GalleryCell> {
               if (snapshot.hasError){
                 return TableCell(
                   child: ElevatedButton(
+                    onPressed: null,
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red
                     ),
@@ -265,7 +289,7 @@ class _GalleryCellState extends State<GalleryCell> {
                 return TableCell(
                   key: ValueKey(snapAdded),
                   child: ElevatedButton(
-                    onPressed: () => !snapAdded ? openUserAppPage(app) : unaddUser(app),
+                    onPressed: () => !snapAdded ? openUserAppPage(app) : unAddUser(app),
                     child: Text(
                         action, maxLines: 2, style: TextStyle(fontSize: 8)),
                   ),
