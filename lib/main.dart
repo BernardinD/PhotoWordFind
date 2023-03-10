@@ -152,8 +152,19 @@ class _MyHomePageState extends State<MyHomePage> {
   String _directoryPath;
   Gallery gallery = MyApp._gallery;
 
-  Map<Sorts, String> sortings = {Sorts.SortByTitle : "Sort By", Sorts.Default : "Default", Sorts.Date : "Date", Sorts.GroupByTitle : "Group By", null : "None", Sorts.AddedOnSnap : "Snap Added"};
-  Sorts dropdownValue = Sorts.Default;
+  Map<Sorts, String> sortings = Map.from({
+    Sorts.SortByTitle: "Sort By",
+    Sorts.Date: "Date Found",
+    Sorts.DateAddedOnSnap: "Date Added on Snap",
+    Sorts.DateAddedOnInsta: "Date Added on Instagram",
+    Sorts.SnapDetected : "Snap Handle",
+    Sorts.InstaDetected : "Instagram Handle",
+    Sorts.GroupByTitle: "Group By",
+    null: "None", // Disable GroupBy
+    Sorts.AddedOnSnap: "Snap Added",
+    Sorts.AddedOnInsta: "Insta Added"
+  });
+  Sorts dropdownValue = Sorts.Date;
 
 
   String get directoryPath => _directoryPath;
@@ -538,13 +549,13 @@ class _MyHomePageState extends State<MyHomePage> {
                               return DropdownMenuItem<String>(
                                 value: entry.value,
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(entry.value),
                                     if(dropdownValue == entry.key || (entry.key == currentSortBy && dropdownValue == currentGroupBy) )
-                                      groupBy.contains(entry.value) ?
-                                        Icon(Sortings.reverseSortBy  ? Icons.arrow_back : Icons.arrow_forward) :
-                                        Icon(Sortings.reverseGroupBy ? Icons.arrow_back : Icons.arrow_forward),
+                                      groupBy.contains(entry.key) ?
+                                        Icon(Sortings.reverseGroupBy  ? Icons.arrow_back : Icons.arrow_forward) :
+                                        Icon(Sortings.reverseSortBy ? Icons.arrow_back : Icons.arrow_forward),
                                   ],
                                 ),
                               );
@@ -554,9 +565,12 @@ class _MyHomePageState extends State<MyHomePage> {
                             // This is called when the user selects an item.
                             setState(() {
                               dropdownValue = sortings.entries.firstWhere((entry) => entry.value == value).key;
-                              Sortings.updateSortType(dropdownValue);
+                              Sortings.updateSortType(dropdownValue, resetGroupBy: false);
                               gallery.sort();
-                              if(currentGroupBy != null && sortBy.contains(dropdownValue) )
+                              if(dropdownValue == null){
+                                dropdownValue = currentSortBy;
+                              }
+                              else if(currentGroupBy != null && sortBy.contains(dropdownValue) )
                                 dropdownValue = currentGroupBy;
                             });
                           },
