@@ -8,10 +8,11 @@ import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/utils/image_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
-import 'package:isolate_handler/isolate_handler.dart';
+// import 'package:isolate_handler/isolate_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -77,7 +78,7 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
   Stopwatch time_elasped = new Stopwatch();
 
 
-  final isolates = IsolateHandler();
+  final List<Future> isolates = [];
   int completed = 0;
   int files_idx = 0;
   time_elasped.start();
@@ -103,103 +104,31 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
     String iso_name = path.basename(srcFile.path);
     debugPrint("srcFilePath [${srcFile.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
 
-    // Define callback
-    void onEachOcrResult (dynamic signal) async {
-      debugPrint("Entering onOCRResult...");
-      debugPrint("Checking type of OCR result: ${signal.runtimeType}");
-      if(signal is String){
-        String text = signal;
-        // If query word has been found
-        String key = getKeyOfFilename(srcFile.path);
-        String savedUser = await StorageUtils.get(key, reload: true, snap: true);
-        String suggestedUsername;
-        if (savedUser.isNotEmpty && savedUser != null){
-          suggestedUsername = savedUser.replaceAll(new RegExp('^[@]'), "");
-        }
-        else{
-          String snap =  suggestionSnapName(text) ?? "";
-          if (snap.isNotEmpty)
-            StorageUtils.save(key, backup: true, snap: snap);
-          suggestedUsername = snap;
-        }
-
-        // Skip this image if query word has not been found
-        bool skipImage = false;
-        if (query != null && suggestedUsername != null &&
-            !suggestedUsername.toLowerCase().contains(query.toLowerCase()) && !text.toLowerCase().contains(query.toLowerCase())){
-          skipImage = true;
-        }
-        // debugPrint
-
-        if(!skipImage) {
-
-          if(replace == null)
-            MyApp.gallery.addNewCell(text, suggestedUsername, srcFile, new File(srcFile.path));
-          else{
-            var pair = replace.entries.first;
-            int idx = pair.key;
-            MyApp.gallery.redoCell(text, suggestedUsername, idx);
-            // Note: scrFile will always be a File for redo and ONLY redo
-            (srcFile as File).delete();
-          }
-
-          debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
-
-          // Stop creation of new isolates and to close dialogs
-          if(findFirst) {
-            files_idx = filesList.length;
-            completed = filesList.length;
-          }
-        }
-
-        // isolates.kill(iso_name);
-      }
-      else{
-        // Dispose of finished isolate
-        debugPrint("Killing isolate...");
-        isolates.kill(iso_name, priority: Isolate.immediate);
-      }
-
-      debugPrint("before `completed`... $completed <= ${filesList.length}");
-      debugPrint("before `path_idx`... $files_idx <= ${filesList.length}");
-
-
-      increaseProgressBar(completed, filesList);
-
-      // Close dialogs once finished with all images
-      if(++completed >= filesList.length){
-
-        debugPrint("Terminate all running isolates...");
-
-        terminateRunningThreads(iso_name, isolates);
-        await Sortings.updateCache();
-        MyApp.gallery.sort();
-
-        debugPrint("popping...");
-
-        // Quick fix for this callback being called twice
-        // TODO: Find way to stop isolates immediately so they don't get to this point
-        if(MyApp.pr.isOpen()) {
-          MyApp.pr.close();
-          MyApp.pr.close();
-
-          MyApp.updateFrame(() => null);
-          debugPrint(">>> getting in.");
-        }
-      }
-      else{
-        isolates.kill(iso_name, priority: Isolate.immediate);
-      }
-    };
-
-    await createOCRJob(iso_name, srcFile, rawJson, onEachOcrResult, isolates, replace != null);
+    Future<String> job = createOCRJob(iso_name, srcFile, rawJson, replace != null);
+    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, time_elasped, filesList.length, completed, isolates));
+    isolates.add( processResult );
 
   }
 
+  final joinIsolates = await Future.wait(isolates);
+
+
+
+  debugPrint("popping...");
+
+  // Quick fix for this callback being called twice
+  // TODO: Find way to stop isolates immediately so they don't get to this point
+  if (MyApp.pr.isOpen()) {
+    MyApp.pr.close();
+    MyApp.pr.close();
+
+    MyApp.updateFrame(() => null);
+    debugPrint(">>> getting in.");
+  }
 
 }
 
-createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onEachOcrResult, IsolateHandler isolates, bool replacing) async{
+Future<String> createOCRJob(String iso_name, dynamic src_filePath, String rawJson, bool replacing) async{
   debugPrint("Entering createOCRJob()...");
   final prefs = await SharedPreferences.getInstance();
 
@@ -215,107 +144,153 @@ createOCRJob(String iso_name, dynamic src_filePath, String rawJson, Function onE
     String result = await runOCR(src_filePath.path, crop: false);
 
     await StorageUtils.save(key, ocrResult: result, backup: true); //The "await" is needed for synchronization with main thread
-    onEachOcrResult(result);
+    return result;
   }
 
   // Check if this file's' OCR has been cached
   else if(await StorageUtils.get(key, reload: true) != null){
     debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
     String result = await StorageUtils.get(key, reload: false);
-    onEachOcrResult(result);
+    return result;
   }
   else {
     // Start up the thread and configures the callbacks
     debugPrint("Spawning new iso for [$key]....");
-    isolates.spawn<String>(
-        ocrThread,
-        name: iso_name,
-        onInitialized:() => isolates.send(rawJson, to: iso_name),
-        onReceive: (dynamic signal) => onEachOcrResult(signal));
+    return flutterCompute(ocrThread, rawJson);
   }
   debugPrint("Leaving createOCRJob()...");
 }
 
-void increaseProgressBar(int completed, List paths){
-  int update = (completed+1)*100~/paths.length;
+void increaseProgressBar(int completed, int pathsLength){
+  int update = (completed+1)*100~/pathsLength;
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
   MyApp.pr.update(value: completed);
   MyApp.pr.update(value: completed, msg: "Loading...");
 }
 
-void terminateRunningThreads(String currentThead, IsolateHandler isolates){
-  debugPrint("Entering terminateRunningThreads()...");
-  List names = isolates.isolates.keys.toList();
-  for(String name in names){
-    // Don't kill current thread
-    if(name == currentThead) continue;
+// void terminateRunningThreads(String currentThead, IsolateHandler isolates){
+//   debugPrint("Entering terminateRunningThreads()...");
+//   List names = isolates.isolates.keys.toList();
+//   for(String name in names){
+//     // Don't kill current thread
+//     if(name == currentThead) continue;
+//
+//     debugPrint("next iso-name: ${name}");
+//     if(isolates.isolates[name].messenger.connectionEstablished ) {
+//       try {
+//         isolates.kill(name, priority: Isolate.immediate);
+//       }
+//       catch(e){
+//         debugPrint("ERROR >> while terminating isolate, $e");
+//       }
+//     }
+//   }
+//
+//   debugPrint("Leaving terminateRunningThreads()...");
+// }
 
-    debugPrint("next iso-name: ${name}");
-    if(isolates.isolates[name].messenger.connectionEstablished ) {
-      try {
-        isolates.kill(name, priority: Isolate.immediate);
-      }
-      catch(e){
-        debugPrint("ERROR >> while terminating isolate, $e");
-      }
+@pragma('vm:entry-point')
+Future<String> ocrThread(String receivedData) async {
+
+  if(receivedData is String) {
+
+    Map<String, dynamic> message = json.decode(receivedData);
+    String filePath = message["f"];
+    ui.Size size = ui.Size(
+        message['width'].toDouble(),
+        message['height'].toDouble()
+    );
+
+    debugPrint("Running thread for >> $filePath");
+
+    dynamic result;
+    try {
+      result = await runOCR(filePath, size: size);
     }
-  }
+    catch(error, stackTrace){
+      result = null;
+      debugPrint("File ($filePath) failed");
+      debugPrint("$error \n $stackTrace");
+      debugPrint("Leaving try-catch");
+    }
+    if (result is String) {
+        String key = getKeyOfFilename(filePath);
+        // Save OCR result
+        debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
 
-  debugPrint("Leaving terminateRunningThreads()...");
-}
+        StorageUtils.save(key, ocrResult: result, backup: true);
 
-void ocrThread(Map<String, dynamic> context) {
-
-  debugPrint("Initializing new thread...");
-  final messenger = HandledIsolate.initialize(context);
-
-
-  // Operation that should happen when the Isolate receives a message
-  messenger.listen((receivedData) async {
-    if(receivedData is String) {
-
-      final prefs = await SharedPreferences.getInstance();
-
-      Map<String, dynamic> message = json.decode(receivedData);
-      String filePath = message["f"];
-      ui.Size size = ui.Size(
-          message['width'].toDouble(),
-          message['height'].toDouble()
-      );
-
-      debugPrint("Running thread for >> $filePath");
-
-      dynamic result;
-      try {
-        result = await runOCR(filePath, size: size);
-      }
-      catch(error, stackTrace){
-        result = null;
-        debugPrint("File ($filePath) failed");
-        debugPrint("$error \n $stackTrace");
-        debugPrint("Leaving try-catch");
-      }
-      if (result is String) {
-          String key = getKeyOfFilename(filePath);
-          // Save OCR result
-          debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
-
-          StorageUtils.save(key, ocrResult: result, backup: true);
-
-          // Send back result to main thread
-          debugPrint("Sending OCR result...");
-          messenger.send(result);
-      }
-      else{
-        messenger.send("");
-      }
+        // Send back result to main thread
+        debugPrint("Sending OCR result...");
+        return result;
     }
     else{
-      debugPrint("did NOT detect string...");
-      messenger.send(null);
+      return "";
+    }
+  }
+  else{
+    debugPrint("did NOT detect string...");
+    return null;
+  }
+
+}
+
+Future onEachOcrResult (
+    String result,
+    srcFile,
+    String query,
+    Map replace,
+    time_elasped,
+    filesListLength,
+    int completed,
+    isolates,
+    ) async {
+  // return (dynamic signal) async {
+    debugPrint("Entering onOCRResult...");
+    debugPrint("Checking type of OCR result: ${result.runtimeType}");
+    if (result is String) {
+      String text = result;
+      // If query word has been found
+      String key = getKeyOfFilename(srcFile.path);
+      String savedUser = await StorageUtils.get(key, reload: true, snap: true);
+      String suggestedUsername;
+      if (savedUser.isNotEmpty && savedUser != null) {
+        suggestedUsername = savedUser.replaceAll(new RegExp('^[@]'), "");
+      }
+      else {
+        String snap = suggestionSnapName(text) ?? "";
+        if (snap.isNotEmpty)
+          StorageUtils.save(key, backup: true, snap: snap);
+        suggestedUsername = snap;
+      }
+
+      // Skip this image if query word has not been found
+      bool skipImage = false;
+      if (query != null && suggestedUsername != null &&
+          !suggestedUsername.toLowerCase().contains(query.toLowerCase()) &&
+          !text.toLowerCase().contains(query.toLowerCase())) {
+        skipImage = true;
+      }
+      // debugPrint
+
+      if (!skipImage) {
+        if (replace == null)
+          MyApp.gallery.addNewCell(
+              text, suggestedUsername, srcFile, new File(srcFile.path));
+        else {
+          var pair = replace.entries.first;
+          int idx = pair.key;
+          MyApp.gallery.redoCell(text, suggestedUsername, idx);
+          // Note: scrFile will always be a File for redo and ONLY redo
+          (srcFile as File).delete();
+        }
+
+        debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
+      }
+
     }
 
-  });
+    increaseProgressBar(completed, filesListLength);
 
 }

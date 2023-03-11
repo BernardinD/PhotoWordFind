@@ -29,6 +29,7 @@ class StorageUtils {
   static Map<String, dynamic> convertValueToMap(String value) {
     Map<String, dynamic> _map;
     try {
+      if(value == null) throw FormatException("value was null. Creating empty fresh mapping");
       _map = json.decode(value);
     } on FormatException catch (e) {
       // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
