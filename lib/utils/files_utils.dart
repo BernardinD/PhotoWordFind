@@ -64,8 +64,9 @@ String getKeyOfFilename(String f){
 
 Future ocrParallel(List filesList, Size size, { String query, bool findFirst = false, Map<int, String> replace}) async{
 
-  // MyApp.pr.update(value: 0);
   await MyApp.showProgress(limit: filesList.length);
+  // Have a small delay in case there is no large computation to use as time buffer
+  await Future.delayed(const Duration(milliseconds: 500), (){});
 
   // Reset Gallery
   if(replace == null) {
@@ -86,6 +87,7 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
   // Make sure latest thread cached updates exist in main thread
   final prefs = await SharedPreferences.getInstance();
   await prefs.reload();
+  int startingStorageSize = prefs.getKeys().length;
 
   await Sortings.updateCache();
   filesList.sort(Sortings.getSorting());
@@ -104,13 +106,14 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
     String iso_name = path.basename(srcFile.path);
     debugPrint("srcFilePath [${srcFile.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
 
-    Future<String> job = createOCRJob(iso_name, srcFile, rawJson, replace != null);
-    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, time_elasped, filesList.length, completed, isolates));
+    Future<String> job = createOCRJob(srcFile, rawJson, replace != null);
+    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, time_elasped, filesList.length, ++completed, isolates));
     isolates.add( processResult );
 
   }
 
   final joinIsolates = await Future.wait(isolates);
+  debugPrint("completed: $completed");
 
 
 
@@ -120,75 +123,56 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
   // TODO: Find way to stop isolates immediately so they don't get to this point
   if (MyApp.pr.isOpen()) {
     MyApp.pr.close();
-    MyApp.pr.close();
 
     MyApp.updateFrame(() => null);
     debugPrint(">>> getting in.");
   }
 
+  final int finalStorageSize = prefs.getKeys().length;
+  // Only backup when getting new data
+  if (startingStorageSize < finalStorageSize || replace != null)
+    await StorageUtils.save(null, reload: true, backup: true);
+
 }
 
-Future<String> createOCRJob(String iso_name, dynamic src_filePath, String rawJson, bool replacing) async{
+Future<String> createOCRJob(dynamic srcFile, String rawJson, bool replacing) async{
   debugPrint("Entering createOCRJob()...");
   final prefs = await SharedPreferences.getInstance();
 
-  List<String> split = getFileNameAndExtension(src_filePath.path);
-  String key = getKeyOfFilename(src_filePath.path);
-  // bool replacing = split.length == 3;
+  String key = getKeyOfFilename(srcFile.path);
 
+  var result;
   if(replacing) {
     debugPrint(">>> Removing cached OCR result");
     prefs.remove(key);
 
     debugPrint("Running OCR redo in main thread...");
-    String result = await runOCR(src_filePath.path, crop: false);
+    result = await runOCR(srcFile.path, crop: false);
 
     await StorageUtils.save(key, ocrResult: result, backup: true); //The "await" is needed for synchronization with main thread
-    return result;
   }
 
   // Check if this file's' OCR has been cached
   else if(await StorageUtils.get(key, reload: true) != null){
     debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
-    String result = await StorageUtils.get(key, reload: false);
-    return result;
+    result = await StorageUtils.get(key, reload: false);
   }
   else {
     // Start up the thread and configures the callbacks
     debugPrint("Spawning new iso for [$key]....");
-    return flutterCompute(ocrThread, rawJson);
+    result = flutterCompute(ocrThread, rawJson);
   }
+
   debugPrint("Leaving createOCRJob()...");
+  return result;
 }
 
 void increaseProgressBar(int completed, int pathsLength){
   int update = (completed+1)*100~/pathsLength;
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
-  MyApp.pr.update(value: completed);
   MyApp.pr.update(value: completed, msg: "Loading...");
 }
-
-// void terminateRunningThreads(String currentThead, IsolateHandler isolates){
-//   debugPrint("Entering terminateRunningThreads()...");
-//   List names = isolates.isolates.keys.toList();
-//   for(String name in names){
-//     // Don't kill current thread
-//     if(name == currentThead) continue;
-//
-//     debugPrint("next iso-name: ${name}");
-//     if(isolates.isolates[name].messenger.connectionEstablished ) {
-//       try {
-//         isolates.kill(name, priority: Isolate.immediate);
-//       }
-//       catch(e){
-//         debugPrint("ERROR >> while terminating isolate, $e");
-//       }
-//     }
-//   }
-//
-//   debugPrint("Leaving terminateRunningThreads()...");
-// }
 
 @pragma('vm:entry-point')
 Future<String> ocrThread(String receivedData) async {
@@ -219,7 +203,7 @@ Future<String> ocrThread(String receivedData) async {
         // Save OCR result
         debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
 
-        StorageUtils.save(key, ocrResult: result, backup: true);
+        await StorageUtils.save(key, ocrResult: result, backup: false);
 
         // Send back result to main thread
         debugPrint("Sending OCR result...");
@@ -241,14 +225,12 @@ Future onEachOcrResult (
     srcFile,
     String query,
     Map replace,
-    time_elasped,
+    timeElapsed,
     filesListLength,
     int completed,
     isolates,
     ) async {
-  // return (dynamic signal) async {
     debugPrint("Entering onOCRResult...");
-    debugPrint("Checking type of OCR result: ${result.runtimeType}");
     if (result is String) {
       String text = result;
       // If query word has been found
@@ -272,7 +254,6 @@ Future onEachOcrResult (
           !text.toLowerCase().contains(query.toLowerCase())) {
         skipImage = true;
       }
-      // debugPrint
 
       if (!skipImage) {
         if (replace == null)
@@ -286,11 +267,12 @@ Future onEachOcrResult (
           (srcFile as File).delete();
         }
 
-        debugPrint("Elasped: ${time_elasped.elapsedMilliseconds}ms");
+        debugPrint("Elapsed: ${timeElapsed.elapsedMilliseconds}ms");
       }
 
     }
 
     increaseProgressBar(completed, filesListLength);
 
+    debugPrint("Leaving onOCRResult...");
 }
