@@ -29,6 +29,7 @@ class StorageUtils {
   static Map<String, dynamic> convertValueToMap(String value) {
     Map<String, dynamic> _map;
     try {
+      if(value == null) throw FormatException("value was null. Creating empty fresh mapping");
       _map = json.decode(value);
     } on FormatException catch (e) {
       // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
@@ -49,6 +50,7 @@ class StorageUtils {
   static Future save(String key,
       {String ocrResult,
       @required bool backup,
+        bool reload = false,
       String snap = "",
       bool snapAdded, DateTime snapAddedDate}) async {
     Map<String, dynamic> map = await get(key, reload: false, asMap: true);
@@ -58,7 +60,8 @@ class StorageUtils {
     if (snapAddedDate != null) map[SubKeys.snapDate]        = snapAddedDate.toIso8601String();
 
     String rawJson = jsonEncode(map);
-    (await _getStorageInstance(reload: false)).setString(key, rawJson);
+    if (key != null)
+      (await _getStorageInstance(reload: reload)).setString(key, rawJson);
 
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
