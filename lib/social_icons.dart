@@ -1,70 +1,68 @@
-import 'dart:ui';
-
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
 
 class SocialIcon extends StatelessWidget {
-  static var _snapchat_icon,
-      _gallery_icon,
-      _bumble_icon,
-      _instagram_icon,
-      _discord_icon,
-      _kik_icon;
+  static var _snapchatIconButton,
+      _galleryIconButton,
+      _bumbleIconButton,
+      _instagramIconButton,
+      _discordIconButton,
+      _kikIconButton;
 
-  static SocialIcon get snapchat_icon => _snapchat_icon;
-  static SocialIcon get gallery_icon => _gallery_icon;
-  static SocialIcon get instagram_icon => _instagram_icon;
-  static SocialIcon get kik_icon => _kik_icon;
-  static SocialIcon get bumble_icon => _bumble_icon;
-  static SocialIcon get discord_icon => _discord_icon;
+  static SocialIcon get snapchatIconButton => _snapchatIconButton;
+  static SocialIcon get galleryIconButton => _galleryIconButton;
+  static SocialIcon get instagramIconButton => _instagramIconButton;
+  static SocialIcon get kikIconButton => _kikIconButton;
+  static SocialIcon get bumbleIconButton => _bumbleIconButton;
+  static SocialIcon get discordIconButton => _discordIconButton;
 
-  static final String _snapchat_uri = 'com.snapchat.android',
-      _gallery_uri = 'com.sec.android.gallery3d',
-      _bumble_uri = 'com.bumble.app',
-      _instagram_uri = 'com.instagram.android',
-      _discord_uri = 'com.discord',
-      _kik_uri = 'kik.android';
+  static final String _snapchatUri = 'com.snapchat.android',
+      _galleryUri = 'com.sec.android.gallery3d',
+      _bumbleUri = 'com.bumble.app',
+      _instagramUri = 'com.instagram.android',
+      _discordUri = 'com.discord',
+      _kikUri = 'kik.android';
 
-  String social_uri;
-  Widget social_icon;
-  Widget not_found = CircleAvatar(
+  final String socialUri;
+  Widget socialIcon;
+  final Widget notFound = CircleAvatar(
       child: Icon(
     Icons.not_interested,
     color: Colors.red,
     size: 24.0,
     semanticLabel: 'Text to announce in accessibility modes',
   ));
-  SocialIcon._(String this.social_uri);
+  SocialIcon._(this.socialUri);
 
   static initializeIcons() {
-    _snapchat_icon = SocialIcon._(_snapchat_uri);
-    _gallery_icon = SocialIcon._(_gallery_uri);
-    _bumble_icon = SocialIcon._(_bumble_uri);
-    _instagram_icon = SocialIcon._(_instagram_uri);
-    _discord_icon = SocialIcon._(_discord_uri);
-    _kik_icon = SocialIcon._(_kik_uri);
+    _snapchatIconButton = SocialIcon._(_snapchatUri);
+    _galleryIconButton = SocialIcon._(_galleryUri);
+    _bumbleIconButton = SocialIcon._(_bumbleUri);
+    _instagramIconButton = SocialIcon._(_instagramUri);
+    _discordIconButton = SocialIcon._(_discordUri);
+    _kikIconButton = SocialIcon._(_kikUri);
   }
 
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
       heroTag: null,
-      key: ValueKey(social_uri),
+      key: ValueKey(socialUri),
       backgroundColor: Colors.white,
-      onPressed: () => DeviceApps.openApp(social_uri),
-      child: social_icon ??
+      onPressed: () => DeviceApps.openApp(socialUri),
+      child: socialIcon ??
           FutureBuilder(
               // Get icon
-              future: DeviceApps.getApp(social_uri, true),
+              future: DeviceApps.getApp(socialUri, true),
               // Build icon when retrieved
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.done) {
                   var value = snapshot.data;
                   ApplicationWithIcon app;
                   app = (value as ApplicationWithIcon);
-                  social_icon =
-                      (app != null) ? Image.memory(app.icon) : not_found;
-                  return social_icon;
+                  socialIcon =
+                      (app != null) ? Image.memory(app.icon) : notFound;
+                  return socialIcon;
                 } else {
                   return CircularProgressIndicator();
                 }
