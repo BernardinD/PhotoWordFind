@@ -426,7 +426,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     onFieldSubmitted:  validatePhrase,
                   ),
                   ElevatedButton(
-                    onPressed: validatePhrase,
+                    onPressed: () => validatePhrase(null),
                     child: Text('Find'),
                   ),
                 ],

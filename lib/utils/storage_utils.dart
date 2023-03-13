@@ -44,9 +44,9 @@ class StorageUtils {
       SubKeys.AddedOnInsta:  _map[SubKeys.AddedOnInsta] ?? false,
       SubKeys.SnapDate:      _map[SubKeys.SnapDate]  != null && _map[SubKeys.SnapDate].isNotEmpty  ? DateTime.parse(_map[SubKeys.SnapDate]).toIso8601String()  : "",
       SubKeys.InstaDate:     _map[SubKeys.InstaDate] != null && _map[SubKeys.InstaDate].isNotEmpty ? DateTime.parse(_map[SubKeys.InstaDate  ]).toIso8601String() : "",
-      SubKeys.PreviousUsernames:     _map[SubKeys.PreviousUsernames] ?? {
-        SubKeys.SnapUsername: [],
-        SubKeys.InstaUsername: [],
+      SubKeys.PreviousUsernames:     _map[SubKeys.PreviousUsernames] ?? <String, List<String>>{
+        SubKeys.SnapUsername: <String>[],
+        SubKeys.InstaUsername: <String>[],
       }
     };
     return map;
@@ -63,16 +63,16 @@ class StorageUtils {
     if (snap != null && overridingUsername == null){
       throw Exception("Must declare if username is being overwritten");
     }
-    else if(overridingUsername && snap == null){
+    else if(overridingUsername != null && overridingUsername && snap == null){
       throw Exception("Missing username to overwrite");
     }
     Map<String, dynamic> map = await get(key, reload: false, asMap: true);
-    if (ocrResult     != null) map[SubKeys.OCR]             = ocrResult;
-    if (snap          != null) map[SubKeys.SnapUsername]    = snap;
-    if (snapAdded     != null) map[SubKeys.AddedOnSnap]     = snapAdded;
-    if (snapAddedDate != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
-    if (overridingUsername) {
-      final List<String> previousUsernames = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername];
+    if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
+    if (snap               != null) map[SubKeys.SnapUsername]    = snap;
+    if (snapAdded          != null) map[SubKeys.AddedOnSnap]     = snapAdded;
+    if (snapAddedDate      != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
+    if (overridingUsername != null && overridingUsername) {
+      final List<String> previousUsernames = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
       if (!previousUsernames.contains(snap)) {
         previousUsernames.add(snap);
       }
@@ -94,13 +94,7 @@ class StorageUtils {
       {@required bool reload, bool snap = false, bool asMap = false, bool snapAdded = false}) async {
     String rawJson = (await _getStorageInstance(reload: reload)).getString(key);
 
-    Map<String, dynamic> map = convertValueToMap(rawJson);;
-    // try {
-    //   map = json.decode(rawJson);
-    // } on FormatException catch (e) {
-    //   // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
-    //   map = await convertValueToMap(rawJson);
-    // }
+    Map<String, dynamic> map = convertValueToMap(rawJson);
 
     if (asMap) {
       return map;

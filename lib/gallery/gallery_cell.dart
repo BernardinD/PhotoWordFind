@@ -165,7 +165,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                   onPressed: () {
                                     ContextMenuController.removeAny();
                                     String snap = value.selection.textInside(value.text);
-                                    StorageUtils.save(getKeyOfFilename(widget.srcImage.path), backup: true, snap: snap);
+                                    StorageUtils.save(getKeyOfFilename(widget.srcImage.path), backup: true, snap: snap, overridingUsername: false);
                                     MyApp.gallery.redoCell(widget.text, snap, widget.list_pos(widget));
                                     Sortings.updateCache();
                                     MyApp.updateFrame(() => null);
@@ -405,7 +405,7 @@ class _GalleryCellState extends State<GalleryCell> {
                   });
 
                   if (newValue != null) {
-                    social.saveUsername(widget, newValue);
+                    social.saveUsername(widget, newValue, overriding: true);
                     MyApp.gallery
                         .redoCell(widget.text, newValue, widget.list_pos(widget));
                     Sortings.updateCache();
@@ -481,11 +481,11 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  void saveUsername(GalleryCell cell, String value){
+  void saveUsername(GalleryCell cell, String value, {@required bool overriding}){
     String key = getKeyOfFilename(cell.srcImage.path);
     switch (this) {
       case SocialType.Snapchat:
-        StorageUtils.save(key, backup: true, snap:value);
+        StorageUtils.save(key, backup: true, snap:value, overridingUsername: overriding);
         break;
       case SocialType.Instagram:
       // return StorageUtils.get(key, reload: false, snap:true) as String;
