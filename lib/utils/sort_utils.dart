@@ -172,11 +172,11 @@ class Sortings {
   }
 
   static int _sortByDateAddedOnSnapchat(a, b){
-    return _sortByDateAddedOnSocial(a, b, SubKeys.snapDate);
+    return _sortByDateAddedOnSocial(a, b, SubKeys.SnapDate);
   }
 
   static int _sortByDateAddedOnInstagram(a, b){
-    return _sortByDateAddedOnSocial(a, b, SubKeys.instaDate);
+    return _sortByDateAddedOnSocial(a, b, SubKeys.InstaDate);
   }
 
   static int _sortByAddedOnSocial(a, b, String subKey) {
