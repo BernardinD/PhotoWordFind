@@ -133,9 +133,9 @@ class _GalleryCellState extends State<GalleryCell> {
                         },
                         children: [
                           getSocialRow((widget.suggestedUsername.isNotEmpty &&
-                              SocialIcon.snapchat_icon != null), "snap"),
+                              SocialIcon.snapchatIconButton != null), "snap"),
                           getSocialRow((widget.suggestedUsername.isNotEmpty &&
-                              SocialIcon.instagram_icon != null), "insta"),
+                              SocialIcon.instagramIconButton != null), "insta"),
                         ],
                       ),
                     ),
@@ -165,7 +165,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                   onPressed: () {
                                     ContextMenuController.removeAny();
                                     String snap = value.selection.textInside(value.text);
-                                    StorageUtils.save(getKeyOfFilename(widget.srcImage.path), backup: true, snap: snap);
+                                    StorageUtils.save(getKeyOfFilename(widget.srcImage.path), backup: true, snap: snap, overridingUsername: false);
                                     MyApp.gallery.redoCell(widget.text, snap, widget.list_pos(widget));
                                     Sortings.updateCache();
                                     MyApp.updateFrame(() => null);
@@ -234,7 +234,7 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 
   openUserAppPage(bool snap) async {
-    MyApp.pr.show(max: 1);
+    await MyApp.showProgress();
     String key = getStorageKey();
     await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     final Uri _site = snap
@@ -249,14 +249,15 @@ class _GalleryCellState extends State<GalleryCell> {
   TableRow getSocialRow(bool hasUser, String social) {
 
     var socialPlatform =
-      social == "snap" ? SocialIcon.snapchat_icon : SocialIcon.instagram_icon;
+      social == "snap" ? SocialIcon.snapchatIconButton : SocialIcon.instagramIconButton;
+    var socialPlatformIcon = socialPlatform.socialIcon;
     String action = "Open in  ${social == "snap" ? 'snapchat' : 'instagram'}";
     bool app = social == "snap";
 
     if (hasUser) {
       return TableRow(
         children: [
-          TableCell(child: socialPlatform.social_icon),
+          TableCell(child: socialPlatformIcon),
           TableCell(
               // verticalAlignment: TableCellVerticalAlignment.middle,
               child: Center(
@@ -265,6 +266,22 @@ class _GalleryCellState extends State<GalleryCell> {
               style: TextStyle(color: Colors.redAccent, fontSize: 10),
               showCursor: true,
               maxLines: 1,
+              contextMenuBuilder: (context, editableTextState) {
+                final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
+                buttonItems.insert(
+                    0,
+                    ContextMenuButtonItem(
+                      label: 'Override username',
+                      onPressed: () {
+                        ContextMenuController.removeAny();
+                        _manuallyUpdateUsername();
+                      },
+                    ));
+                return AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors: editableTextState.contextMenuAnchors,
+                  buttonItems: buttonItems,
+                );
+              }
             ),
           )),
           FutureBuilder(
@@ -305,7 +322,7 @@ class _GalleryCellState extends State<GalleryCell> {
     else{
       return TableRow(
         children: [
-          TableCell(child: socialPlatform.social_icon),
+          TableCell(child: socialPlatformIcon),
           TableCell(
             // verticalAlignment: TableCellVerticalAlignment.middle,
               child: Center(
@@ -324,6 +341,174 @@ class _GalleryCellState extends State<GalleryCell> {
           ),
         ],
       );
+    }
+  }
+
+  AlertDialog _updateUsernameDialog(SocialType social, String username){
+    final formKey = GlobalKey<FormState>();
+    void Function(String foo) validatePhrase = (_){
+      if (formKey.currentState.validate()) {
+        formKey.currentState.save();
+      }
+    };
+
+    return AlertDialog(
+      content: SingleChildScrollView(
+        child: Center(
+          child: Form(
+            key: formKey,
+            child: Column(
+              children: [
+                Container(
+                  child: Table(
+                    columnWidths: {
+                      0: FlexColumnWidth(1),
+                      1: IntrinsicColumnWidth(flex: 3),
+                    },
+                    children: [
+                      TableRow(
+                          children: [
+                            TableCell(child: social.icon),
+                            TableCell(
+                              child: TextFormField(
+                                initialValue: username,
+                                textAlign: TextAlign.center,
+                                validator: (value) => value.isNotEmpty ? null :  "Must input value first",
+                                onSaved: (value) => Navigator.pop(context, value),
+                                onFieldSubmitted:  validatePhrase,
+                              )
+                            ),
+                          ]
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(onPressed: () => validatePhrase(null), child: Text("Save"))
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  TableRow _manualUpdatingUserRows(SocialType social){
+    final _controller = TextEditingController();
+    return TableRow(
+        children: [
+          TableCell(child: social.icon),
+          TableCell(child: StreamBuilder(stream: social.getUserName(widget).asStream(), builder: (BuildContext context,AsyncSnapshot snapshot) {
+            if (snapshot.hasData) {
+              String username = snapshot.data;
+              _controller.text = username;
+              return TextField(controller: _controller, readOnly: true);
+            } else {
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+          },), ),
+          TableCell(
+              child: IconButton(
+                icon: Icon(Icons.edit_note_rounded),
+                onPressed: () async {
+                  String newValue = await showDialog(context: context, builder: (BuildContext context) {
+                    return _updateUsernameDialog(social, _controller.text);
+                  });
+
+                  if (newValue != null) {
+                    social.saveUsername(widget, newValue, overriding: true);
+                    MyApp.gallery
+                        .redoCell(widget.text, newValue, widget.list_pos(widget));
+                    Sortings.updateCache();
+                    setState(() {
+                      _controller.text = newValue;
+                    });
+                  }
+          },
+              )
+          )
+        ],
+    );
+  }
+  _manuallyUpdateUsername(){
+    showDialog(context: context, builder: (BuildContext context)
+    {
+      return AlertDialog(
+        content: SingleChildScrollView(
+          child: Table(
+            defaultVerticalAlignment:
+            TableCellVerticalAlignment.middle,
+            columnWidths: {
+              0: FlexColumnWidth(1),
+              1: IntrinsicColumnWidth(flex: 2),
+              2: FlexColumnWidth(2),
+            },
+            children: [
+              _manualUpdatingUserRows(SocialType.Snapchat),
+            ],
+          ),
+        )
+      );
+    });
+  }
+}
+
+
+enum SocialType{
+  Snapchat,
+  Instagram,
+  Discord,
+  Kik,
+
+}
+
+extension SocialTypeExtension on SocialType{
+  Widget get icon{
+    switch (this) {
+      case SocialType.Snapchat:
+        return SocialIcon.snapchatIconButton.socialIcon;
+      case SocialType.Instagram:
+        return SocialIcon.instagramIconButton.socialIcon;
+      case SocialType.Discord:
+        return SocialIcon.discordIconButton.socialIcon;
+      case SocialType.Kik:
+        return SocialIcon.kikIconButton.socialIcon;
+      default:
+        return null;
+    }
+  }
+  
+  Future getUserName(GalleryCell cell) async{
+    String key = getKeyOfFilename(cell.srcImage.path);
+    switch (this) {
+      case SocialType.Snapchat:
+        return StorageUtils.get(key, reload: false, snap:true);
+      case SocialType.Instagram:
+        // return StorageUtils.get(key, reload: false, snap:true);
+      case SocialType.Discord:
+        // return SocialIcon.discordIconButton.socialIcon;
+      case SocialType.Kik:
+        // return SocialIcon.kikIconButton.socialIcon;
+      default:
+        return null;
+    }
+  }
+
+  void saveUsername(GalleryCell cell, String value, {@required bool overriding}){
+    String key = getKeyOfFilename(cell.srcImage.path);
+    switch (this) {
+      case SocialType.Snapchat:
+        StorageUtils.save(key, backup: true, snap:value, overridingUsername: overriding);
+        break;
+      case SocialType.Instagram:
+      // return StorageUtils.get(key, reload: false, snap:true) as String;
+      case SocialType.Discord:
+      // return SocialIcon.discordIconButton.socialIcon;
+      case SocialType.Kik:
+      // return SocialIcon.kikIconButton.socialIcon;
+      default:
+        return null;
     }
   }
 }

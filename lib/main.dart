@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
     }
   }
 
-  static showProgress({int limit=1}) async{
+  static showProgress({int limit=1}) {
     debugPrint("Entering showProgress()...");
     if(pr.isOpen()){
       debugPrint("Closing.");
@@ -299,11 +299,11 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                (SocialIcon.snapchat_icon),
+                (SocialIcon.snapchatIconButton),
                 Spacer(),
-                (SocialIcon.gallery_icon),
+                (SocialIcon.galleryIconButton),
                 Spacer(),
-                (SocialIcon.bumble_icon),
+                (SocialIcon.bumbleIconButton),
                 Spacer(),
                 FloatingActionButton(
                   heroTag: null,
@@ -312,11 +312,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Icon(Icons.drive_folder_upload),
                 ),
                 Spacer(),
-                (SocialIcon.instagram_icon),
+                (SocialIcon.instagramIconButton),
                 Spacer(),
-                (SocialIcon.discord_icon),
+                (SocialIcon.discordIconButton),
                 Spacer(),
-                (SocialIcon.kik_icon),
+                (SocialIcon.kikIconButton),
               ],
             ),
           ),
@@ -402,7 +402,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void showFindPrompt(){
     final formKey = GlobalKey<FormState>();
 
-    Function validatePhrase = (){
+    Function validatePhrase = (_){
       if (formKey.currentState.validate()) {
         formKey.currentState.save();
       }
@@ -422,11 +422,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
-                    onSaved: (input) => findSnap(input.trim()),
-                    onFieldSubmitted: (String) => validatePhrase(),
+                    onSaved: findSnap,
+                    onFieldSubmitted:  validatePhrase,
                   ),
                   ElevatedButton(
-                    onPressed: validatePhrase,
+                    onPressed: () => validatePhrase(null),
                     child: Text('Find'),
                   ),
                 ],
@@ -439,6 +439,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// Looks for the snap name in the directory
   Future findSnap(String query)async{
+    query = query.trim();
 
     // Get all files from directory
     List<dynamic> paths;

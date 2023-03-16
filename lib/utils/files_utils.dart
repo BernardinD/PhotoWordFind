@@ -149,7 +149,7 @@ Future<String> createOCRJob(dynamic srcFile, String rawJson, bool replacing) asy
     debugPrint("Running OCR redo in main thread...");
     result = await runOCR(srcFile.path, crop: false);
 
-    await StorageUtils.save(key, ocrResult: result, backup: true); //The "await" is needed for synchronization with main thread
+    await StorageUtils.save(key, ocrResult: result, snap: "", overridingUsername: false, backup: true); //The "await" is needed for synchronization with main thread
   }
 
   // Check if this file's' OCR has been cached
@@ -243,7 +243,7 @@ Future onEachOcrResult (
       else {
         String snap = suggestionSnapName(text) ?? "";
         if (snap.isNotEmpty)
-          StorageUtils.save(key, backup: true, snap: snap);
+          StorageUtils.save(key, backup: true, snap: snap, overridingUsername: false);
         suggestedUsername = snap;
       }
 
