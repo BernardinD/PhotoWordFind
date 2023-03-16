@@ -234,7 +234,7 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 
   openUserAppPage(bool snap) async {
-    MyApp.pr.show(max: 1);
+    await MyApp.showProgress();
     String key = getStorageKey();
     await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     final Uri _site = snap
@@ -266,23 +266,22 @@ class _GalleryCellState extends State<GalleryCell> {
               style: TextStyle(color: Colors.redAccent, fontSize: 10),
               showCursor: true,
               maxLines: 1,
-                contextMenuBuilder: (context, editableTextState) {
-                  final List<ContextMenuButtonItem> buttonItems =
-                      editableTextState.contextMenuButtonItems;
-                  buttonItems.insert(
-                      0,
-                      ContextMenuButtonItem(
-                        label: 'Override username',
-                        onPressed: () {
-                          ContextMenuController.removeAny();
-                          _manuallyUpdateUsername();
-                        },
-                      ));
-                  return AdaptiveTextSelectionToolbar.buttonItems(
-                    anchors: editableTextState.contextMenuAnchors,
-                    buttonItems: buttonItems,
-                  );
-                }
+              contextMenuBuilder: (context, editableTextState) {
+                final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
+                buttonItems.insert(
+                    0,
+                    ContextMenuButtonItem(
+                      label: 'Override username',
+                      onPressed: () {
+                        ContextMenuController.removeAny();
+                        _manuallyUpdateUsername();
+                      },
+                    ));
+                return AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors: editableTextState.contextMenuAnchors,
+                  buttonItems: buttonItems,
+                );
+              }
             ),
           )),
           FutureBuilder(
@@ -345,7 +344,7 @@ class _GalleryCellState extends State<GalleryCell> {
     }
   }
 
-  AlertDialog _updateUsernameDialog(SocialType social){
+  AlertDialog _updateUsernameDialog(SocialType social, String username){
     final formKey = GlobalKey<FormState>();
     void Function(String foo) validatePhrase = (_){
       if (formKey.currentState.validate()) {
@@ -354,29 +353,39 @@ class _GalleryCellState extends State<GalleryCell> {
     };
 
     return AlertDialog(
-      content: Center(
-        child: Form(
-          key: formKey,
-          child: Column(
-            children: [
-              Container(
-                child: Table(
-                  children: [
-                    TableRow(
-                        children: [
-                          TableCell(child: social.icon),
-                          TableCell(child: TextFormField(
-                            validator: (value) => value.isNotEmpty ? null :  "Must input value first",
-                            onSaved: (value) => Navigator.pop(context, value),
-                            onFieldSubmitted:  validatePhrase,
-                          )),
-                        ]
-                    )
-                  ],
+      content: SingleChildScrollView(
+        child: Center(
+          child: Form(
+            key: formKey,
+            child: Column(
+              children: [
+                Container(
+                  child: Table(
+                    columnWidths: {
+                      0: FlexColumnWidth(1),
+                      1: IntrinsicColumnWidth(flex: 3),
+                    },
+                    children: [
+                      TableRow(
+                          children: [
+                            TableCell(child: social.icon),
+                            TableCell(
+                              child: TextFormField(
+                                initialValue: username,
+                                textAlign: TextAlign.center,
+                                validator: (value) => value.isNotEmpty ? null :  "Must input value first",
+                                onSaved: (value) => Navigator.pop(context, value),
+                                onFieldSubmitted:  validatePhrase,
+                              )
+                            ),
+                          ]
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              ElevatedButton(onPressed: () => validatePhrase(null), child: Text("Save"))
-            ],
+                ElevatedButton(onPressed: () => validatePhrase(null), child: Text("Save"))
+              ],
+            ),
           ),
         ),
       ),
@@ -384,12 +393,15 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 
   TableRow _manualUpdatingUserRows(SocialType social){
+    final _controller = TextEditingController();
     return TableRow(
         children: [
           TableCell(child: social.icon),
-          TableCell(child: FutureBuilder(future: social.getUserName(widget), builder: (BuildContext context,AsyncSnapshot snapshot) {
+          TableCell(child: StreamBuilder(stream: social.getUserName(widget).asStream(), builder: (BuildContext context,AsyncSnapshot snapshot) {
             if (snapshot.hasData) {
-              return Text(snapshot.data ?? "[None]");
+              String username = snapshot.data;
+              _controller.text = username;
+              return TextField(controller: _controller, readOnly: true);
             } else {
               return Center(
                 child: CircularProgressIndicator(),
@@ -401,7 +413,7 @@ class _GalleryCellState extends State<GalleryCell> {
                 icon: Icon(Icons.edit_note_rounded),
                 onPressed: () async {
                   String newValue = await showDialog(context: context, builder: (BuildContext context) {
-                    return _updateUsernameDialog(social);
+                    return _updateUsernameDialog(social, _controller.text);
                   });
 
                   if (newValue != null) {
@@ -409,7 +421,9 @@ class _GalleryCellState extends State<GalleryCell> {
                     MyApp.gallery
                         .redoCell(widget.text, newValue, widget.list_pos(widget));
                     Sortings.updateCache();
-                    MyApp.updateFrame(() => null);
+                    setState(() {
+                      _controller.text = newValue;
+                    });
                   }
           },
               )

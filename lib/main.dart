@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
     }
   }
 
-  static showProgress({int limit=1}) async{
+  static showProgress({int limit=1}) {
     debugPrint("Entering showProgress()...");
     if(pr.isOpen()){
       debugPrint("Closing.");
