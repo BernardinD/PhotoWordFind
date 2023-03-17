@@ -91,7 +91,7 @@ class StorageUtils {
   }
 
   static Future get(String key,
-      {@required bool reload, bool snap = false, bool asMap = false, bool snapAdded = false}) async {
+      {@required bool reload, bool snap = false, bool insta = false, bool asMap = false, bool snapAdded = false}) async {
     String rawJson = (await _getStorageInstance(reload: reload)).getString(key);
 
     Map<String, dynamic> map = convertValueToMap(rawJson);
@@ -99,11 +99,13 @@ class StorageUtils {
     if (asMap) {
       return map;
     } else if (snap) {
-      return map['snap'];
+      return map[SubKeys.SnapUsername];
+    } else if (snap) {
+      return map[SubKeys.InstaUsername];
     } else if(snapAdded) {
-      return map['addedOnSnap']??false;
+      return map[SubKeys.SnapDate]??false;
     } else {
-      return map['ocr'];
+      return map[SubKeys.OCR];
     }
     // return rawJson;
   }
