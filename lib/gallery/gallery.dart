@@ -83,19 +83,19 @@ class Gallery{
   }
 
   // Creates standardized Widget that will seen in gallery
-  void addNewCell(String text, String suggestedUsername, dynamic file, File displayImage){
+  void addNewCell(String text, String snapUsername, dynamic file, File displayImage, {String instaUsername = ""}){
     Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, suggestedUsername, file, displayImage, redo_list_pos, onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
+      child: GalleryCell(text, snapUsername, instaUsername, file, displayImage, redo_list_pos, onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
     _images.add(cell);
   }
 
-  void redoCell(String text, String suggestedUsername, int idx){
+  void redoCell(String text, String snapUsername, String instaUsername, int idx){
     Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
@@ -105,7 +105,7 @@ class Gallery{
     var key = replacing.key;
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, suggestedUsername, f, display_image, redo_list_pos, onPressed, onLongPress, key: key),
+      child: GalleryCell(text, snapUsername, instaUsername, f, display_image, redo_list_pos, onPressed, onLongPress, key: key),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 

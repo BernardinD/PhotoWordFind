@@ -27,7 +27,14 @@ Future<String> runOCR(String filePath, {bool crop=true, ui.Size size}) async {
 }
 
 /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
-String suggestionSnapName(String text){
+String suggestionSnapName(String text) {
+  return suggestionUserName(text, snapnameKeyWords);
+}
+String suggestionInstaName(String text) {
+  return suggestionUserName(text, instanameKeyWords);
+}
+
+String suggestionUserName(String text, List<String> keys){
   // TODO: Change so tha it finds the next word in the series, not the row
   text = text.toLowerCase();
   // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
@@ -235,22 +242,33 @@ Future onEachOcrResult (
       String text = result;
       // If query word has been found
       String key = getKeyOfFilename(srcFile.path);
-      String savedUser = await StorageUtils.get(key, reload: true, snap: true);
-      String suggestedUsername;
-      if (savedUser.isNotEmpty && savedUser != null) {
-        suggestedUsername = savedUser.replaceAll(new RegExp('^[@]'), "");
+      String savedSnapUser = await StorageUtils.get(key, reload: true, snap: true);
+      String savedInstaUser = await StorageUtils.get(key, reload: false, insta: true);
+      String snapUsername, instaUsername = "";
+      if (savedSnapUser.isNotEmpty && savedSnapUser != null) {
+        snapUsername = savedSnapUser.replaceAll(new RegExp('^[@]'), "");
       }
       else {
         String snap = suggestionSnapName(text) ?? "";
         if (snap.isNotEmpty)
           StorageUtils.save(key, backup: true, snap: snap, overridingUsername: false);
-        suggestedUsername = snap;
+        snapUsername = snap;
+      }
+
+      if (savedInstaUser.isNotEmpty && savedInstaUser != null) {
+        instaUsername = savedInstaUser.replaceAll(new RegExp('^[@]'), "");
+      }
+      else {
+        String insta = suggestionInstaName(text) ?? "";
+        if (insta.isNotEmpty)
+          StorageUtils.save(key, backup: true, insta: insta, overridingUsername: false);
+        instaUsername = insta;
       }
 
       // Skip this image if query word has not been found
       bool skipImage = false;
-      if (query != null && suggestedUsername != null &&
-          !suggestedUsername.toLowerCase().contains(query.toLowerCase()) &&
+      if (query != null && snapUsername != null &&
+          !snapUsername.toLowerCase().contains(query.toLowerCase()) &&
           !text.toLowerCase().contains(query.toLowerCase())) {
         skipImage = true;
       }
@@ -258,11 +276,11 @@ Future onEachOcrResult (
       if (!skipImage) {
         if (replace == null)
           MyApp.gallery.addNewCell(
-              text, suggestedUsername, srcFile, new File(srcFile.path));
+              text, snapUsername, srcFile, new File(srcFile.path), instaUsername: instaUsername);
         else {
           var pair = replace.entries.first;
           int idx = pair.key;
-          MyApp.gallery.redoCell(text, suggestedUsername, idx);
+          MyApp.gallery.redoCell(text, snapUsername, "", idx);
           // Note: scrFile will always be a File for redo and ONLY redo
           (srcFile as File).delete();
         }
