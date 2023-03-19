@@ -228,9 +228,9 @@ class _GalleryCellState extends State<GalleryCell> {
   unAddUser(bool snap) async {
     Toasts.showToast(true, (_) => "Marked as unadded");
     if (snap)
-      await StorageUtils.save(widget.storageKey, backup: true, snapAdded: false);
+      await StorageUtils.save(widget.storageKey, backup: true, snapAdded: false, snapAddedDate: null);
     else
-      await StorageUtils.save(widget.storageKey, backup: true, instaAdded: false);
+      await StorageUtils.save(widget.storageKey, backup: true, instaAdded: false, instaAddedDate: null);
     MyApp.updateFrame(() => null);
   }
 
