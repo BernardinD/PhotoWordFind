@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,27 +57,40 @@ class StorageUtils {
       {String ocrResult,
       @required bool backup,
       bool reload = false,
+      bool overridingUsername,
       String snap,
+      String insta,
       bool snapAdded,
+      bool instaAdded,
       DateTime snapAddedDate,
-      bool overridingUsername}) async {
-    if (snap != null && overridingUsername == null){
+      DateTime instaAddedDate}) async {
+    if ((snap != null || insta != null) && overridingUsername == null){
       throw Exception("Must declare if username is being overwritten");
     }
-    else if(overridingUsername != null && overridingUsername && snap == null){
+    else if(overridingUsername != null && overridingUsername && snap == null && insta == null){
       throw Exception("Missing username to overwrite");
     }
     Map<String, dynamic> map = await get(key, reload: false, asMap: true);
-    if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
-    if (snap               != null) map[SubKeys.SnapUsername]    = snap;
-    if (snapAdded          != null) map[SubKeys.AddedOnSnap]     = snapAdded;
-    if (snapAddedDate      != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
+
     if (overridingUsername != null && overridingUsername) {
-      final List<String> previousUsernames = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
-      if (!previousUsernames.contains(snap)) {
-        previousUsernames.add(snap);
+      final List<String> previousSnapUsernames  = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
+      final List<String> previousInstaUsernames = map[SubKeys.PreviousUsernames][SubKeys.InstaUsername].cast<String>();
+      String currentSnap = map[SubKeys.SnapUsername], currentInsta = map[SubKeys.InstaUsername];
+
+      if (snap != null && !previousSnapUsernames.contains(currentSnap)) {
+        previousSnapUsernames.add(currentSnap);
+      }
+      if (insta != null && !previousInstaUsernames.contains(currentInsta)) {
+        previousInstaUsernames.add(currentInsta);
       }
     }
+    if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
+    if (snap               != null) map[SubKeys.SnapUsername]    = snap;
+    if (insta              != null) map[SubKeys.InstaUsername]   = insta;
+    if (snapAdded          != null) map[SubKeys.AddedOnSnap]     = snapAdded;
+    if (instaAdded         != null) map[SubKeys.AddedOnInsta]    = instaAdded;
+    if (snapAddedDate      != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
+    if (instaAddedDate     != null) map[SubKeys.InstaDate]       = instaAddedDate.toIso8601String();
 
 
     String rawJson = jsonEncode(map);
@@ -91,21 +105,17 @@ class StorageUtils {
   }
 
   static Future get(String key,
-      {@required bool reload, bool snap = false, bool asMap = false, bool snapAdded = false}) async {
+      {@required bool reload, bool snap = false, bool insta = false, bool snapAdded = false, bool instaAdded = false, bool asMap = false}) async {
     String rawJson = (await _getStorageInstance(reload: reload)).getString(key);
 
     Map<String, dynamic> map = convertValueToMap(rawJson);
 
-    if (asMap) {
-      return map;
-    } else if (snap) {
-      return map['snap'];
-    } else if(snapAdded) {
-      return map['addedOnSnap']??false;
-    } else {
-      return map['ocr'];
-    }
-    // return rawJson;
+    if      (asMap)      { return map; }
+    else if (snap)       { return map[ SubKeys.SnapUsername  ]; }
+    else if (insta)      { return map[ SubKeys.InstaUsername ]; }
+    else if (snapAdded)  { return map[ SubKeys.AddedOnSnap   ] ??  false; }
+    else if (instaAdded) { return map[ SubKeys.AddedOnInsta  ] ??  false; }
+    else                 { return map[ SubKeys.OCR           ]; }
   }
 
   static Future merge(Map<String, String> cloud) async {
