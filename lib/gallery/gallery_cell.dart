@@ -44,6 +44,7 @@ class _GalleryCellState extends State<GalleryCell> {
   GlobalKey cropBoxKey;
   Key cellKey;
   String file_name;
+  var _photo;
 
   @override
   void initState() {
@@ -54,6 +55,13 @@ class _GalleryCellState extends State<GalleryCell> {
     cropBoxKey = new GlobalKey();
     file_name = widget.f.path.split("/").last;
     cellKey = ValueKey(file_name);
+    _photo = PhotoView(
+      imageProvider: FileImage(widget.srcImage),
+      initialScale: PhotoViewComputedScale.covered,
+      minScale: PhotoViewComputedScale.contained * 0.4,
+      maxScale: PhotoViewComputedScale.covered * 1.5,
+      basePosition: Alignment.topCenter,
+    );
   }
 
   @override
@@ -76,24 +84,13 @@ class _GalleryCellState extends State<GalleryCell> {
                       "REDO",
                       style: TextStyle(color: Colors.white),
                     ),
-                    onPressed: () => redo(file_name, widget.f),
+                    onPressed: redo,
                   ),
                 ),
                 Expanded(
                   flex: 9,
-                  child: ClipRect(
-                    child: RepaintBoundary(
-                      key: cropBoxKey,
-                      child: Container(
-                        child: PhotoView(
-                          imageProvider: FileImage(widget.srcImage),
-                          initialScale: PhotoViewComputedScale.covered,
-                          minScale: PhotoViewComputedScale.contained * 0.4,
-                          maxScale: PhotoViewComputedScale.covered * 1.5,
-                          basePosition: Alignment.topCenter,
-                        ),
-                      ),
-                    ),
+                    child: Container(
+                      child: _photo,
                   ),
                 ),
               ],
@@ -192,7 +189,24 @@ class _GalleryCellState extends State<GalleryCell> {
     );
   }
 
-  void redo(String file_name, dynamic src_image) async {
+  void showRedoWindow(){
+    showDialog(context: context, builder: (BuildContext context)
+    {
+      return AlertDialog(
+        content: ClipRect(
+          child: RepaintBoundary(
+            key: cropBoxKey,
+            child: Container(
+              child: _photo,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  void redo() async {
+    dynamic srcImage = widget.f;
     // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
     RenderRepaintBoundary boundary =
         cropBoxKey.currentContext.findRenderObject();
@@ -221,7 +235,7 @@ class _GalleryCellState extends State<GalleryCell> {
 
     // Run OCR
     ocrParallel([file], MediaQuery.of(context).size,
-        replace: {widget.list_pos(widget): src_image.path})
+        replace: {widget.list_pos(widget): srcImage.path})
         .then((value) => setState(() {}));
   }
 
