@@ -82,31 +82,36 @@ class _GalleryCellState extends State<GalleryCell> {
               children: [
                 Expanded(
                   flex: 1,
-                  child: FutureBuilder(
-                    future: StorageUtils.get(widget.storageKey, reload: false, snapDate: true),
-                    builder: (context, snapshot) {
-                      String text;
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        text = ("Loading...");
-                      }
-                      else {
-                        if (snapshot.hasError || snapshot.data.toString().isEmpty) {
-                          text = ("Not added on Snapchat");
-                        } else {
-                            DateTime date = DateTime.parse(snapshot.data);
-                            text = "Added on: \n ${_dateFormat.format(date)}";
-                          }
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: FutureBuilder(
+                      future: StorageUtils.get(widget.storageKey, reload: false, snapDate: true),
+                      builder: (context, snapshot) {
+                        String text;
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          text = ("Loading...");
                         }
+                        else {
+                          if (snapshot.hasError || snapshot.data.toString().isEmpty) {
+                            text = ("Not added on Snapchat");
+                          } else {
+                              DateTime date = DateTime.parse(snapshot.data);
+                              text = "Added on: \n ${_dateFormat.format(date)}";
+                            }
+                          }
 
-                        return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white), textAlign: TextAlign.center,),);
-                    }
+                          return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white), textAlign: TextAlign.center,),);
+                      }
+                    ),
                   ),
                 ),
                 Expanded(
-                  flex: 9,
-                    child: Container(
-                      child: _photo,
+                  flex: 11,
+                    child: ClipRect(
+                      child: Container(
+                        child: _photo,
                   ),
+                    ),
                 ),
               ],
             ),
