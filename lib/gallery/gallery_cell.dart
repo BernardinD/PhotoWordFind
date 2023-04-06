@@ -130,12 +130,23 @@ class _GalleryCellState extends State<GalleryCell> {
                               onLongPress: () =>
                                   widget.onLongPressedHandler(file_name),
                             ),
-                            Container(
-                              color: Colors.white,
-                              child: PopupMenuButton<int>(
-                                  itemBuilder: (BuildContext context) => [
-                                    PopupMenuItem<int>(value: 0, child: Text("Redo"), onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => showRedoWindow()),)
-                                  ],
+                            ClipRRect(
+                              borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                              child: AspectRatio(
+                                aspectRatio: 2 / 3,
+                                child: Container(
+                                  color: Theme.of(context).primaryColor,
+                                  child: FittedBox(
+                                    fit: BoxFit.fitHeight,
+                                    child: PopupMenuButton<int>(
+                                      color: Theme.of(context).secondaryHeaderColor,
+                                      padding: EdgeInsets.zero,
+                                        itemBuilder: (BuildContext context) => [
+                                          PopupMenuItem<int>(value: 0, child: Text("Redo"), onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => showRedoWindow()),)
+                                        ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             )
                           ],
