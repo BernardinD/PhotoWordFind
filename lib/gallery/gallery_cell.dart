@@ -85,17 +85,20 @@ class _GalleryCellState extends State<GalleryCell> {
                   child: FutureBuilder(
                     future: StorageUtils.get(widget.storageKey, reload: false, snapDate: true),
                     builder: (context, snapshot) {
-                      String text = ("Loading...");
-                      if(snapshot.hasData  && snapshot.data.toString().isNotEmpty) {
-                        DateTime date = DateTime.parse(snapshot.data);
-                        text = "Added on: \n ${_dateFormat.format(date)}";
+                      String text;
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        text = ("Loading...");
                       }
-                      else if (snapshot.hasError && snapshot.data.toString().isEmpty){
-                        text = ("Not added on Snapchat");
-                      }
+                      else {
+                        if (snapshot.hasError || snapshot.data.toString().isEmpty) {
+                          text = ("Not added on Snapchat");
+                        } else {
+                            DateTime date = DateTime.parse(snapshot.data);
+                            text = "Added on: \n ${_dateFormat.format(date)}";
+                          }
+                        }
 
-
-                      return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white), textAlign: TextAlign.center,),);
+                        return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white), textAlign: TextAlign.center,),);
                     }
                   ),
                 ),
