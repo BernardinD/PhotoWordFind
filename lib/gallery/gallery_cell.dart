@@ -44,7 +44,7 @@ class _GalleryCellState extends State<GalleryCell> {
   GlobalKey cropBoxKey;
   Key cellKey;
   String file_name;
-  var _photo;
+  PhotoView _photo;
 
   @override
   void initState() {
@@ -79,12 +79,22 @@ class _GalleryCellState extends State<GalleryCell> {
               children: [
                 Expanded(
                   flex: 1,
-                  child: ElevatedButton(
-                    child: Text(
-                      "REDO",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onPressed: redo,
+                  child: FutureBuilder(
+                    future: StorageUtils.get(widget.storageKey, reload: false, snapDate: true),
+                    builder: (context, snapshot) {
+                      String text = ("Loading...");
+                      if(snapshot.hasData  && snapshot.data.toString().isNotEmpty) {
+                        text = (
+                        DateTime.parse(snapshot.data ?? "").toString()
+                        );
+                      }
+                      else if (snapshot.hasError && snapshot.data.toString().isEmpty){
+                        text = ("Not added on Snapchat");
+                      }
+
+
+                      return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white),),);
+                    }
                   ),
                 ),
                 Expanded(
@@ -109,12 +119,29 @@ class _GalleryCellState extends State<GalleryCell> {
                   Spacer(),
                   Expanded(
                       flex: 1,
-                      child: ElevatedButton(
-                        child: Text("Select"),
-                        onPressed: () => widget.onPressedHandler(file_name),
-                        onLongPress: () =>
-                            widget.onLongPressedHandler(file_name),
-                      )),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            ElevatedButton(
+                              child: Text("Select"),
+                              onPressed: () => widget.onPressedHandler(file_name),
+                              onLongPress: () =>
+                                  widget.onLongPressedHandler(file_name),
+                            ),
+                            Container(
+                              color: Colors.white,
+                              child: PopupMenuButton<int>(
+                                  itemBuilder: (BuildContext context) => [
+                                    PopupMenuItem<int>(value: 0, child: Text("Redo"), onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => showRedoWindow()),)
+                                  ],
+                              ),
+                            )
+                          ],
+                        ),
+                      )
+                  ),
 
                   Spacer(),
 
@@ -193,12 +220,38 @@ class _GalleryCellState extends State<GalleryCell> {
     showDialog(context: context, builder: (BuildContext context)
     {
       return AlertDialog(
-        content: ClipRect(
-          child: RepaintBoundary(
-            key: cropBoxKey,
-            child: Container(
-              child: _photo,
-            ),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(32.0))),
+        content: AspectRatio(
+          aspectRatio: 1 / 1.5,
+          child: Column(
+            children: [
+              Expanded(
+                flex: 10,
+                child: Align(
+                  child: AspectRatio(
+                    aspectRatio: 1 / 1,
+                    child: RepaintBoundary(
+                      key: cropBoxKey,
+                      child: Container(
+                        child: ClipRRect(child: _photo),
+                        // child: ElevatedButton(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: ElevatedButton(
+                  child: Text(
+                    "REDO",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: redo,
+                ),
+              ),
+            ],
           ),
         ),
       );
