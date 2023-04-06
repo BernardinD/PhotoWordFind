@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 class GalleryCell extends StatefulWidget {
   const GalleryCell(
@@ -45,6 +46,7 @@ class _GalleryCellState extends State<GalleryCell> {
   Key cellKey;
   String file_name;
   PhotoView _photo;
+  DateFormat _dateFormat;
 
   @override
   void initState() {
@@ -55,6 +57,7 @@ class _GalleryCellState extends State<GalleryCell> {
     cropBoxKey = new GlobalKey();
     file_name = widget.f.path.split("/").last;
     cellKey = ValueKey(file_name);
+    _dateFormat = DateFormat.yMMMd();
     _photo = PhotoView(
       imageProvider: FileImage(widget.srcImage),
       initialScale: PhotoViewComputedScale.covered,
@@ -84,16 +87,15 @@ class _GalleryCellState extends State<GalleryCell> {
                     builder: (context, snapshot) {
                       String text = ("Loading...");
                       if(snapshot.hasData  && snapshot.data.toString().isNotEmpty) {
-                        text = (
-                        DateTime.parse(snapshot.data ?? "").toString()
-                        );
+                        DateTime date = DateTime.parse(snapshot.data);
+                        text = "Added on: \n ${_dateFormat.format(date)}";
                       }
                       else if (snapshot.hasError && snapshot.data.toString().isEmpty){
                         text = ("Not added on Snapchat");
                       }
 
 
-                      return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white),),);
+                      return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white), textAlign: TextAlign.center,),);
                     }
                   ),
                 ),
