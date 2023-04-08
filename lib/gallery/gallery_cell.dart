@@ -146,15 +146,34 @@ class _GalleryCellState extends State<GalleryCell> {
                                 aspectRatio: 2 / 3,
                                 child: Container(
                                   color: Theme.of(context).primaryColor,
-                                  child: FittedBox(
-                                    fit: BoxFit.fitHeight,
-                                    child: PopupMenuButton<int>(
-                                      color: Theme.of(context).secondaryHeaderColor,
-                                      padding: EdgeInsets.zero,
-                                        itemBuilder: (BuildContext context) => [
-                                          PopupMenuItem<int>(value: 0, child: Text("Redo"), onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => showRedoWindow()),)
-                                        ],
-                                    ),
+                                  child: FutureBuilder(
+                                    future: StorageUtils.get(widget.storageKey, reload: false, asMap: true),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) return SizedBox();
+                                        if (snapshot.hasData && !snapshot.hasError) {
+                                          Map map = snapshot.data;
+                                          return FittedBox(
+                                            fit: BoxFit.fitHeight,
+                                            child: PopupMenuButton<int>(
+                                              color: Theme.of(context).secondaryHeaderColor,
+                                              padding: EdgeInsets.zero,
+                                              itemBuilder: (BuildContext context) => [
+                                                OurMenuItem("Redo", showRedoWindow, ),
+                                                if (map[SubKeys.SnapUsername] != null && map[SubKeys.SnapUsername].isNotEmpty)
+                                                  OurMenuItem("Open on snap", () => openUserAppPage(true, addOnSocial: false),),
+                                                if (map[SubKeys.InstaUsername] != null && map[SubKeys.InstaUsername].isNotEmpty)
+                                                  OurMenuItem("Open on insta", () => openUserAppPage(false, addOnSocial: false),),
+                                                if (map[SubKeys.AddedOnSnap])
+                                                  OurMenuItem("Unadd Snap", () => unAddUser(true),),
+                                                if (map[SubKeys.AddedOnInsta])
+                                                  OurMenuItem("Unadd Insta", () => unAddUser(false),),
+                                                OurMenuItem("Override username", _manuallyUpdateUsername,),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return null;
+                                      }
                                   ),
                                 ),
                               ),
@@ -322,16 +341,18 @@ class _GalleryCellState extends State<GalleryCell> {
     MyApp.updateFrame(() => null);
   }
 
-  openUserAppPage(bool snap) async {
+  openUserAppPage(bool snap, {bool addOnSocial = true}) async {
     await MyApp.showProgress();
     String key = widget.storageKey;
     Uri _site;
     if (snap) {
       _site =  Uri.parse("https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
-      await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
+      if (addOnSocial)
+        await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     } else {
       _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
-      await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+      if (addOnSocial)
+        await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
     }
     debugPrint("site URI: $_site");
     await Sortings.updateCache();
@@ -357,7 +378,6 @@ class _GalleryCellState extends State<GalleryCell> {
               style: TextStyle(color: Colors.redAccent, fontSize: 10),
               showCursor: true,
               maxLines: 1,
-              contextMenuBuilder: overrideContextMenuButton
             ),
           )),
           FutureBuilder(
@@ -407,7 +427,6 @@ class _GalleryCellState extends State<GalleryCell> {
                   style: TextStyle(color: Colors.redAccent, fontSize: 10),
                   showCursor: true,
                   maxLines: 1,
-                  contextMenuBuilder: overrideContextMenuButton
                 ),
               )),
           TableCell(
@@ -539,22 +558,13 @@ class _GalleryCellState extends State<GalleryCell> {
       );
     });
   }
+}
 
-  Widget overrideContextMenuButton(context, editableTextState) {
-    final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
-    buttonItems.insert(
-        0,
-        ContextMenuButtonItem(
-          label: 'Override username',
-          onPressed: () {
-            ContextMenuController.removeAny();
-            _manuallyUpdateUsername();
-          },
-        ));
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: editableTextState.contextMenuAnchors,
-      buttonItems: buttonItems,
+PopupMenuItem<int> OurMenuItem(final String _displayTxt, final Function _callback) {
+    Text text = Text(
+      _displayTxt,
+      style: TextStyle(fontSize: 12),
     );
-  }
+    return PopupMenuItem<int>(/*value: 0,*/ child: text, onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => _callback()),);
 }
 
