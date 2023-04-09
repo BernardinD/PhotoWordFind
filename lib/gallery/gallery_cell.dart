@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 class GalleryCell extends StatefulWidget {
   const GalleryCell(
@@ -44,6 +45,8 @@ class _GalleryCellState extends State<GalleryCell> {
   GlobalKey cropBoxKey;
   Key cellKey;
   String file_name;
+  PhotoView _photo;
+  DateFormat _dateFormat;
 
   @override
   void initState() {
@@ -54,6 +57,14 @@ class _GalleryCellState extends State<GalleryCell> {
     cropBoxKey = new GlobalKey();
     file_name = widget.f.path.split("/").last;
     cellKey = ValueKey(file_name);
+    _dateFormat = DateFormat.yMMMd();
+    _photo = PhotoView(
+      imageProvider: FileImage(widget.srcImage),
+      initialScale: PhotoViewComputedScale.covered,
+      minScale: PhotoViewComputedScale.contained * 0.4,
+      maxScale: PhotoViewComputedScale.covered * 1.5,
+      basePosition: Alignment.topCenter,
+    );
   }
 
   @override
@@ -71,30 +82,36 @@ class _GalleryCellState extends State<GalleryCell> {
               children: [
                 Expanded(
                   flex: 1,
-                  child: ElevatedButton(
-                    child: Text(
-                      "REDO",
-                      style: TextStyle(color: Colors.white),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: FutureBuilder(
+                      future: StorageUtils.get(widget.storageKey, reload: false, snapDate: true),
+                      builder: (context, snapshot) {
+                        String text;
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          text = ("Loading...");
+                        }
+                        else {
+                          if (snapshot.hasError || snapshot.data.toString().isEmpty) {
+                            text = ("Not added on Snapchat");
+                          } else {
+                              DateTime date = DateTime.parse(snapshot.data);
+                              text = "Added on: \n ${_dateFormat.format(date)}";
+                            }
+                          }
+
+                          return Container(/*color: Colors.white,*/ child: Text(text, style: TextStyle(color: Colors.white), textAlign: TextAlign.center,),);
+                      }
                     ),
-                    onPressed: () => redo(file_name, widget.f),
                   ),
                 ),
                 Expanded(
-                  flex: 9,
-                  child: ClipRect(
-                    child: RepaintBoundary(
-                      key: cropBoxKey,
+                  flex: 11,
+                    child: ClipRect(
                       child: Container(
-                        child: PhotoView(
-                          imageProvider: FileImage(widget.srcImage),
-                          initialScale: PhotoViewComputedScale.covered,
-                          minScale: PhotoViewComputedScale.contained * 0.4,
-                          maxScale: PhotoViewComputedScale.covered * 1.5,
-                          basePosition: Alignment.topCenter,
-                        ),
-                      ),
-                    ),
+                        child: _photo,
                   ),
+                    ),
                 ),
               ],
             ),
@@ -112,12 +129,59 @@ class _GalleryCellState extends State<GalleryCell> {
                   Spacer(),
                   Expanded(
                       flex: 1,
-                      child: ElevatedButton(
-                        child: Text("Select"),
-                        onPressed: () => widget.onPressedHandler(file_name),
-                        onLongPress: () =>
-                            widget.onLongPressedHandler(file_name),
-                      )),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            ElevatedButton(
+                              child: Text("Select"),
+                              onPressed: () => widget.onPressedHandler(file_name),
+                              onLongPress: () =>
+                                  widget.onLongPressedHandler(file_name),
+                            ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                              child: AspectRatio(
+                                aspectRatio: 2 / 3,
+                                child: Container(
+                                  color: Theme.of(context).primaryColor,
+                                  child: FutureBuilder(
+                                    future: StorageUtils.get(widget.storageKey, reload: false, asMap: true),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState == ConnectionState.waiting) return SizedBox();
+                                        if (snapshot.hasData && !snapshot.hasError) {
+                                          Map map = snapshot.data;
+                                          return FittedBox(
+                                            fit: BoxFit.fitHeight,
+                                            child: PopupMenuButton<int>(
+                                              color: Theme.of(context).secondaryHeaderColor,
+                                              padding: EdgeInsets.zero,
+                                              itemBuilder: (BuildContext context) => [
+                                                OurMenuItem("Redo", showRedoWindow, ),
+                                                if (map[SubKeys.SnapUsername] != null && map[SubKeys.SnapUsername].isNotEmpty)
+                                                  OurMenuItem("Open on snap", () => openUserAppPage(true, addOnSocial: false),),
+                                                if (map[SubKeys.InstaUsername] != null && map[SubKeys.InstaUsername].isNotEmpty)
+                                                  OurMenuItem("Open on insta", () => openUserAppPage(false, addOnSocial: false),),
+                                                if (map[SubKeys.AddedOnSnap])
+                                                  OurMenuItem("Unadd Snap", () => unAddUser(true),),
+                                                if (map[SubKeys.AddedOnInsta])
+                                                  OurMenuItem("Unadd Insta", () => unAddUser(false),),
+                                                OurMenuItem("Override username", _manuallyUpdateUsername,),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return null;
+                                      }
+                                  ),
+                                ),
+                              ),
+                            )
+                          ],
+                        ),
+                      )
+                  ),
 
                   Spacer(),
 
@@ -192,7 +256,50 @@ class _GalleryCellState extends State<GalleryCell> {
     );
   }
 
-  void redo(String file_name, dynamic src_image) async {
+  void showRedoWindow(){
+    showDialog(context: context, builder: (BuildContext context)
+    {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(32.0))),
+        content: AspectRatio(
+          aspectRatio: 1 / 1.5,
+          child: Column(
+            children: [
+              Expanded(
+                flex: 10,
+                child: Align(
+                  child: AspectRatio(
+                    aspectRatio: 1 / 1,
+                    child: RepaintBoundary(
+                      key: cropBoxKey,
+                      child: Container(
+                        child: ClipRRect(child: _photo),
+                        // child: ElevatedButton(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: ElevatedButton(
+                  child: Text(
+                    "REDO",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: redo,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  void redo() async {
+    dynamic srcImage = widget.f;
     // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
     RenderRepaintBoundary boundary =
         cropBoxKey.currentContext.findRenderObject();
@@ -221,7 +328,7 @@ class _GalleryCellState extends State<GalleryCell> {
 
     // Run OCR
     ocrParallel([file], MediaQuery.of(context).size,
-        replace: {widget.list_pos(widget): src_image.path})
+        replace: {widget.list_pos(widget): srcImage.path})
         .then((value) => setState(() {}));
   }
 
@@ -234,16 +341,18 @@ class _GalleryCellState extends State<GalleryCell> {
     MyApp.updateFrame(() => null);
   }
 
-  openUserAppPage(bool snap) async {
+  openUserAppPage(bool snap, {bool addOnSocial = true}) async {
     await MyApp.showProgress();
     String key = widget.storageKey;
     Uri _site;
     if (snap) {
       _site =  Uri.parse("https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
-      await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
+      if (addOnSocial)
+        await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
     } else {
       _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
-      await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+      if (addOnSocial)
+        await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
     }
     debugPrint("site URI: $_site");
     await Sortings.updateCache();
@@ -269,7 +378,6 @@ class _GalleryCellState extends State<GalleryCell> {
               style: TextStyle(color: Colors.redAccent, fontSize: 10),
               showCursor: true,
               maxLines: 1,
-              contextMenuBuilder: overrideContextMenuButton
             ),
           )),
           FutureBuilder(
@@ -319,7 +427,6 @@ class _GalleryCellState extends State<GalleryCell> {
                   style: TextStyle(color: Colors.redAccent, fontSize: 10),
                   showCursor: true,
                   maxLines: 1,
-                  contextMenuBuilder: overrideContextMenuButton
                 ),
               )),
           TableCell(
@@ -451,22 +558,13 @@ class _GalleryCellState extends State<GalleryCell> {
       );
     });
   }
+}
 
-  Widget overrideContextMenuButton(context, editableTextState) {
-    final List<ContextMenuButtonItem> buttonItems = editableTextState.contextMenuButtonItems;
-    buttonItems.insert(
-        0,
-        ContextMenuButtonItem(
-          label: 'Override username',
-          onPressed: () {
-            ContextMenuController.removeAny();
-            _manuallyUpdateUsername();
-          },
-        ));
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: editableTextState.contextMenuAnchors,
-      buttonItems: buttonItems,
+PopupMenuItem<int> OurMenuItem(final String _displayTxt, final Function _callback) {
+    Text text = Text(
+      _displayTxt,
+      style: TextStyle(fontSize: 12),
     );
-  }
+    return PopupMenuItem<int>(/*value: 0,*/ child: text, onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => _callback()),);
 }
 
