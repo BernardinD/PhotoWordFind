@@ -1,13 +1,12 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 
 import 'package:flutter/widgets.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image/image.dart' as crop_image;
-import 'package:image_size_getter/file_input.dart';
-import 'package:image_size_getter/image_size_getter.dart';
 
 
 // Extracts text from image
@@ -26,7 +25,7 @@ Future<String> OCR(String path) async {
 crop_image.Image getImage(String filePath){
 
   List<int> bytes = File(filePath).readAsBytesSync();
-  return crop_image.decodeImage(bytes);
+  return crop_image.decodeImage(bytes as Uint8List)!;
 
 }
 
@@ -63,7 +62,7 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   // Save temp image
   String file_name = filePath.split("/").last;
   File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile));
+  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile)!);
 
   debugPrint("Leaving createCroppedImage()...");
   return temp_cropped;

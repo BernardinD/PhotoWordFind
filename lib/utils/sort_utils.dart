@@ -9,12 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Sorts _currentSortBy = Sorts.Date, _currentGroupBy = null;
-Sorts get currentSortBy => _currentSortBy;
-Sorts get currentGroupBy => _currentGroupBy;
+Sorts? _currentSortBy = Sorts.Date, _currentGroupBy = null;
+Sorts? get currentSortBy => _currentSortBy;
+Sorts? get currentGroupBy => _currentGroupBy;
 
 Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
-Map<String, Map<String, dynamic>> localCache = {};
+Map<String, Map<String, dynamic>?> localCache = {};
 
 enum Sorts {
   SortByTitle,
@@ -54,7 +54,7 @@ class Sortings {
   static get reverseSortBy => _reverseSortBy;
   static get reverseGroupBy => _reverseGroupBy;
 
-  static updateSortType(Sorts newSort, {bool resetGroupBy = true}) {
+  static updateSortType(Sorts? newSort, {bool resetGroupBy = true}) {
     // Reverse recently selected sort
     if (newSort != null && (_currentSortBy == newSort || _currentGroupBy == newSort)) {
       if (sortBy.contains(newSort))
@@ -94,8 +94,8 @@ class Sortings {
     localPrefs.reload();
 
     for (String key in localPrefs.getKeys()) {
-      String rawJson = localPrefs.getString(key);
-      Map<String, dynamic> map;
+      String rawJson = localPrefs.getString(key)!;
+      Map<String, dynamic>? map;
       try {
         map = json.decode(rawJson);
       } on FormatException catch (e) {
@@ -149,8 +149,8 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aDateStr = localCache[aKey][subKey] ?? "";
-    String bDateStr = localCache[bKey][subKey] ?? "";
+    String aDateStr = localCache[aKey]![subKey] ?? "";
+    String bDateStr = localCache[bKey]![subKey] ?? "";
 
     int ret;
     if (aDateStr.isEmpty && bDateStr.isEmpty) {
@@ -186,8 +186,8 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    bool aSnap = localCache[aKey][subKey] ?? false;
-    bool bSnap = localCache[bKey][subKey] ?? false;
+    bool aSnap = localCache[aKey]![subKey] ?? false;
+    bool bSnap = localCache[bKey]![subKey] ?? false;
 
     Function secondarySort = getSortBy();
     return (aSnap != bSnap)
@@ -210,8 +210,8 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aSnap = localCache[aKey][subKey];
-    String bSnap = localCache[bKey][subKey];
+    String aSnap = localCache[aKey]![subKey];
+    String bSnap = localCache[bKey]![subKey];
 
     // If both exist throw them in the front and sort them, else throw it to the back
     int ret=0;

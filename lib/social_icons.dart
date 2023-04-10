@@ -10,12 +10,12 @@ class SocialIcon extends StatelessWidget {
       _discordIconButton,
       _kikIconButton;
 
-  static SocialIcon get snapchatIconButton => _snapchatIconButton;
-  static SocialIcon get galleryIconButton => _galleryIconButton;
-  static SocialIcon get instagramIconButton => _instagramIconButton;
-  static SocialIcon get kikIconButton => _kikIconButton;
-  static SocialIcon get bumbleIconButton => _bumbleIconButton;
-  static SocialIcon get discordIconButton => _discordIconButton;
+  static SocialIcon? get snapchatIconButton => _snapchatIconButton;
+  static SocialIcon? get galleryIconButton => _galleryIconButton;
+  static SocialIcon? get instagramIconButton => _instagramIconButton;
+  static SocialIcon? get kikIconButton => _kikIconButton;
+  static SocialIcon? get bumbleIconButton => _bumbleIconButton;
+  static SocialIcon? get discordIconButton => _discordIconButton;
 
   static final String _snapchatUri = 'com.snapchat.android',
       _galleryUri = 'com.sec.android.gallery3d',
@@ -25,7 +25,7 @@ class SocialIcon extends StatelessWidget {
       _kikUri = 'kik.android';
 
   final String socialUri;
-  Widget socialIcon;
+  Widget? socialIcon;
   final Widget notFound = CircleAvatar(
       child: Icon(
     Icons.not_interested,
@@ -59,11 +59,11 @@ class SocialIcon extends StatelessWidget {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.done) {
                   var value = snapshot.data;
-                  ApplicationWithIcon app;
-                  app = (value as ApplicationWithIcon);
+                  ApplicationWithIcon? app;
+                  app = (value as ApplicationWithIcon?);
                   socialIcon =
                       (app != null) ? Image.memory(app.icon) : notFound;
-                  return socialIcon;
+                  return socialIcon!;
                 } else {
                   return CircularProgressIndicator();
                 }
@@ -82,16 +82,16 @@ enum SocialType{
 }
 
 extension SocialTypeExtension on SocialType{
-  Widget get icon{
+  Widget? get icon{
     switch (this) {
       case SocialType.Snapchat:
-        return SocialIcon.snapchatIconButton.socialIcon;
+        return SocialIcon.snapchatIconButton!.socialIcon;
       case SocialType.Instagram:
-        return SocialIcon.instagramIconButton.socialIcon;
+        return SocialIcon.instagramIconButton!.socialIcon;
       case SocialType.Discord:
-        return SocialIcon.discordIconButton.socialIcon;
+        return SocialIcon.discordIconButton!.socialIcon;
       case SocialType.Kik:
-        return SocialIcon.kikIconButton.socialIcon;
+        return SocialIcon.kikIconButton!.socialIcon;
       default:
         return null;
     }
@@ -112,7 +112,7 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  saveUsername(String key, String value, {@required bool overriding}) async {
+  saveUsername(String key, String value, {required bool overriding}) async {
     switch (this) {
       case SocialType.Snapchat:
         /*await*/ StorageUtils.save(key, backup: true, snap:value, overridingUsername: overriding);
@@ -144,7 +144,7 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  String userNameSubkey(){
+  String? userNameSubkey(){
     switch (this) {
       case SocialType.Snapchat:
         return SubKeys.SnapUsername;

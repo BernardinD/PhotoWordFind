@@ -7,7 +7,7 @@ class Toasts{
   Toasts._internal();
   static final Toasts _singleton = Toasts._internal();
 
-  static FToast _fToast;
+  static late FToast _fToast;
   factory Toasts(){
     return _singleton;
   }

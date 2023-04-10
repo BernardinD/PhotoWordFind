@@ -16,25 +16,25 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
-Future<String> runOCR(String filePath, {bool crop=true, ui.Size size}) async {
+Future<String> runOCR(String filePath, {bool crop=true, ui.Size? size}) async {
   print("Entering runOCR()...");
   debugPrint("Running OCR on $filePath");
   File temp_cropped = crop ? createCroppedImage(
-      filePath, Directory.systemTemp, size) : new File(filePath);
+      filePath, Directory.systemTemp, size!) : new File(filePath);
 
   debugPrint("Leaving runOCR()");
   return OCR(temp_cropped.path);
 }
 
 /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
-String suggestionSnapName(String text) {
+String? suggestionSnapName(String text) {
   return suggestionUserName(text, snapnameKeyWords);
 }
-String suggestionInstaName(String text) {
+String? suggestionInstaName(String text) {
   return suggestionUserName(text, instanameKeyWords);
 }
 
-String suggestionUserName(String text, List<String> keys){
+String? suggestionUserName(String text, List<String> keys){
   // TODO: Change so tha it finds the next word in the series, not the row
   text = text.toLowerCase();
   // text = text.replaceAll(new RegExp('[-+.^:,|!]'),'');
@@ -69,7 +69,7 @@ String getKeyOfFilename(String f){
   return key;
 }
 
-Future ocrParallel(List filesList, Size size, { String query, bool findFirst = false, Map<int, String> replace}) async{
+Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = false, Map<int, String?>? replace}) async{
 
   await MyApp.showProgress(limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
@@ -97,7 +97,7 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
   int startingStorageSize = prefs.getKeys().length;
 
   await Sortings.updateCache();
-  filesList.sort(Sortings.getSorting());
+  filesList.sort(Sortings.getSorting() as int Function(dynamic, dynamic)?);
   for(files_idx = 0; files_idx < filesList.length; files_idx++){
 
 
@@ -113,7 +113,7 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
     String iso_name = path.basename(srcFile.path);
     debugPrint("srcFilePath [${srcFile.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
 
-    Future<String> job = createOCRJob(srcFile, rawJson, replace != null);
+    Future<String?> job = createOCRJob(srcFile, rawJson, replace != null);
     Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, time_elasped, filesList.length, ++completed, isolates));
     isolates.add( processResult );
 
@@ -138,11 +138,11 @@ Future ocrParallel(List filesList, Size size, { String query, bool findFirst = f
   final int finalStorageSize = prefs.getKeys().length;
   // Only backup when getting new data
   if (startingStorageSize < finalStorageSize || replace != null)
-    await StorageUtils.save(null, reload: true, backup: true);
+    await StorageUtils.syncLocalAndCloud();
 
 }
 
-Future<String> createOCRJob(dynamic srcFile, String rawJson, bool replacing) async{
+Future<String?> createOCRJob(dynamic srcFile, String rawJson, bool replacing) async{
   debugPrint("Entering createOCRJob()...");
   final prefs = await SharedPreferences.getInstance();
 
@@ -182,7 +182,7 @@ void increaseProgressBar(int completed, int pathsLength){
 }
 
 @pragma('vm:entry-point')
-Future<String> ocrThread(String receivedData) async {
+Future<String?> ocrThread(String receivedData) async {
 
   if(receivedData is String) {
 
@@ -228,10 +228,10 @@ Future<String> ocrThread(String receivedData) async {
 }
 
 Future onEachOcrResult (
-    String result,
+    String? result,
     srcFile,
-    String query,
-    Map replace,
+    String? query,
+    Map? replace,
     timeElapsed,
     filesListLength,
     int completed,
@@ -242,8 +242,8 @@ Future onEachOcrResult (
       String text = result;
       // If query word has been found
       String key = getKeyOfFilename(srcFile.path);
-      String savedSnapUser = await StorageUtils.get(key, reload: true, snap: true);
-      String savedInstaUser = await StorageUtils.get(key, reload: false, insta: true);
+      String savedSnapUser = (await StorageUtils.get(key, reload: true, snap: true)) as String;
+      String savedInstaUser = (await StorageUtils.get(key, reload: false, insta: true) as String);
       String snapUsername, instaUsername = "";
       if (savedSnapUser.isNotEmpty && savedSnapUser != null) {
         snapUsername = savedSnapUser.replaceAll(new RegExp('^[@]'), "");

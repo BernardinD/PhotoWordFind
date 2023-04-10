@@ -90,7 +90,7 @@ void main(){
       return null;
     }
     TestWidgetsFlutterBinding.ensureInitialized();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, handler);
+    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger.setMockMethodCallHandler(channel, handler);
 
     // when(FilePicker.platform.getDirectoryPath).thenReturn(({String dialogTitle, String initialDirectory, bool lockParentWindow}) async => "test");
     // await expect(FilePicker.platform.getDirectoryPath, "test");
