@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 enum Operations{
   MOVE,
@@ -15,7 +14,7 @@ enum Operations{
 
 class Operation{
 
-  static Operations? retry = null;
+  static Operations? retry;
   static late Function? retryOp, _envChange;
   static run(Operations operation, Function? envChange, {
     BuildContext? context,
@@ -67,16 +66,11 @@ class Operation{
 
 
     debugPrint("paths: " + paths.toString());
+    // TODO: Figure out what does the null case mean
     if(paths == null) {
       MyApp.pr.close();
       return;
     }
-
-    Function post = (String text, query){
-
-      // If query word has been found
-      return text.toString().toLowerCase().contains(query.toLowerCase()) ? query : null;
-    };
 
     // Remove prompt
     if(ModalRoute.of(context!)?.isCurrent != true)

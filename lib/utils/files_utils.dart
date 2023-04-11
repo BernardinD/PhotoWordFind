@@ -1,7 +1,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:PhotoWordFind/constants/constants.dart';
@@ -19,11 +18,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<String> runOCR(String filePath, {bool crop=true, ui.Size? size}) async {
   print("Entering runOCR()...");
   debugPrint("Running OCR on $filePath");
-  File temp_cropped = crop ? createCroppedImage(
+  File tempCropped = crop ? createCroppedImage(
       filePath, Directory.systemTemp, size!) : new File(filePath);
 
   debugPrint("Leaving runOCR()");
-  return OCR(temp_cropped.path);
+  return OCR(tempCropped.path);
 }
 
 /// Searches for the occurance of a keyword meaning there is a snapchat username and returns a suggestion for the user name
@@ -83,13 +82,13 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
   }
 
   // Time search
-  Stopwatch time_elasped = new Stopwatch();
+  Stopwatch timeElasped = new Stopwatch();
 
 
   final List<Future> isolates = [];
   int completed = 0;
-  int files_idx = 0;
-  time_elasped.start();
+  int filesIdx = 0;
+  timeElasped.start();
 
   // Make sure latest thread cached updates exist in main thread
   final prefs = await SharedPreferences.getInstance();
@@ -98,11 +97,11 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
 
   await Sortings.updateCache();
   filesList.sort(Sortings.getSorting() as int Function(dynamic, dynamic)?);
-  for(files_idx = 0; files_idx < filesList.length; files_idx++){
+  for(filesIdx = 0; filesIdx < filesList.length; filesIdx++){
 
 
     // Prepare data to be sent to thread
-    var srcFile = filesList[files_idx];
+    var srcFile = filesList[filesIdx];
 
     Map<String, dynamic> message = {
       "f": srcFile.path,
@@ -110,16 +109,17 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
       "width" : size.width
     };
     String rawJson = jsonEncode(message);
-    String iso_name = path.basename(srcFile.path);
-    debugPrint("srcFilePath [${srcFile.path}] :: isolate name $iso_name :: rawJson -> $rawJson");
+    String isoName = path.basename(srcFile.path);
+    debugPrint("srcFilePath [${srcFile.path}] :: isolate name $isoName :: rawJson -> $rawJson");
 
     Future<String?> job = createOCRJob(srcFile, rawJson, replace != null);
-    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, time_elasped, filesList.length, ++completed, isolates));
+    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, timeElasped, filesList.length, ++completed, isolates));
     isolates.add( processResult );
 
   }
 
   final joinIsolates = await Future.wait(isolates);
+  debugPrint("Joined [ ${joinIsolates.length} ] isolates");
   debugPrint("completed: $completed");
 
 
@@ -184,45 +184,38 @@ void increaseProgressBar(int completed, int pathsLength){
 @pragma('vm:entry-point')
 Future<String?> ocrThread(String receivedData) async {
 
-  if(receivedData is String) {
+  Map<String, dynamic> message = json.decode(receivedData);
+  String filePath = message["f"];
+  ui.Size size = ui.Size(
+      message['width'].toDouble(),
+      message['height'].toDouble()
+  );
 
-    Map<String, dynamic> message = json.decode(receivedData);
-    String filePath = message["f"];
-    ui.Size size = ui.Size(
-        message['width'].toDouble(),
-        message['height'].toDouble()
-    );
+  debugPrint("Running thread for >> $filePath");
 
-    debugPrint("Running thread for >> $filePath");
+  dynamic result;
+  try {
+    result = await runOCR(filePath, size: size);
+  }
+  catch(error, stackTrace){
+    result = null;
+    debugPrint("File ($filePath) failed");
+    debugPrint("$error \n $stackTrace");
+    debugPrint("Leaving try-catch");
+  }
+  if (result is String) {
+      String key = getKeyOfFilename(filePath);
+      // Save OCR result
+      debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
 
-    dynamic result;
-    try {
-      result = await runOCR(filePath, size: size);
-    }
-    catch(error, stackTrace){
-      result = null;
-      debugPrint("File ($filePath) failed");
-      debugPrint("$error \n $stackTrace");
-      debugPrint("Leaving try-catch");
-    }
-    if (result is String) {
-        String key = getKeyOfFilename(filePath);
-        // Save OCR result
-        debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
+      await StorageUtils.save(key, ocrResult: result, backup: false);
 
-        await StorageUtils.save(key, ocrResult: result, backup: false);
-
-        // Send back result to main thread
-        debugPrint("Sending OCR result...");
-        return result;
-    }
-    else{
-      return "";
-    }
+      // Send back result to main thread
+      debugPrint("Sending OCR result...");
+      return result;
   }
   else{
-    debugPrint("did NOT detect string...");
-    return null;
+    return "";
   }
 
 }
@@ -239,48 +232,46 @@ Future onEachOcrResult (
     ) async {
     debugPrint("Entering onOCRResult...");
     if (result is String) {
-      String text = result;
+      String ocr = result;
       // If query word has been found
       String key = getKeyOfFilename(srcFile.path);
       String savedSnapUser = (await StorageUtils.get(key, reload: true, snap: true)) as String;
       String savedInstaUser = (await StorageUtils.get(key, reload: false, insta: true) as String);
-      String snapUsername, instaUsername = "";
-      if (savedSnapUser.isNotEmpty && savedSnapUser != null) {
+      String? snapUsername, instaUsername = "";
+      if (savedSnapUser.isNotEmpty) {
         snapUsername = savedSnapUser.replaceAll(new RegExp('^[@]'), "");
       }
       else {
-        String snap = suggestionSnapName(text) ?? "";
+        String snap = suggestionSnapName(ocr) ?? "";
         if (snap.isNotEmpty)
           StorageUtils.save(key, backup: true, snap: snap, overridingUsername: false);
         snapUsername = snap;
       }
 
-      if (savedInstaUser.isNotEmpty && savedInstaUser != null) {
+      if (savedInstaUser.isNotEmpty) {
         instaUsername = savedInstaUser.replaceAll(new RegExp('^[@]'), "");
       }
       else {
-        String insta = suggestionInstaName(text) ?? "";
+        String insta = suggestionInstaName(ocr) ?? "";
         if (insta.isNotEmpty)
           StorageUtils.save(key, backup: true, insta: insta, overridingUsername: false);
         instaUsername = insta;
       }
 
       // Skip this image if query word has not been found
-      bool skipImage = false;
-      if (query != null && snapUsername != null &&
-          !snapUsername.toLowerCase().contains(query.toLowerCase()) &&
-          !text.toLowerCase().contains(query.toLowerCase())) {
-        skipImage = true;
-      }
+      bool skipImage =
+          query != null
+          && !snapUsername.toLowerCase().contains(query.toLowerCase())
+          && !ocr.toLowerCase().contains(query.toLowerCase());
 
       if (!skipImage) {
         if (replace == null)
           MyApp.gallery.addNewCell(
-              text, snapUsername, srcFile, new File(srcFile.path), instaUsername: instaUsername);
+              ocr, snapUsername, srcFile, new File(srcFile.path), instaUsername: instaUsername);
         else {
           var pair = replace.entries.first;
           int idx = pair.key;
-          MyApp.gallery.redoCell(text, snapUsername, "", idx);
+          MyApp.gallery.redoCell(ocr, snapUsername, "", idx);
           // Note: scrFile will always be a File for redo and ONLY redo
           (srcFile as File).delete();
         }

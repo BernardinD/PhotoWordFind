@@ -2,9 +2,7 @@ import 'package:PhotoWordFind/main.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 // import 'package:test/test.dart';
 
@@ -52,6 +50,7 @@ void main(){
     await tester.tap(move);
     await tester.pump();
 
+    // ignore: invalid_use_of_protected_member
     tester.state(find.byType(MyHomePage)).setState(() {});
     await tester.pump();
     await tester.pump();
@@ -96,6 +95,7 @@ void main(){
     // await expect(FilePicker.platform.getDirectoryPath, "test");
     await tester.tap(move);
     await tester.pump();
+    // ignore: invalid_use_of_protected_member
     tester.state(find.byType(MyHomePage)).setState(() {});
     await tester.pump();
     await tester.pump();
@@ -168,6 +168,7 @@ void main(){
     // expect(FilePicker.platform.getDirectoryPath, "test");
     await tester.tap(move);
     await tester.pump();
+    // ignore: invalid_use_of_protected_member
     tester.state(find.byType(MyHomePage)).setState(() {});
     await tester.pump();
     await tester.pump();

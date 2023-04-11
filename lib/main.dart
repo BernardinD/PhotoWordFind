@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
-import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
@@ -18,9 +17,6 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
-
-
-import 'constants/constants.dart';
 
 
 
@@ -42,13 +38,12 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   static ProgressDialog? _pr;
 
-  String title;
+  final String title;
   static ProgressDialog get pr => _pr!;
 
-  static late Gallery _gallery = Gallery();
+  static late final Gallery _gallery = Gallery();
   static Gallery get gallery => _gallery;
   static late Function updateFrame;
-  static String _cloudBackupFile = "PWF_cloud_backup.json";
 
 
   MyApp({required this.title});
@@ -145,7 +140,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
   String? _directoryPath;
   Gallery gallery = MyApp._gallery;
 
@@ -182,8 +176,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     MyApp.updateFrame = setState;
-
-    SocialIcon.initializeIcons();
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
@@ -328,11 +320,11 @@ class _MyHomePageState extends State<MyHomePage> {
     // Move selected images to new directory
     if(gallery.selected.isNotEmpty) {
       // Choose new directory
-      String? new_dir = await FilePicker.platform.getDirectoryPath();
+      String? newDir = await FilePicker.platform.getDirectoryPath();
 
-      if(new_dir != null) {
+      if(newDir != null) {
 
-        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList() as List<String>, moveDesDir: new_dir, directoryPath: getDirectoryPath);
+        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList(), moveDesDir: newDir, directoryPath: getDirectoryPath);
 
         setState(() {
           gallery.removeSelected();
@@ -421,7 +413,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     // TODO: Make validation failure message dynamic
                     validator: (input) => input!.length < 3? 'Too short. Enter more than 2 letters': null,
-                    onSaved: findSnap as void Function(String?)?,
+                    onSaved: findSnap,
                     onFieldSubmitted:  validatePhrase as void Function(String)?,
                   ),
                   ElevatedButton(
@@ -439,10 +431,6 @@ class _MyHomePageState extends State<MyHomePage> {
   /// Looks for the snap name in the directory
   Future findSnap(String? query)async{
     query = query!.trim();
-
-    // Get all files from directory
-    List<dynamic> paths;
-    // paths = await pick();
 
     // If directory path isn't set, have `changeDir` handle picking the files
     if (_directoryPath == null || _directoryPath!.length < 1) {
@@ -568,7 +556,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               Sortings.updateSortType(dropdownValue, resetGroupBy: false);
                               gallery.sort();
                               if(dropdownValue == null){
-                                dropdownValue = currentSortBy!;
+                                dropdownValue = currentSortBy;
                               }
                               else if(currentGroupBy != null && sortBy.contains(dropdownValue) )
                                 dropdownValue = currentGroupBy!;

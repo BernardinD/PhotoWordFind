@@ -1,21 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 
 class SubKeys{
+  // ignore: non_constant_identifier_names
   static String get OCR => "ocr";
+  // ignore: non_constant_identifier_names
   static String get SnapUsername => "snap";
+  // ignore: non_constant_identifier_names
   static String get InstaUsername => "insta";
+  // ignore: non_constant_identifier_names
   static String get AddedOnSnap => "addedOnSnap";
+  // ignore: non_constant_identifier_names
   static String get AddedOnInsta => "addedOnInsta";
+  // ignore: non_constant_identifier_names
   static String get SnapDate => "dateAddedOnSnap";
+  // ignore: non_constant_identifier_names
   static String get InstaDate => "dateAddedOnInsta";
+  // ignore: non_constant_identifier_names
   static String get PreviousUsernames => "previousUsernames";
 
 }
@@ -28,7 +34,7 @@ class StorageUtils {
     return ret;
   }
 
-  static Map<String, dynamic> convertValueToMap(String value) {
+  static Map<String, dynamic> convertValueToMap(String? value) {
     late Map<String, dynamic> _map;
     try {
       if(value == null) throw FormatException("value was null. Creating empty fresh mapping");
@@ -105,8 +111,7 @@ class StorageUtils {
 
 
     String rawJson = jsonEncode(map);
-    if (storageKey != null)
-      (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
+    (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
 
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
@@ -117,7 +122,7 @@ class StorageUtils {
 
   static Future get(String key,
       {required bool reload, bool snap = false, bool insta = false, bool snapAdded = false, bool instaAdded = false, snapDate = false, instaDate = false, bool asMap = false}) async {
-    String rawJson = (await _getStorageInstance(reload: reload)).getString(key)!;
+    String? rawJson = (await _getStorageInstance(reload: reload)).getString(key)!;
 
     Map<String, dynamic> map = convertValueToMap(rawJson);
 
@@ -134,7 +139,6 @@ class StorageUtils {
   static Future merge(Map<String, String> cloud) async {
     debugPrint("Entering merge()...");
 
-    int i = 0;
     for (String key in cloud.keys) {
       String? localValue = (await get(key, reload: false)) as String?;
       if (localValue == null) {

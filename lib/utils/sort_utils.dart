@@ -5,15 +5,15 @@ import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Sorts? _currentSortBy = Sorts.Date, _currentGroupBy = null;
-Sorts? get currentSortBy => _currentSortBy;
+Sorts _currentSortBy = Sorts.Date;
+Sorts? _currentGroupBy;
+Sorts get currentSortBy => _currentSortBy;
 Sorts? get currentGroupBy => _currentGroupBy;
 
-Future<SharedPreferences> _localPrefs = SharedPreferences.getInstance();
+Future<SharedPreferences>? _localPrefs = SharedPreferences.getInstance();
 Map<String, Map<String, dynamic>?> localCache = {};
 
 enum Sorts {
@@ -90,7 +90,7 @@ class Sortings {
       await _localPrefs;
     }
 
-    SharedPreferences localPrefs = await _localPrefs;
+    SharedPreferences localPrefs = (await _localPrefs)!;
     localPrefs.reload();
 
     for (String key in localPrefs.getKeys()) {

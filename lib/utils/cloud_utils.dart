@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/foundation.dart';
-import 'package:_discoveryapis_commons/src/requests.dart' as client_requests;
+import 'package:_discoveryapis_commons/_discoveryapis_commons.dart' as client_requests;
 
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -39,7 +38,7 @@ class CloudUtils{
 
   static drive.File? _cloudRef;
 
-  static String _json_mimetype = "application/json";
+  static String _jsonMimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
   static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
   // static String _jsonBackupFile = "PWF_scans_backup.json";
@@ -139,7 +138,7 @@ class CloudUtils{
     Future response = _useDriveAPI((drive.DriveApi api) async {
       return api.files.create(drive.File()
         ..name = '$_jsonBackupFile'
-        ..mimeType = '$_json_mimetype',
+        ..mimeType = '$_jsonMimetype',
         uploadMedia: uploadMedia,
         /*..parents=[]*/
       );
@@ -159,7 +158,7 @@ class CloudUtils{
 
       _cloudRef = await api.files.list(
         // Set parentID if idx is passed root
-          q: """mimeType = '$_json_mimetype' and name = '$_jsonBackupFile'""",
+          q: """mimeType = '$_jsonMimetype' and name = '$_jsonBackupFile'""",
           spaces: 'drive').then((folders) {
         drive.File? sub_ = folders.files![0];
         return sub_;
@@ -183,10 +182,10 @@ class CloudUtils{
       String rawBase64 = base64.encode(uInt8List);
       String rawJSON = stringToBase64.decode(rawBase64);
       // debugPrint("Raw: $rawJSON");
-      Map<String, String > cloud_local_json = new Map.from(json.decode(rawJSON));
+      Map<String, String > cloudLocalJson = new Map.from(json.decode(rawJSON));
 
 
-      StorageUtils.merge(cloud_local_json).then((value) => MyApp.updateFrame(() => null));
+      StorageUtils.merge(cloudLocalJson).then((value) => MyApp.updateFrame(() => null));
 
       debugPrint("Leaving getCloudJson()...");
       return _cloudRef != null;
@@ -212,7 +211,7 @@ class CloudUtils{
       Convert bytes to Drive file
        */
       Stream<List<int>> fileStream = Future.value(uInt8List).asStream();
-      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_json_mimetype");
+      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_jsonMimetype");
 
       /*
       Upload file

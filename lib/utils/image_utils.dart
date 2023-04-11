@@ -11,6 +11,7 @@ import 'package:image/image.dart' as crop_image;
 
 // Extracts text from image
 
+// ignore: non_constant_identifier_names
 Future<String> OCR(String path) async {
 
   final inputImage = InputImage.fromFilePath(path);
@@ -60,10 +61,10 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
 
   // Save temp image
-  String file_name = filePath.split("/").last;
-  File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile)!);
+  String fileName = filePath.split("/").last;
+  File tempCropped = File('${parent.path}/temp-$fileName');
+  tempCropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile)!);
 
   debugPrint("Leaving createCroppedImage()...");
-  return temp_cropped;
+  return tempCropped;
 }
