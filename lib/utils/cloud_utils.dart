@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/foundation.dart';
-import 'package:_discoveryapis_commons/src/requests.dart' as client_requests;
+import 'package:_discoveryapis_commons/_discoveryapis_commons.dart' as client_requests;
 
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -37,9 +36,9 @@ class GoogleAuthClient extends http.BaseClient {
 
 class CloudUtils{
 
-  static drive.File _cloudRef = null;
+  static drive.File? _cloudRef;
 
-  static String _json_mimetype = "application/json";
+  static String _jsonMimetype = "application/json";
   static Function get isSignedin => _googleSignIn.isSignedIn;
   static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
   // static String _jsonBackupFile = "PWF_scans_backup.json";
@@ -65,7 +64,7 @@ class CloudUtils{
             CloudUtils.createCloudJson();
           }
         }).
-        onError((error, stackTrace) async => debugPrint("$error \n $stackTrace"));
+        onError((dynamic error, stackTrace) async => debugPrint("$error \n $stackTrace") as Future<Null>);
       }
 
       return value;
@@ -96,10 +95,8 @@ class CloudUtils{
     try {
       if(!(await _googleSignIn.isSignedIn()) || (await _googleSignIn.authenticatedClient()) == null) {
         debugPrint("Signing in...");
-        final GoogleSignInAccount googleUser = await _googleSignIn.signIn();
-        // GoogleAuthClient((await googleUser.authHeaders));
+        final GoogleSignInAccount googleUser = (await _googleSignIn.signIn())!;
         debugPrint("authHeader-beginning: ${(await googleUser.authHeaders)}");
-        final GoogleSignInAuthentication googleAuth = await googleUser?.authentication;
         debugPrint("user signed in: ${googleUser.email}");
         return _googleSignIn.isSignedIn();
       }
@@ -122,7 +119,7 @@ class CloudUtils{
   }
 
 
-  static Future<AuthClient> _getAuthClient() async{
+  static Future<AuthClient?> _getAuthClient() async{
     handleSignIn();
     return await _googleSignIn.authenticatedClient();
   }
@@ -141,7 +138,7 @@ class CloudUtils{
     Future response = _useDriveAPI((drive.DriveApi api) async {
       return api.files.create(drive.File()
         ..name = '$_jsonBackupFile'
-        ..mimeType = '$_json_mimetype',
+        ..mimeType = '$_jsonMimetype',
         uploadMedia: uploadMedia,
         /*..parents=[]*/
       );
@@ -157,15 +154,13 @@ class CloudUtils{
   static Future<bool> getCloudJson() async{
     debugPrint("Entering getCloudJson()...");
 
-    return await _useDriveAPI((drive.DriveApi api) async{
+    return await (_useDriveAPI((drive.DriveApi api) async{
 
       _cloudRef = await api.files.list(
         // Set parentID if idx is passed root
-          q: """mimeType = '$_json_mimetype' and name = '$_jsonBackupFile'""",
+          q: """mimeType = '$_jsonMimetype' and name = '$_jsonBackupFile'""",
           spaces: 'drive').then((folders) {
-        drive.File sub_ = folders.files.length > 0
-            ? folders.files[0]
-            : null;
+        drive.File? sub_ = folders.files![0];
         return sub_;
       });
 
@@ -178,22 +173,23 @@ class CloudUtils{
       /*
       Download raw data
        */
-      drive.Media jsonMediaFile = (await api.files.get(_cloudRef.id,
-          downloadOptions: client_requests.DownloadOptions.fullMedia));
+      Future getFile = api.files.get(_cloudRef!.id!,
+          downloadOptions: client_requests.DownloadOptions.fullMedia);
+      drive.Media jsonMediaFile = (await getFile) as drive.Media;
       Stream jsonStream = jsonMediaFile.stream;
       Codec<String, String> stringToBase64 = utf8.fuse(base64);
       List<int> uInt8List = ((await jsonStream.toList())).expand(( list) => list as Uint8List).toList();
       String rawBase64 = base64.encode(uInt8List);
       String rawJSON = stringToBase64.decode(rawBase64);
       // debugPrint("Raw: $rawJSON");
-      Map<String, String > cloud_local_json = new Map.from(json.decode(rawJSON));
+      Map<String, String > cloudLocalJson = new Map.from(json.decode(rawJSON));
 
 
-      StorageUtils.merge(cloud_local_json).then((value) => MyApp.updateFrame(() => null));
+      StorageUtils.merge(cloudLocalJson).then((value) => MyApp.updateFrame(() => null));
 
       debugPrint("Leaving getCloudJson()...");
       return _cloudRef != null;
-    });
+    }));
   }
 
   static Future updateCloudJson() async{
@@ -215,15 +211,15 @@ class CloudUtils{
       Convert bytes to Drive file
        */
       Stream<List<int>> fileStream = Future.value(uInt8List).asStream();
-      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_json_mimetype");
+      var uploadMedia = drive.Media(fileStream, uInt8List.length, contentType: "$_jsonMimetype");
 
       /*
       Upload file
        */
-      debugPrint("backup file: ${_cloudRef.name}");
+      debugPrint("backup file: ${_cloudRef!.name}");
       _cloudRef = await api.files.update(drive.File()
-        ..name = '${_cloudRef.name}'
-        ..mimeType = '${_cloudRef.mimeType}', _cloudRef.id, uploadMedia: uploadMedia, uploadOptions: drive.UploadOptions.defaultOptions);
+        ..name = '${_cloudRef!.name}'
+        ..mimeType = '${_cloudRef!.mimeType}', _cloudRef!.id!, uploadMedia: uploadMedia, uploadOptions: drive.UploadOptions.defaultOptions);
     });
   }
 
@@ -231,7 +227,7 @@ class CloudUtils{
     if(!(await _googleSignIn.isSignedIn())){
       throw Exception();
     }
-    final AuthClient client = await _getAuthClient();
+    final AuthClient client = (await _getAuthClient())!;
 
     // Initialize DriveAPI
     // developer.log("getting DriveApi");

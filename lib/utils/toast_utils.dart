@@ -1,19 +1,17 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 class Toasts{
   Toasts._internal();
   static final Toasts _singleton = Toasts._internal();
 
-  static FToast _fToast;
+  static late FToast _fToast = FToast();
   factory Toasts(){
     return _singleton;
   }
 
   static void initToasts(BuildContext context){
-    _fToast = FToast();
     _fToast.init(context);
   }
 

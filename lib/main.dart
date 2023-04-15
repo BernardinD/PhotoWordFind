@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
-import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
@@ -18,9 +17,6 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
-
-
-import 'constants/constants.dart';
 
 
 
@@ -40,18 +36,17 @@ void main() {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
-  static ProgressDialog _pr;
+  static ProgressDialog? _pr;
 
-  String title;
-  static ProgressDialog get pr => _pr;
+  final String title;
+  static ProgressDialog get pr => _pr!;
 
-  static Gallery _gallery;
+  static late final Gallery _gallery = Gallery();
   static Gallery get gallery => _gallery;
-  static Function updateFrame;
-  static String _cloudBackupFile = "PWF_cloud_backup.json";
+  static late Function updateFrame;
 
 
-  MyApp({@required this.title});
+  MyApp({required this.title});
 
 
   /// Initalizes SharedPreferences [_pref] object and gives default values
@@ -61,9 +56,6 @@ class MyApp extends StatelessWidget {
       _pr = new ProgressDialog(context: context);
     }
 
-    if(_gallery == null) {
-      _gallery = Gallery();
-    }
   }
 
   static showProgress({int limit=1}) {
@@ -130,7 +122,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({Key? key, this.title}) : super(key: key);
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -141,18 +133,17 @@ class MyHomePage extends StatefulWidget {
   // used by the build method of the State. Fields in a Widget subclass are
   // always marked "final".
 
-  final String title;
+  final String? title;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  String _directoryPath;
+  String? _directoryPath;
   Gallery gallery = MyApp._gallery;
 
-  Map<Sorts, String> sortings = Map.from({
+  Map<Sorts?, String> sortings = Map.from({
     Sorts.SortByTitle: "Sort By",
     Sorts.Date: "Date Found",
     Sorts.DateAddedOnSnap: "Date Added on Snap",
@@ -164,11 +155,11 @@ class _MyHomePageState extends State<MyHomePage> {
     Sorts.AddedOnSnap: "Snap Added",
     Sorts.AddedOnInsta: "Insta Added"
   });
-  Sorts dropdownValue = Sorts.Date;
+  Sorts? dropdownValue = Sorts.Date;
 
 
-  String get directoryPath => _directoryPath;
-  String getDirectoryPath(){
+  String? get directoryPath => _directoryPath;
+  String? getDirectoryPath(){
     return directoryPath;
   }
 
@@ -186,8 +177,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     MyApp.updateFrame = setState;
 
-    SocialIcon.initializeIcons();
-
     // Initalize toast for user alerts
     Toasts.initToasts(context);
 
@@ -202,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
         MyApp.pr.update(value: 0, msg: "Setting up...");
 
         CloudUtils.firstSignIn().then((bool value) {}).
-        onError((error, stackTrace) async => debugPrint("Sign in error: $error \n$stackTrace")).
+        onError((dynamic error, stackTrace) async => debugPrint("Sign in error: $error \n$stackTrace") as FutureOr<Null>).
         whenComplete(() => MyApp.pr.update(value: 1));
 
       });
@@ -229,7 +218,7 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(widget.title!),
         leading: FutureBuilder(
           future: CloudUtils.isSignedin(),
           builder: (BuildContext context, AsyncSnapshot<bool> snapshot){
@@ -238,10 +227,11 @@ class _MyHomePageState extends State<MyHomePage> {
               debugPrint("Sign-in hasn't finished. Skipping...");
               return Icon(Icons.sync_disabled_rounded);
             }
-            return (!snapshot.data)
+            return (!snapshot.data!)
                 ? ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
                     child: IconButton(
+                      onPressed: null,
                       icon: Icon(Icons.cloud_upload_rounded),
                     ),
                     onPressed: () => CloudUtils.firstSignIn().then((value) => MyApp.updateFrame(() => null)),
@@ -250,6 +240,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     key: ValueKey(snapshot.data.toString()),
                     onPressed: () => CloudUtils.possibleSignOut().then((value) => MyApp.updateFrame(() => null)),
                     child: IconButton(
+                      onPressed: null,
                       icon: Icon(Icons.logout),
                     ));
           },
@@ -299,11 +290,11 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                (SocialIcon.snapchatIconButton),
+                SocialIcon.snapchatIconButton!,
                 Spacer(),
-                (SocialIcon.galleryIconButton),
+                SocialIcon.galleryIconButton!,
                 Spacer(),
-                (SocialIcon.bumbleIconButton),
+                SocialIcon.bumbleIconButton!,
                 Spacer(),
                 FloatingActionButton(
                   heroTag: null,
@@ -312,11 +303,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Icon(Icons.drive_folder_upload),
                 ),
                 Spacer(),
-                (SocialIcon.instagramIconButton),
+                SocialIcon.instagramIconButton!,
                 Spacer(),
-                (SocialIcon.discordIconButton),
+                SocialIcon.discordIconButton!,
                 Spacer(),
-                (SocialIcon.kikIconButton),
+                SocialIcon.kikIconButton!,
               ],
             ),
           ),
@@ -329,11 +320,11 @@ class _MyHomePageState extends State<MyHomePage> {
     // Move selected images to new directory
     if(gallery.selected.isNotEmpty) {
       // Choose new directory
-      String new_dir = await FilePicker.platform.getDirectoryPath();
+      String? newDir = await FilePicker.platform.getDirectoryPath();
 
-      if(new_dir != null) {
+      if(newDir != null) {
 
-        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList() as List<String>, moveDesDir: new_dir, directoryPath: getDirectoryPath);
+        Operation.run(Operations.MOVE, null, moveSrcList: gallery.selected.toList(), moveDesDir: newDir, directoryPath: getDirectoryPath);
 
         setState(() {
           gallery.removeSelected();
@@ -348,12 +339,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   // Select picture(s) and run through OCR
-  Future<List> selectImages(bool individual) async {
-    List paths;
+  Future<List?> selectImages(bool individual) async {
+    late List? paths;
 
 
     // If directory path isn't set, have `changeDir` handle picking the files
-    if (_directoryPath == null || _directoryPath.length < 1) {
+    if (_directoryPath == null || _directoryPath!.length < 1) {
       await changeDir();
       if(_directoryPath == null){
         // TODO: Show error message "Must select a Directory"
@@ -376,7 +367,7 @@ class _MyHomePageState extends State<MyHomePage> {
           allowMultiple: _multiPick
       ))?.files;
 
-      if(paths != null && !File(path.join(_directoryPath, paths.first.path.split("/").last)).existsSync()){
+      if(paths != null && !File(path.join(_directoryPath!, paths.first.path.split("/").last)).existsSync()){
         // TODO: Show error (selected files didn't exist in directory)
         // ...
 
@@ -385,7 +376,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     else{
       await MyApp.showProgress();
-      paths = Directory(_directoryPath).listSync(recursive: false, followLinks:false);
+      paths = Directory(_directoryPath!).listSync(recursive: false, followLinks:false);
     }
 
 
@@ -403,8 +394,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final formKey = GlobalKey<FormState>();
 
     Function validatePhrase = (_){
-      if (formKey.currentState.validate()) {
-        formKey.currentState.save();
+      if (formKey.currentState!.validate()) {
+        formKey.currentState!.save();
       }
     };
     showDialog(context: context, builder: (BuildContext context)
@@ -421,9 +412,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         labelText: "Input name"
                     ),
                     // TODO: Make validation failure message dynamic
-                    validator: (input) => input.length < 3? 'Too short. Enter more than 2 letters': null,
+                    validator: (input) => input!.length < 3? 'Too short. Enter more than 2 letters': null,
                     onSaved: findSnap,
-                    onFieldSubmitted:  validatePhrase,
+                    onFieldSubmitted:  validatePhrase as void Function(String)?,
                   ),
                   ElevatedButton(
                     onPressed: () => validatePhrase(null),
@@ -438,15 +429,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   /// Looks for the snap name in the directory
-  Future findSnap(String query)async{
-    query = query.trim();
-
-    // Get all files from directory
-    List<dynamic> paths;
-    // paths = await pick();
+  Future findSnap(String? query)async{
+    query = query!.trim();
 
     // If directory path isn't set, have `changeDir` handle picking the files
-    if (_directoryPath == null || _directoryPath.length < 1) {
+    if (_directoryPath == null || _directoryPath!.length < 1) {
       await changeDir();
       print("After changeDir");
     }
@@ -468,7 +455,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // _pr.show();
 
     // Choose files to extract text from
-    List paths = await selectImages(select);
+    List? paths = await selectImages(select);
 
     Operation.run(op, changeDir, displayImagesList: paths, context: context);
 
@@ -533,7 +520,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         child: DropdownButton<String>(
                           value: sortings[dropdownValue],
                           alignment: AlignmentDirectional.topEnd,
-                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<Sorts, String> entry) {
+                          items: sortings.entries.map<DropdownMenuItem<String>>((MapEntry<Sorts?, String> entry) {
                             if (sortsTitles.contains(entry.key) ) {
                               return DropdownMenuItem(
                                 enabled: false,
@@ -562,7 +549,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               );
                             }
                           }).toList(),
-                          onChanged: (String value) {
+                          onChanged: (String? value) {
                             // This is called when the user selects an item.
                             setState(() {
                               dropdownValue = sortings.entries.firstWhere((entry) => entry.value == value).key;
@@ -572,7 +559,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 dropdownValue = currentSortBy;
                               }
                               else if(currentGroupBy != null && sortBy.contains(dropdownValue) )
-                                dropdownValue = currentGroupBy;
+                                dropdownValue = currentGroupBy!;
                             });
                           },
                         ),

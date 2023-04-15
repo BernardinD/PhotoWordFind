@@ -2,8 +2,6 @@
 
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui';
 
 
 import 'package:PhotoWordFind/utils/sort_utils.dart';
@@ -14,15 +12,14 @@ import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:collection/collection.dart';
 
 class Gallery{
 
   // PriorityQueue<PhotoViewGalleryPageOptions> _images;
-  List<PhotoViewGalleryPageOptions> _images;
+  late List<PhotoViewGalleryPageOptions> _images;
 
-  Set<String> _selected;
-  PageController _galleryController;
+  late Set<String> _selected;
+  late PageController _galleryController;
 
   // Getters
   List<PhotoViewGalleryPageOptions> get images {
@@ -35,7 +32,7 @@ class Gallery{
 
   // Setters
   set selected(Set selected) {
-    _selected = selected;
+    _selected = selected as Set<String>;
   }
   set galleryController(galleryController) {
     _galleryController = galleryController;
@@ -51,7 +48,7 @@ class Gallery{
   }
 
   void sort(){
-    _images.sort(Sortings.getSorting());
+    _images.sort(Sortings.getSorting() as int Function(PhotoViewGalleryPageOptions, PhotoViewGalleryPageOptions)?);
   }
 
   int length(){
@@ -62,17 +59,17 @@ class Gallery{
     _images.clear();
   }
 
-  GalleryCell _getNewCurrentCell(){
-    int currentPage = _galleryController.page.toInt();
-    GalleryCell currentCell = _images[currentPage].child;
+  GalleryCell? _getNewCurrentCell(){
+    int currentPage = _galleryController.page!.toInt();
+    GalleryCell currentCell = _images[currentPage].child as GalleryCell;
     if(_selected.contains((currentCell.key as ValueKey).value)){
       currentPage--;
     }
-    return currentPage >= 0 ? _images[currentPage].child : null;
+    return currentPage >= 0 ? _images[currentPage].child as GalleryCell? : null;
   }
 
   void removeSelected(){
-    GalleryCell newPage = _getNewCurrentCell();
+    GalleryCell? newPage = _getNewCurrentCell();
     _images.removeWhere((cell) => _selected.contains(((cell.child as GalleryCell).key as ValueKey<String>).value));
     _selected.clear();
 
@@ -84,11 +81,11 @@ class Gallery{
 
   // Creates standardized Widget that will seen in gallery
   void addNewCell(String text, String snapUsername, dynamic file, File displayImage, {String instaUsername = ""}){
-    Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
+    Function redoListPos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, snapUsername, instaUsername, file, displayImage, redo_list_pos, onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
+      child: GalleryCell(text, snapUsername, instaUsername, file, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
@@ -96,16 +93,16 @@ class Gallery{
   }
 
   void redoCell(String text, String snapUsername, String instaUsername, int idx){
-    Function redo_list_pos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
+    Function redoListPos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
     GalleryCell replacing = _images[idx].child as GalleryCell;
-    var display_image = replacing.srcImage;
+    var displayImage = replacing.srcImage;
     var f = replacing.f;
-    var key = replacing.key;
+    var key = replacing.key!;
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, snapUsername, instaUsername, f, display_image, redo_list_pos, onPressed, onLongPress, key: key),
+      child: GalleryCell(text, snapUsername, instaUsername, f, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: key as ValueKey<String>),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
@@ -113,18 +110,18 @@ class Gallery{
   }
 
 
-  void onPressed(String file_name) {
+  void onPressed(String fileName) {
     debugPrint("Entering onPressed()...");
-    selected.contains(file_name) ? selected.remove(file_name) : selected.add(file_name);
+    selected.contains(fileName) ? selected.remove(fileName) : selected.add(fileName);
 
-    runSelectImageToast(selected.contains(file_name));
+    runSelectImageToast(selected.contains(fileName));
 
     MyApp.updateFrame(() => null);
     debugPrint("Leaving onPressed()...");
   }
 
-  void onLongPress(String file_name){
-    Clipboard.setData(ClipboardData(text: file_name));
+  void onLongPress(String fileName){
+    Clipboard.setData(ClipboardData(text: fileName));
     filenameCopiedMessage();
   }
 

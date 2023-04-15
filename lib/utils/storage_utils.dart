@@ -1,35 +1,41 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 
 class SubKeys{
+  // ignore: non_constant_identifier_names
   static String get OCR => "ocr";
+  // ignore: non_constant_identifier_names
   static String get SnapUsername => "snap";
+  // ignore: non_constant_identifier_names
   static String get InstaUsername => "insta";
+  // ignore: non_constant_identifier_names
   static String get AddedOnSnap => "addedOnSnap";
+  // ignore: non_constant_identifier_names
   static String get AddedOnInsta => "addedOnInsta";
+  // ignore: non_constant_identifier_names
   static String get SnapDate => "dateAddedOnSnap";
+  // ignore: non_constant_identifier_names
   static String get InstaDate => "dateAddedOnInsta";
+  // ignore: non_constant_identifier_names
   static String get PreviousUsernames => "previousUsernames";
 
 }
 
 class StorageUtils {
-  static Future<SharedPreferences> _getStorageInstance({@required bool reload}) async {
+  static Future<SharedPreferences> _getStorageInstance({required bool reload}) async {
     var ret = await SharedPreferences.getInstance();
     if (reload) ret.reload();
 
     return ret;
   }
 
-  static Map<String, dynamic> convertValueToMap(String value) {
-    Map<String, dynamic> _map;
+  static Map<String, dynamic> convertValueToMap(String? value) {
+    late Map<String, dynamic> _map;
     try {
       if(value == null) throw FormatException("value was null. Creating empty fresh mapping");
       _map = json.decode(value);
@@ -53,34 +59,45 @@ class StorageUtils {
     return map;
   }
 
-  static Future save(String key,
-      {String ocrResult,
-      @required bool backup,
+  static Future syncLocalAndCloud() async {
+
+    await _getStorageInstance(reload: true);
+
+    // Save to cloud
+    // TODO: Put this inside a timer that saves a few seconds after a save call
+    if (await CloudUtils.isSignedin()) {
+      await CloudUtils.updateCloudJson();
+    }
+  }
+
+  static Future save(String storageKey,
+      {String? ocrResult,
+      required bool backup,
       bool reload = false,
-      bool overridingUsername,
-      String snap,
-      String insta,
-      bool snapAdded,
-      bool instaAdded,
-      DateTime snapAddedDate,
-      DateTime instaAddedDate}) async {
+      bool? overridingUsername,
+      String? snap,
+      String? insta,
+      bool? snapAdded,
+      bool? instaAdded,
+      DateTime? snapAddedDate,
+      DateTime? instaAddedDate}) async {
     if ((snap != null || insta != null) && overridingUsername == null){
       throw Exception("Must declare if username is being overwritten");
     }
     else if(overridingUsername != null && overridingUsername && snap == null && insta == null){
       throw Exception("Missing username to overwrite");
     }
-    Map<String, dynamic> map = await get(key, reload: false, asMap: true);
+    Map<String, dynamic> map = (await get(storageKey, reload: false, asMap: true)) as Map<String, dynamic>;
 
     if (overridingUsername != null && overridingUsername) {
-      final List<String> previousSnapUsernames  = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
-      final List<String> previousInstaUsernames = map[SubKeys.PreviousUsernames][SubKeys.InstaUsername].cast<String>();
-      String currentSnap = map[SubKeys.SnapUsername], currentInsta = map[SubKeys.InstaUsername];
+      final List<String?>? previousSnapUsernames  = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
+      final List<String?>? previousInstaUsernames = map[SubKeys.PreviousUsernames][SubKeys.InstaUsername].cast<String>();
+      String? currentSnap = map[SubKeys.SnapUsername], currentInsta = map[SubKeys.InstaUsername];
 
-      if (snap != null && !previousSnapUsernames.contains(currentSnap)) {
+      if (snap != null && !previousSnapUsernames!.contains(currentSnap)) {
         previousSnapUsernames.add(currentSnap);
       }
-      if (insta != null && !previousInstaUsernames.contains(currentInsta)) {
+      if (insta != null && !previousInstaUsernames!.contains(currentInsta)) {
         previousInstaUsernames.add(currentInsta);
       }
     }
@@ -94,8 +111,7 @@ class StorageUtils {
 
 
     String rawJson = jsonEncode(map);
-    if (key != null)
-      (await _getStorageInstance(reload: reload)).setString(key, rawJson);
+    (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
 
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
@@ -105,8 +121,8 @@ class StorageUtils {
   }
 
   static Future get(String key,
-      {@required bool reload, bool snap = false, bool insta = false, bool snapAdded = false, bool instaAdded = false, snapDate = false, instaDate = false, bool asMap = false}) async {
-    String rawJson = (await _getStorageInstance(reload: reload)).getString(key);
+      {required bool reload, bool snap = false, bool insta = false, bool snapAdded = false, bool instaAdded = false, snapDate = false, instaDate = false, bool asMap = false}) async {
+    String? rawJson = (await _getStorageInstance(reload: reload)).getString(key)!;
 
     Map<String, dynamic> map = convertValueToMap(rawJson);
 
@@ -123,9 +139,8 @@ class StorageUtils {
   static Future merge(Map<String, String> cloud) async {
     debugPrint("Entering merge()...");
 
-    int i = 0;
     for (String key in cloud.keys) {
-      String localValue = await get(key, reload: false);
+      String? localValue = (await get(key, reload: false)) as String?;
       if (localValue == null) {
         save(key, ocrResult: cloud[key], backup: false);
         debugPrint("Saving...");
@@ -141,9 +156,9 @@ class StorageUtils {
     debugPrint("Leaving merge()...");
   }
 
-  static Future<Map<String, String>> toMap() async {
+  static Future<Map<String, String?>> toMap() async {
     var store = await _getStorageInstance(reload: true);
-    Map<String, String> ret = Map();
+    Map<String, String?> ret = Map();
 
     for (String key in store.getKeys()) {
       ret[key] = store.getString(key);

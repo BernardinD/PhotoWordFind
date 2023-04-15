@@ -21,10 +21,10 @@ class GalleryCell extends StatefulWidget {
       this.instaUsername,
       this.f,
       this.srcImage,
-      this.list_pos,
+      this.listPos,
       this.onPressedHandler,
       this.onLongPressedHandler,
-      {@required ValueKey<String> key})
+      {required ValueKey<String> key})
       : super(key: key);
 
   final String text;
@@ -32,9 +32,9 @@ class GalleryCell extends StatefulWidget {
   final String instaUsername;
   final dynamic f;
   final File srcImage;
-  final int Function(GalleryCell cell) list_pos;
-  final void Function(String file_name) onPressedHandler;
-  final void Function(String file_name) onLongPressedHandler;
+  final int Function(GalleryCell cell) listPos;
+  final void Function(String fileName) onPressedHandler;
+  final void Function(String fileName) onLongPressedHandler;
   String get storageKey => getKeyOfFilename(srcImage.path);
 
   @override
@@ -42,22 +42,18 @@ class GalleryCell extends StatefulWidget {
 }
 
 class _GalleryCellState extends State<GalleryCell> {
-  GlobalKey cropBoxKey;
-  Key cellKey;
-  String file_name;
-  PhotoView _photo;
-  DateFormat _dateFormat;
+  // Used for controlling when to take screenshot
+  GlobalKey? cropBoxKey = new GlobalKey();
+  late final Key? cellKey = ValueKey(fileName);
+  late final String fileName = widget.f.path.split("/").last;
+  late final PhotoView _photo;
+  late final DateFormat _dateFormat = DateFormat.yMMMd();
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
 
-    // Used for controlling when to take screenshot
-    cropBoxKey = new GlobalKey();
-    file_name = widget.f.path.split("/").last;
-    cellKey = ValueKey(file_name);
-    _dateFormat = DateFormat.yMMMd();
     _photo = PhotoView(
       imageProvider: FileImage(widget.srcImage),
       initialScale: PhotoViewComputedScale.covered,
@@ -95,7 +91,7 @@ class _GalleryCellState extends State<GalleryCell> {
                           if (snapshot.hasError || snapshot.data.toString().isEmpty) {
                             text = ("Not added on Snapchat");
                           } else {
-                              DateTime date = DateTime.parse(snapshot.data);
+                              DateTime date = DateTime.parse(snapshot.data as String);
                               text = "Added on: \n ${_dateFormat.format(date)}";
                             }
                           }
@@ -136,9 +132,9 @@ class _GalleryCellState extends State<GalleryCell> {
                           children: [
                             ElevatedButton(
                               child: Text("Select"),
-                              onPressed: () => widget.onPressedHandler(file_name),
+                              onPressed: () => widget.onPressedHandler(fileName),
                               onLongPress: () =>
-                                  widget.onLongPressedHandler(file_name),
+                                  widget.onLongPressedHandler(fileName),
                             ),
                             ClipRRect(
                               borderRadius: BorderRadius.all(Radius.circular(4.0)),
@@ -151,7 +147,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                       builder: (context, snapshot) {
                                         if (snapshot.connectionState == ConnectionState.waiting) return SizedBox();
                                         if (snapshot.hasData && !snapshot.hasError) {
-                                          Map map = snapshot.data;
+                                          Map map = snapshot.data as Map;
                                           return FittedBox(
                                             fit: BoxFit.fitHeight,
                                             child: PopupMenuButton<int>(
@@ -172,7 +168,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                             ),
                                           );
                                         }
-                                        return null;
+                                        return PopupMenuButton(itemBuilder: (BuildContext context) => [],);
                                       }
                                   ),
                                 ),
@@ -232,7 +228,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                     ContextMenuController.removeAny();
                                     String snap = value.selection.textInside(value.text);
                                     StorageUtils.save(widget.storageKey, backup: true, snap: snap, overridingUsername: false);
-                                    MyApp.gallery.redoCell(widget.text, snap, widget.instaUsername, widget.list_pos(widget));
+                                    MyApp.gallery.redoCell(widget.text, snap, widget.instaUsername, widget.listPos(widget));
                                     Sortings.updateCache();
                                     MyApp.updateFrame(() => null);
                                   },
@@ -302,33 +298,31 @@ class _GalleryCellState extends State<GalleryCell> {
     dynamic srcImage = widget.f;
     // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
     RenderRepaintBoundary boundary =
-        cropBoxKey.currentContext.findRenderObject();
+        cropBoxKey!.currentContext!.findRenderObject() as RenderRepaintBoundary;
     var image = await boundary.toImage();
-    ByteData byteData = await image.toByteData(format: ImageByteFormat.png);
+    ByteData byteData = (await image.toByteData(format: ImageByteFormat.png))!;
     Uint8List pngBytes = byteData.buffer.asUint8List();
 
     // Create file location for image
     final tempDir = Directory.systemTemp;
     print("tempDir = ${tempDir.path}");
-    final file =
-        await new File('${tempDir.path}/${file_name.split(".").first}.repl.png')
-            .create()
-            .catchError((e) {
-      print("file creation failed.");
-      print(e);
-    });
+    final File? file = await new File('${tempDir.path}/${fileName.split(".").first}.repl.png').create()
+        .catchError((e) {
+          print("file creation failed.");
+          print(e);
+        });
 
     // Save image locally
-    await file.writeAsBytes(pngBytes).catchError((e) {
+    await file!.writeAsBytes(pngBytes).catchError((e) {
       print("file writing failed.");
       print(e);
     });
     print("image file exists: " + (await file.exists()).toString());
-    print("image file path: " + (await file.path));
+    print("image file path: " + (file.path));
 
     // Run OCR
     ocrParallel([file], MediaQuery.of(context).size,
-        replace: {widget.list_pos(widget): srcImage.path})
+        replace: {widget.listPos(widget): srcImage.path})
         .then((value) => setState(() {}));
   }
 
@@ -369,7 +363,7 @@ class _GalleryCellState extends State<GalleryCell> {
     if (hasUser) {
       return TableRow(
         children: [
-          TableCell(child: social.icon),
+          TableCell(child: social.icon!),
           TableCell(
               // verticalAlignment: TableCellVerticalAlignment.middle,
               child: Center(
@@ -395,7 +389,7 @@ class _GalleryCellState extends State<GalleryCell> {
                   ),
                 );
               } else {
-                bool socialAdded = snapshot.connectionState == ConnectionState.done && snapshot.data;
+                bool socialAdded = snapshot.connectionState == ConnectionState.done && (snapshot.data as bool);
                 if(socialAdded){
                   action = "Mark as Unadded";
                 }
@@ -418,7 +412,7 @@ class _GalleryCellState extends State<GalleryCell> {
     else{
       return TableRow(
         children: [
-          TableCell(child: social.icon),
+          TableCell(child: social.icon!),
           TableCell(
             // verticalAlignment: TableCellVerticalAlignment.middle,
               child: Center(
@@ -442,9 +436,9 @@ class _GalleryCellState extends State<GalleryCell> {
 
   AlertDialog _updateUsernameDialog(SocialType social, String username){
     final formKey = GlobalKey<FormState>();
-    void Function(String foo) validatePhrase = (_){
-      if (formKey.currentState.validate()) {
-        formKey.currentState.save();
+    void Function(String? foo) validatePhrase = (_){
+      if (formKey.currentState!.validate()) {
+        formKey.currentState!.save();
       }
     };
 
@@ -464,12 +458,12 @@ class _GalleryCellState extends State<GalleryCell> {
                     children: [
                       TableRow(
                           children: [
-                            TableCell(child: social.icon),
+                            TableCell(child: social.icon!),
                             TableCell(
                               child: TextFormField(
                                 initialValue: username,
                                 textAlign: TextAlign.center,
-                                validator: (value) => value.isNotEmpty ? null :  "Must input value first",
+                                validator: (value) => value!.isNotEmpty ? null :  "Must input value first",
                                 onSaved: (value) => Navigator.pop(context, value),
                                 onFieldSubmitted:  validatePhrase,
                               )
@@ -492,10 +486,10 @@ class _GalleryCellState extends State<GalleryCell> {
     final _controller = TextEditingController();
     return TableRow(
         children: [
-          TableCell(child: social.icon),
+          TableCell(child: social.icon!),
           TableCell(child: StreamBuilder(stream: social.getUserName(widget.storageKey).asStream(), builder: (BuildContext context,AsyncSnapshot snapshot) {
             if (snapshot.connectionState == ConnectionState.done && !snapshot.hasError) {
-              String username = snapshot.data;
+              String username = snapshot.data ?? "";
               _controller.text = username;
               return TextField(controller: _controller, readOnly: true);
             } else {
@@ -508,7 +502,7 @@ class _GalleryCellState extends State<GalleryCell> {
               child: IconButton(
                 icon: Icon(Icons.edit_note_rounded),
                 onPressed: () async {
-                  String newValue = await showDialog(context: context, builder: (BuildContext context) {
+                  String? newValue = await showDialog(context: context, builder: (BuildContext context) {
                     return _updateUsernameDialog(social, _controller.text);
                   });
 
@@ -523,9 +517,11 @@ class _GalleryCellState extends State<GalleryCell> {
                       case SocialType.Instagram:
                         insta = newValue;
                         break;
+                      default:
+                        break;
                     }
                     MyApp.gallery
-                        .redoCell(widget.text, snap, insta, widget.list_pos(widget));
+                        .redoCell(widget.text, snap, insta, widget.listPos(widget));
                     Sortings.updateCache();
                   }
           },
@@ -560,11 +556,12 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 }
 
+// ignore: non_constant_identifier_names
 PopupMenuItem<int> OurMenuItem(final String _displayTxt, final Function _callback) {
     Text text = Text(
       _displayTxt,
       style: TextStyle(fontSize: 12),
     );
-    return PopupMenuItem<int>(/*value: 0,*/ child: text, onTap: () => WidgetsBinding?.instance?.addPostFrameCallback((_) => _callback()),);
+    return PopupMenuItem<int>(/*value: 0,*/ child: text, onTap: () => WidgetsBinding.instance.addPostFrameCallback((_) => _callback()),);
 }
 

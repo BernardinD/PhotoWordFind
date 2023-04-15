@@ -1,17 +1,17 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 
 import 'package:flutter/widgets.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image/image.dart' as crop_image;
-import 'package:image_size_getter/file_input.dart';
-import 'package:image_size_getter/image_size_getter.dart';
 
 
 // Extracts text from image
 
+// ignore: non_constant_identifier_names
 Future<String> OCR(String path) async {
 
   final inputImage = InputImage.fromFilePath(path);
@@ -19,14 +19,13 @@ Future<String> OCR(String path) async {
   final RecognizedText recognisedText = await textDetector.processImage(inputImage);
   textDetector.close();
   return recognisedText.text;
-  // return await FlutterTesseractOcr.extractText(path, language: 'eng');
 }
 
 // Scans in file as the Image object with adjustable features
 crop_image.Image getImage(String filePath){
 
   List<int> bytes = File(filePath).readAsBytesSync();
-  return crop_image.decodeImage(bytes);
+  return crop_image.decodeImage(bytes as Uint8List)!;
 
 }
 
@@ -56,15 +55,15 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   debugPrint("Entering createCroppedImage()...");
   crop_image.Image image = getImage(filePath);
 
-  // Separate the cropping and resize opperations so that the thread memory isn't used up
+  // Separate the cropping and resize operations so that the thread memory isn't used up
   crop_image.Image croppedFile = crop(image, filePath, size);
   croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
 
   // Save temp image
-  String file_name = filePath.split("/").last;
-  File temp_cropped = File('${parent.path}/temp-${file_name}');
-  temp_cropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile));
+  String fileName = filePath.split("/").last;
+  File tempCropped = File('${parent.path}/temp-$fileName');
+  tempCropped.writeAsBytesSync(crop_image.encodeNamedImage(filePath, croppedFile)!);
 
   debugPrint("Leaving createCroppedImage()...");
-  return temp_cropped;
+  return tempCropped;
 }

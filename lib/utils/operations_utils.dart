@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 enum Operations{
   MOVE,
@@ -15,15 +14,15 @@ enum Operations{
 
 class Operation{
 
-  static Operations retry = null;
-  static Function retryOp, _envChange;
-  static run(Operations operation, Function envChange, {
-    BuildContext context,
-    Function directoryPath,
-    String findQuery,
-    List displayImagesList,
-    List<String> moveSrcList,
-    String moveDesDir,
+  static Operations? retry;
+  static late Function? retryOp, _envChange;
+  static run(Operations operation, Function? envChange, {
+    BuildContext? context,
+    Function? directoryPath,
+    String? findQuery,
+    List? displayImagesList,
+    List<String>? moveSrcList,
+    String? moveDesDir,
   }){
 
     retry = operation;
@@ -31,19 +30,19 @@ class Operation{
 
     switch(operation){
       case(Operations.MOVE):
-        move(moveSrcList, moveDesDir, directoryPath);
+        move(moveSrcList!, moveDesDir, directoryPath);
         break;
       case(Operations.FIND):
         retryOp = () {
-          find(directoryPath, findQuery, context);
+          find(directoryPath!, findQuery!, context);
         };
-        retryOp();
+        retryOp!();
         return;
       case(Operations.DISPLAY_ALL):
         retryOp = (){
           _displayImages(displayImagesList, context);
         };
-        retryOp();
+        retryOp!();
         break;
       case(Operations.DISPLAY_SELECT):
         _displayImages(displayImagesList, context);
@@ -59,7 +58,7 @@ class Operation{
     return retry != null;
   }
 
-  static void find(Function directoryPath, String query, BuildContext context) async{
+  static void find(Function directoryPath, String query, BuildContext? context) async{
     debugPrint("Entering find()...");
 
     List<dynamic> paths;
@@ -67,19 +66,14 @@ class Operation{
 
 
     debugPrint("paths: " + paths.toString());
+    // TODO: Figure out what does the null case mean
     if(paths == null) {
-      await MyApp.pr.close();
+      MyApp.pr.close();
       return;
     }
 
-    Function post = (String text, query){
-
-      // If query word has been found
-      return text.toString().toLowerCase().contains(query.toLowerCase()) ? query : null;
-    };
-
     // Remove prompt
-    if(ModalRoute.of(context)?.isCurrent != true)
+    if(ModalRoute.of(context!)?.isCurrent != true)
       Navigator.pop(context);
 
     debugPrint("Query: $query");
@@ -88,9 +82,9 @@ class Operation{
     debugPrint("Leaving find()...");
   }
 
-  static void move(List<String> srcList, String destDir, Function directoryPath){
+  static void move(List<String> srcList, String? destDir, Function? directoryPath){
 
-    var lst = srcList.map((x) => [(directoryPath().toString() +"/"+ x), (destDir +"/"+ x)] ).toList();
+    var lst = srcList.map((x) => [(directoryPath!().toString() +"/"+ x), (destDir! +"/"+ x)] ).toList();
 
     debugPrint("List:" + lst.toString());
     String src, dst;
@@ -101,19 +95,19 @@ class Operation{
     }
   }
 
-  static _displayImages(List paths, BuildContext context) async{
+  static _displayImages(List? paths, BuildContext? context) async{
     debugPrint("Entering _displayImages()...");
 
     if(paths == null) {
-      await MyApp.pr.close();
+      MyApp.pr.close();
       return;
     }
 
-    ocrParallel(paths, MediaQuery.of(context).size);
+    ocrParallel(paths, MediaQuery.of(context!).size);
     debugPrint("Leaving _displayImages()...");
   }
 
-  static Widget displayRetry(){
+  static Widget? displayRetry(){
     if(!isRetryOp()) return null;
 
     return Expanded(
@@ -123,7 +117,7 @@ class Operation{
           child: Column(
             children: [
               Text("The last operation did not return any files. Would you like to try a different folder?"),
-              ElevatedButton(onPressed: ()async {await _envChange(); await retryOp();}, child: Text("Yes")),
+              ElevatedButton(onPressed: ()async {await _envChange!(); await retryOp!();}, child: Text("Yes")),
               ElevatedButton(onPressed: (){retry = null; MyApp.updateFrame(() => null);}, child: Text("No.")),
             ],
           )
