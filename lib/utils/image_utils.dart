@@ -19,7 +19,6 @@ Future<String> OCR(String path) async {
   final RecognizedText recognisedText = await textDetector.processImage(inputImage);
   textDetector.close();
   return recognisedText.text;
-  // return await FlutterTesseractOcr.extractText(path, language: 'eng');
 }
 
 // Scans in file as the Image object with adjustable features
@@ -56,7 +55,7 @@ File createCroppedImage(String filePath, Directory parent, ui.Size size){
   debugPrint("Entering createCroppedImage()...");
   crop_image.Image image = getImage(filePath);
 
-  // Separate the cropping and resize opperations so that the thread memory isn't used up
+  // Separate the cropping and resize operations so that the thread memory isn't used up
   crop_image.Image croppedFile = crop(image, filePath, size);
   croppedFile = crop_image.copyResize(croppedFile, height: croppedFile.height~/3 );
 
