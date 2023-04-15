@@ -6,13 +6,12 @@ class Toasts{
   Toasts._internal();
   static final Toasts _singleton = Toasts._internal();
 
-  static late FToast _fToast;
+  static late FToast _fToast = FToast();
   factory Toasts(){
     return _singleton;
   }
 
   static void initToasts(BuildContext context){
-    _fToast = FToast();
     _fToast.init(context);
   }
 
