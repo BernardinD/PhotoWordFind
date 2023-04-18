@@ -41,9 +41,13 @@ class SocialIcon extends StatelessWidget {
       heroTag: null,
       key: ValueKey(socialUri),
       backgroundColor: Colors.white,
-      onPressed: () => DeviceApps.openApp(socialUri),
+      onPressed: openApp ,
       child: socialIcon,
     );
+  }
+
+  void openApp(){
+    DeviceApps.openApp(socialUri);
   }
 
   Widget getSocialIconFromUri() {
