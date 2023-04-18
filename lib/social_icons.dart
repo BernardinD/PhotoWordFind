@@ -97,7 +97,7 @@ extension SocialTypeExtension on SocialType{
       case SocialType.Instagram:
       return StorageUtils.get(key, reload: false, insta:true);
       case SocialType.Discord:
-      // return SocialIcon.discordIconButton.socialIcon;
+        return StorageUtils.get(key, reload: false, discord:true);
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
       default:
@@ -108,13 +108,14 @@ extension SocialTypeExtension on SocialType{
   saveUsername(String key, String value, {required bool overriding}) async {
     switch (this) {
       case SocialType.Snapchat:
-        /*await*/ StorageUtils.save(key, backup: true, snap:value, overridingUsername: overriding);
+        StorageUtils.save(key, backup: true, snap:value, overridingUsername: overriding);
         break;
       case SocialType.Instagram:
-        /*await*/ StorageUtils.save(key, backup: true, insta:value, overridingUsername: overriding);
+        StorageUtils.save(key, backup: true, insta:value, overridingUsername: overriding);
         break;
       case SocialType.Discord:
-      // return SocialIcon.discordIconButton.socialIcon;
+        StorageUtils.save(key, backup: true, discord:value, overridingUsername: overriding);
+        break;
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
       default:
@@ -129,7 +130,7 @@ extension SocialTypeExtension on SocialType{
       case SocialType.Instagram:
         return StorageUtils.get(key, reload: false, instaAdded:true);
       case SocialType.Discord:
-      // return SocialIcon.discordIconButton.socialIcon;
+        return StorageUtils.get(key, reload: false, discordAdded:true);
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
       default:
@@ -144,7 +145,7 @@ extension SocialTypeExtension on SocialType{
       case SocialType.Instagram:
         return SubKeys.InstaUsername;
       case SocialType.Discord:
-      // return SocialIcon.discordIconButton.socialIcon;
+        return SubKeys.DiscordUsername;
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
       default:

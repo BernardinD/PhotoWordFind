@@ -19,6 +19,7 @@ class GalleryCell extends StatefulWidget {
       this.text,
       this.snapUsername,
       this.instaUsername,
+      this.discordUsername,
       this.f,
       this.srcImage,
       this.listPos,
@@ -30,6 +31,7 @@ class GalleryCell extends StatefulWidget {
   final String text;
   final String snapUsername;
   final String instaUsername;
+  final String discordUsername;
   final dynamic f;
   final File srcImage;
   final int Function(GalleryCell cell) listPos;
@@ -156,9 +158,11 @@ class _GalleryCellState extends State<GalleryCell> {
                                               itemBuilder: (BuildContext context) => [
                                                 OurMenuItem("Redo", showRedoWindow, ),
                                                 if (map[SubKeys.SnapUsername] != null && map[SubKeys.SnapUsername].isNotEmpty)
-                                                  OurMenuItem("Open on snap", () => openUserAppPage(true, addOnSocial: false),),
+                                                  OurMenuItem("Open on snap", () => openUserAppPage(SocialType.Snapchat, addOnSocial: false),),
                                                 if (map[SubKeys.InstaUsername] != null && map[SubKeys.InstaUsername].isNotEmpty)
-                                                  OurMenuItem("Open on insta", () => openUserAppPage(false, addOnSocial: false),),
+                                                  OurMenuItem("Open on insta", () => openUserAppPage(SocialType.Instagram, addOnSocial: false),),
+                                                // if (map[SubKeys.InstaUsername] != null && map[SubKeys.InstaUsername].isNotEmpty)
+                                                //   OurMenuItem("Open on insta", () => openUserAppPage(SocialType.Instagram, addOnSocial: false),),
                                                 if (map[SubKeys.AddedOnSnap])
                                                   OurMenuItem("Unadd Snap", () => unAddUser(true),),
                                                 if (map[SubKeys.AddedOnInsta])
@@ -228,7 +232,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                     ContextMenuController.removeAny();
                                     String snap = value.selection.textInside(value.text);
                                     StorageUtils.save(widget.storageKey, backup: true, snap: snap, overridingUsername: false);
-                                    MyApp.gallery.redoCell(widget.text, snap, widget.instaUsername, widget.listPos(widget));
+                                    MyApp.gallery.redoCell(widget.text, snap, widget.instaUsername, widget.discordUsername, widget.listPos(widget));
                                     Sortings.updateCache();
                                     MyApp.updateFrame(() => null);
                                   },
@@ -335,18 +339,26 @@ class _GalleryCellState extends State<GalleryCell> {
     MyApp.updateFrame(() => null);
   }
 
-  openUserAppPage(bool snap, {bool addOnSocial = true}) async {
+  openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
     await MyApp.showProgress();
     String key = widget.storageKey;
     Uri _site;
-    if (snap) {
-      _site =  Uri.parse("https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
-      if (addOnSocial)
-        await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
-    } else {
-      _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
-      if (addOnSocial)
-        await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+    switch(social){
+      case (SocialType.Snapchat):
+        _site =  Uri.parse("https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
+        if (addOnSocial)
+          await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
+        break;
+      case (SocialType.Instagram):
+        _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
+        if (addOnSocial)
+          await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+        break;
+      case (SocialType.Discord): default:
+        _site = Uri.parse("https://https://discord.gg/user/${widget.instaUsername}");
+        if (addOnSocial)
+          await StorageUtils.save(key, backup: true, discordAdded: true, discordAddedDate: DateTime.now());
+        break;
     }
     debugPrint("site URI: $_site");
     await Sortings.updateCache();
@@ -396,7 +408,7 @@ class _GalleryCellState extends State<GalleryCell> {
                 return TableCell(
                   key: ValueKey(socialAdded),
                   child: ElevatedButton(
-                    onPressed: () => !socialAdded ? openUserAppPage(app) : unAddUser(app),
+                    onPressed: () => !socialAdded ? openUserAppPage(social) : unAddUser(app),
                     child: Text(
                         action, maxLines: 2, style: TextStyle(fontSize: 8)),
                   ),
@@ -509,7 +521,7 @@ class _GalleryCellState extends State<GalleryCell> {
                   if (newValue != null) {
                     _controller.text = newValue;
                     await social.saveUsername(widget.storageKey, newValue, overriding: true);
-                    String snap = widget.snapUsername, insta = widget.instaUsername;
+                    String snap = widget.snapUsername, insta = widget.instaUsername, discord = widget.discordUsername;
                     switch(social){
                       case SocialType.Snapchat:
                         snap = newValue;
@@ -517,11 +529,14 @@ class _GalleryCellState extends State<GalleryCell> {
                       case SocialType.Instagram:
                         insta = newValue;
                         break;
+                      case SocialType.Discord:
+                        discord = newValue;
+                        break;
                       default:
                         break;
                     }
                     MyApp.gallery
-                        .redoCell(widget.text, snap, insta, widget.listPos(widget));
+                        .redoCell(widget.text, snap, insta, discord, widget.listPos(widget));
                     Sortings.updateCache();
                   }
           },
