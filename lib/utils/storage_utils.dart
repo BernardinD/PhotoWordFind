@@ -20,13 +20,13 @@ class SubKeys{
   // ignore: non_constant_identifier_names
   static String get AddedOnInsta => "addedOnInsta";
   // ignore: non_constant_identifier_names
-  static String get AddedOnDiscord => "addedOnInsta";
+  static String get AddedOnDiscord => "addedOnDiscord";
   // ignore: non_constant_identifier_names
   static String get SnapDate => "dateAddedOnSnap";
   // ignore: non_constant_identifier_names
   static String get InstaDate => "dateAddedOnInsta";
   // ignore: non_constant_identifier_names
-  static String get DiscordDate => "dateAddedOnInsta";
+  static String get DiscordDate => "dateAddedOnDiscord";
   // ignore: non_constant_identifier_names
   static String get PreviousUsernames => "previousUsernames";
 
