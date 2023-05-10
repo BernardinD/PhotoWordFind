@@ -41,7 +41,7 @@ class StorageUtils {
   }
 
   static Map<String, dynamic> convertValueToMap(String? value) {
-    late Map<String, dynamic> _map;
+    Map<String, dynamic> _map;
     try {
       if(value == null) throw FormatException("value was null. Creating empty fresh mapping");
       _map = json.decode(value);
@@ -147,7 +147,7 @@ class StorageUtils {
       instaDate = false,
       discordDate = false,
       bool asMap = false}) async {
-    String? rawJson = (await _getStorageInstance(reload: reload)).getString(key)!;
+    String? rawJson = (await _getStorageInstance(reload: reload)).getString(key);
 
     Map<String, dynamic> map = convertValueToMap(rawJson);
 

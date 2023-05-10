@@ -133,8 +133,13 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
 
   }
 
-  final joinIsolates = await Future.wait(isolates);
-  debugPrint("Joined [ ${joinIsolates.length} ] isolates");
+  try {
+    final joinIsolates = await Future.wait(isolates);
+    debugPrint("Joined [ ${joinIsolates.length} ] isolates");
+  }
+  on Exception catch(e){
+    debugPrint("At least one of the operations failed. \n$e");
+  }
   debugPrint("completed: $completed");
 
 
