@@ -178,7 +178,7 @@ Future<Map<String, dynamic>?> createOCRJob(dynamic srcFile, String rawJson, bool
 
     result = postProcessOCR(ocr);
 
-    await StorageUtils.save(key, ocrResult: ocr, snap: "", overridingUsername: false, backup: true); //The "await" is needed for synchronization with main thread
+    await StorageUtils.save(key, asMap: result, backup: true); //The "await" is needed for synchronization with main thread
   }
 
   // Check if this file's' OCR has been cached
@@ -214,11 +214,11 @@ Map<String, dynamic> postProcessOCR(String ocr) {
   }
 
   if (insta.isNotEmpty) {
-    map[SubKeys.InstaUsername] = snap;
+    map[SubKeys.InstaUsername] = insta;
   }
 
   if (discord.isNotEmpty) {
-    map[SubKeys.DiscordUsername] = snap;
+    map[SubKeys.DiscordUsername] = discord;
   }
 
   return map;
