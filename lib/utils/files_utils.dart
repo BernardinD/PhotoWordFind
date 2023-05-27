@@ -32,6 +32,21 @@ String? suggestionSnapName(String text) {
 String? suggestionInstaName(String text) {
   return suggestionUserName(text, instanameKeyWords);
 }
+String? suggestionDiscordName(String text) {
+  text = text.replaceAll("\n", " ");
+  List<String> words = text.split(" ");
+  try {
+    String discord = words.firstWhere(
+        (element) => element.contains(RegExp(r'^.{3,32}#[0-9]{4}$')), orElse: () => "");
+    return discord;
+  }
+  on Exception catch(_e){
+    Exception e = _e as Exception;
+    debugPrint("${e.toString()} failed");
+    debugPrint(e.toString());
+    throw(e);
+  }
+}
 
 String? suggestionUserName(String text, List<String> keys){
   // TODO: Change so tha it finds the next word in the series, not the row
@@ -118,8 +133,13 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
 
   }
 
-  final joinIsolates = await Future.wait(isolates);
-  debugPrint("Joined [ ${joinIsolates.length} ] isolates");
+  try {
+    final joinIsolates = await Future.wait(isolates);
+    debugPrint("Joined [ ${joinIsolates.length} ] isolates");
+  }
+  on Exception catch(e){
+    debugPrint("At least one of the operations failed. \n$e");
+  }
   debugPrint("completed: $completed");
 
 
@@ -237,7 +257,8 @@ Future onEachOcrResult (
       String key = getKeyOfFilename(srcFile.path);
       String savedSnapUser = (await StorageUtils.get(key, reload: true, snap: true)) as String;
       String savedInstaUser = (await StorageUtils.get(key, reload: false, insta: true) as String);
-      String? snapUsername, instaUsername = "";
+      String savedDiscordUser = (await StorageUtils.get(key, reload: false, discord: true) as String);
+      String? snapUsername, instaUsername = "", discordUsername = "";
       if (savedSnapUser.isNotEmpty) {
         snapUsername = savedSnapUser.replaceAll(new RegExp('^[@]'), "");
       }
@@ -258,6 +279,16 @@ Future onEachOcrResult (
         instaUsername = insta;
       }
 
+      if (savedDiscordUser.isNotEmpty) {
+        discordUsername = savedDiscordUser;
+      }
+      else {
+        String discord = suggestionDiscordName(ocr) ?? "";
+        if (discord.isNotEmpty)
+          StorageUtils.save(key, backup: true, discord: discord, overridingUsername: false);
+        discordUsername = discord;
+      }
+
       // Skip this image if query word has not been found
       bool skipImage =
           query != null
@@ -267,11 +298,11 @@ Future onEachOcrResult (
       if (!skipImage) {
         if (replace == null)
           MyApp.gallery.addNewCell(
-              ocr, snapUsername, srcFile, new File(srcFile.path), instaUsername: instaUsername);
+              ocr, snapUsername, srcFile, new File(srcFile.path), instaUsername: instaUsername, discordUsername: discordUsername);
         else {
           var pair = replace.entries.first;
           int idx = pair.key;
-          MyApp.gallery.redoCell(ocr, snapUsername, "", idx);
+          MyApp.gallery.redoCell(ocr, snapUsername, "", "", idx);
           // Note: scrFile will always be a File for redo and ONLY redo
           (srcFile as File).delete();
         }

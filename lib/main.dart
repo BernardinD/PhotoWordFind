@@ -150,6 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
     Sorts.DateAddedOnInsta: "Date Added on Instagram",
     Sorts.SnapDetected : "Snap Handle",
     Sorts.InstaDetected : "Instagram Handle",
+    Sorts.DiscordDetected : "Discord Handle",
     Sorts.GroupByTitle: "Group By",
     null: "None", // Disable GroupBy
     Sorts.AddedOnSnap: "Snap Added",

@@ -5,6 +5,7 @@ import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,6 +26,7 @@ enum Sorts {
   DateAddedOnInsta,
   SnapDetected,
   InstaDetected,
+  DiscordDetected,
   AddedOnSnap,
   AddedOnInsta,
 }
@@ -41,6 +43,7 @@ Set<Sorts> sortBy = {
   Sorts.DateAddedOnInsta,
   Sorts.SnapDetected,
   Sorts.InstaDetected,
+  Sorts.DiscordDetected,
 };
 
 Set<Sorts> groupBy = {
@@ -95,14 +98,11 @@ class Sortings {
 
     for (String key in localPrefs.getKeys()) {
       String rawJson = localPrefs.getString(key)!;
-      Map<String, dynamic>? map;
-      try {
-        map = json.decode(rawJson);
-      } on FormatException catch (e) {
-        // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
-        map = StorageUtils.convertValueToMap(rawJson);
-      }
+      Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson);
 
+      if(!map.containsKey("discord") ?? false){
+        debugPrint("this key failed: $key");
+      }
       localCache[key] = map;
     }
     // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
@@ -236,6 +236,10 @@ class Sortings {
     return _sortBySocialUsername(a, b, SubKeys.InstaUsername);
   }
 
+  static int _sortByDiscordUsername(a, b) {
+    return _sortBySocialUsername(a, b, SubKeys.DiscordUsername);
+  }
+
   static Function getSorting() {
     return _sort();
   }
@@ -270,6 +274,8 @@ class Sortings {
         return _sortBySnapUsername;
       case Sorts.InstaDetected:
         return _sortByInstaUsername;
+      case Sorts.DiscordDetected:
+        return _sortByDiscordUsername;
       default:
         return _sortByFileDate;
     }

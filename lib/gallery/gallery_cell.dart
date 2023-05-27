@@ -10,6 +10,7 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
@@ -19,6 +20,7 @@ class GalleryCell extends StatefulWidget {
       this.text,
       this.snapUsername,
       this.instaUsername,
+      this.discordUsername,
       this.f,
       this.srcImage,
       this.listPos,
@@ -30,6 +32,7 @@ class GalleryCell extends StatefulWidget {
   final String text;
   final String snapUsername;
   final String instaUsername;
+  final String discordUsername;
   final dynamic f;
   final File srcImage;
   final int Function(GalleryCell cell) listPos;
@@ -156,13 +159,17 @@ class _GalleryCellState extends State<GalleryCell> {
                                               itemBuilder: (BuildContext context) => [
                                                 OurMenuItem("Redo", showRedoWindow, ),
                                                 if (map[SubKeys.SnapUsername] != null && map[SubKeys.SnapUsername].isNotEmpty)
-                                                  OurMenuItem("Open on snap", () => openUserAppPage(true, addOnSocial: false),),
+                                                  OurMenuItem("Open on snap", () => openUserAppPage(SocialType.Snapchat, addOnSocial: false),),
                                                 if (map[SubKeys.InstaUsername] != null && map[SubKeys.InstaUsername].isNotEmpty)
-                                                  OurMenuItem("Open on insta", () => openUserAppPage(false, addOnSocial: false),),
+                                                  OurMenuItem("Open on insta", () => openUserAppPage(SocialType.Instagram, addOnSocial: false),),
+                                                if (map[SubKeys.DiscordUsername] != null && map[SubKeys.DiscordUsername].isNotEmpty)
+                                                  OurMenuItem("Open on discord", () => openUserAppPage(SocialType.Discord, addOnSocial: false),),
                                                 if (map[SubKeys.AddedOnSnap])
-                                                  OurMenuItem("Unadd Snap", () => unAddUser(true),),
+                                                  OurMenuItem("Unadd Snap", () => unAddUser(SocialType.Snapchat),),
                                                 if (map[SubKeys.AddedOnInsta])
-                                                  OurMenuItem("Unadd Insta", () => unAddUser(false),),
+                                                  OurMenuItem("Unadd Insta", () => unAddUser(SocialType.Instagram),),
+                                                if (map[SubKeys.AddedOnDiscord])
+                                                  OurMenuItem("Unadd Discord", () => unAddUser(SocialType.Discord),),
                                                 OurMenuItem("Override username", _manuallyUpdateUsername,),
                                               ],
                                             ),
@@ -228,7 +235,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                     ContextMenuController.removeAny();
                                     String snap = value.selection.textInside(value.text);
                                     StorageUtils.save(widget.storageKey, backup: true, snap: snap, overridingUsername: false);
-                                    MyApp.gallery.redoCell(widget.text, snap, widget.instaUsername, widget.listPos(widget));
+                                    MyApp.gallery.redoCell(widget.text, snap, widget.instaUsername, widget.discordUsername, widget.listPos(widget));
                                     Sortings.updateCache();
                                     MyApp.updateFrame(() => null);
                                   },
@@ -326,38 +333,58 @@ class _GalleryCellState extends State<GalleryCell> {
         .then((value) => setState(() {}));
   }
 
-  unAddUser(bool snap) async {
+  unAddUser(SocialType social) async {
     Toasts.showToast(true, (_) => "Marked as unadded");
-    if (snap)
-      await StorageUtils.save(widget.storageKey, backup: true, snapAdded: false, snapAddedDate: null);
-    else
-      await StorageUtils.save(widget.storageKey, backup: true, instaAdded: false, instaAddedDate: null);
+    switch (social){
+      case SocialType.Snapchat:
+        await StorageUtils.save(widget.storageKey, backup: true, snapAdded: false, snapAddedDate: null);
+        break;
+      case SocialType.Instagram:
+        await StorageUtils.save(widget.storageKey, backup: true, instaAdded: false, instaAddedDate: null);
+        break;
+      case SocialType.Discord:default:
+        await StorageUtils.save(widget.storageKey, backup: true, discordAdded: false, discordAddedDate: null);
+        break;
+
+    }
     MyApp.updateFrame(() => null);
   }
 
-  openUserAppPage(bool snap, {bool addOnSocial = true}) async {
+  openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
     await MyApp.showProgress();
     String key = widget.storageKey;
     Uri _site;
-    if (snap) {
-      _site =  Uri.parse("https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
-      if (addOnSocial)
-        await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
-    } else {
-      _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
-      if (addOnSocial)
-        await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+    switch(social){
+      case (SocialType.Snapchat):
+        _site =  Uri.parse("https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
+        if (addOnSocial)
+          await StorageUtils.save(key, backup: true, snapAdded: true, snapAddedDate: DateTime.now());
+        break;
+      case (SocialType.Instagram):
+        _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
+        if (addOnSocial)
+          await StorageUtils.save(key, backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+        break;
+      case (SocialType.Discord): default:
+        _site = Uri.parse("");
+        Clipboard.setData(ClipboardData(text: widget.discordUsername));
+        SocialIcon.discordIconButton?.openApp();
+        if (true || addOnSocial)
+          await StorageUtils.save(key, backup: true, discordAdded: true, discordAddedDate: DateTime.now());
+        break;
     }
     debugPrint("site URI: $_site");
     await Sortings.updateCache();
-    launchUrl(_site, mode: LaunchMode.externalApplication)
-        .then((value) => MyApp.pr.close(delay: 500));
+    if (!_site.hasEmptyPath)
+      launchUrl(_site, mode: LaunchMode.externalApplication)
+          .then((value) => MyApp.pr.close(delay: 500));
+    // Make sure to close the progress dialog
+    else MyApp.pr.close(delay: 500);
   }
 
   TableRow getSocialRow(bool hasUser, SocialType social) {
 
     String action = "Open in  ${social == SocialType.Snapchat ? 'snapchat' : 'instagram'}";
-    bool app = social == SocialType.Snapchat;
     String username = social == SocialType.Snapchat ? widget.snapUsername : widget.instaUsername;
 
     if (hasUser) {
@@ -396,7 +423,7 @@ class _GalleryCellState extends State<GalleryCell> {
                 return TableCell(
                   key: ValueKey(socialAdded),
                   child: ElevatedButton(
-                    onPressed: () => !socialAdded ? openUserAppPage(app) : unAddUser(app),
+                    onPressed: () => !socialAdded ? openUserAppPage(social) : unAddUser(social),
                     child: Text(
                         action, maxLines: 2, style: TextStyle(fontSize: 8)),
                   ),
@@ -509,7 +536,7 @@ class _GalleryCellState extends State<GalleryCell> {
                   if (newValue != null) {
                     _controller.text = newValue;
                     await social.saveUsername(widget.storageKey, newValue, overriding: true);
-                    String snap = widget.snapUsername, insta = widget.instaUsername;
+                    String snap = widget.snapUsername, insta = widget.instaUsername, discord = widget.discordUsername;
                     switch(social){
                       case SocialType.Snapchat:
                         snap = newValue;
@@ -517,11 +544,14 @@ class _GalleryCellState extends State<GalleryCell> {
                       case SocialType.Instagram:
                         insta = newValue;
                         break;
+                      case SocialType.Discord:
+                        discord = newValue;
+                        break;
                       default:
                         break;
                     }
                     MyApp.gallery
-                        .redoCell(widget.text, snap, insta, widget.listPos(widget));
+                        .redoCell(widget.text, snap, insta, discord, widget.listPos(widget));
                     Sortings.updateCache();
                   }
           },
