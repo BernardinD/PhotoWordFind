@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 
 
 import 'package:flutter/widgets.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as crop_image;
 
 
