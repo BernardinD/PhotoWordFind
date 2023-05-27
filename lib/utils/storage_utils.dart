@@ -79,6 +79,9 @@ class StorageUtils {
     }
   }
 
+  /// Save a value of a key to internal store with the option to save to Google
+  /// Drive as well.
+  /// [overridingUsername] is a signal of whether to archive the current username
   static Future save(String storageKey,
       {String? ocrResult,
       required bool backup,
@@ -92,7 +95,8 @@ class StorageUtils {
       bool? discordAdded,
       DateTime? snapAddedDate,
       DateTime? instaAddedDate,
-      DateTime? discordAddedDate}) async {
+      DateTime? discordAddedDate,
+      Map<String, dynamic>? asMap}) async {
     if ((snap != null || insta != null || discord != null) && overridingUsername == null){
       throw Exception("Must declare if username is being overwritten");
     }
@@ -100,6 +104,9 @@ class StorageUtils {
       throw Exception("Missing username to overwrite");
     }
     Map<String, dynamic> map = (await get(storageKey, reload: false, asMap: true)) as Map<String, dynamic>;
+
+    // Todo: If Map is sent in concat with current saved values
+    // ...
 
     if (overridingUsername != null && overridingUsername) {
       final List<String?>? previousSnapUsernames  = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
@@ -113,6 +120,7 @@ class StorageUtils {
         previousInstaUsernames.add(currentInsta);
       }
     }
+    if (asMap              != null) map.addAll(asMap);
     if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
     if (snap               != null) map[SubKeys.SnapUsername]    = snap;
     if (insta              != null) map[SubKeys.InstaUsername]   = insta;
@@ -123,7 +131,6 @@ class StorageUtils {
     if (snapAddedDate      != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
     if (instaAddedDate     != null) map[SubKeys.InstaDate]       = instaAddedDate.toIso8601String();
     if (discordAddedDate   != null) map[SubKeys.DiscordDate]     = discordAddedDate.toIso8601String();
-
 
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
@@ -147,7 +154,8 @@ class StorageUtils {
       instaDate = false,
       discordDate = false,
       bool asMap = false}) async {
-    String? rawJson = (await _getStorageInstance(reload: reload)).getString(key);
+    SharedPreferences prefs = (await _getStorageInstance(reload: reload));
+    String? rawJson = prefs.getString(key);
 
     Map<String, dynamic> map = convertValueToMap(rawJson);
 
@@ -167,21 +175,27 @@ class StorageUtils {
   static Future merge(Map<String, String> cloud) async {
     debugPrint("Entering merge()...");
 
+    List<Exception> mismatches = [];
     for (String key in cloud.keys) {
       String? localValue = (await get(key, reload: false)) as String?;
+      // Assuming that if it isn't saved locally then it must be just an OCR before the format change
       if (localValue == null) {
-        save(key, ocrResult: cloud[key], backup: false);
+        var returned = convertValueToMap(cloud[key]);
+        save(key, asMap: returned, backup: false);
         debugPrint("Saving...");
       } else {
         // Print whether cloud value and Storage values match
         // debugPrint("String ($key) matches: ${(value == cloud[key])}");
 
         if (localValue != cloud[key] && isJSON(localValue)) {
-          throw Exception("Cloud and local copies don't match: [$key] \n local: $localValue \n cloud: ${cloud[key]}");
+          mismatches.add(Exception("Cloud and local copies don't match: [$key] \n local: $localValue \n cloud: ${cloud[key]}"));
         }
       }
     }
     debugPrint("Leaving merge()...");
+    if(mismatches.isNotEmpty) {
+      throw Exception(mismatches);
+    }
   }
 
   static Future<Map<String, String?>> toMap() async {

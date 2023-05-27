@@ -11,7 +11,6 @@ import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
-// import 'package:isolate_handler/isolate_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -87,7 +86,7 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
 
   await MyApp.showProgress(limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
-  await Future.delayed(const Duration(milliseconds: 500), (){});
+  await Future.delayed(const Duration(milliseconds: 300), (){});
 
   // Reset Gallery
   if(replace == null) {
@@ -127,14 +126,15 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
     String isoName = path.basename(srcFile.path);
     debugPrint("srcFilePath [${srcFile.path}] :: isolate name $isoName :: rawJson -> $rawJson");
 
-    Future<String?> job = createOCRJob(srcFile, rawJson, replace != null);
-    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, timeElasped, filesList.length, ++completed, isolates));
+    Future<Map<String, dynamic>?> job = createOCRJob(srcFile, rawJson, replace != null);
+    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, timeElasped, filesList.length, ++completed));
     isolates.add( processResult );
 
   }
 
   try {
     final joinIsolates = await Future.wait(isolates);
+    await prefs.reload();
     debugPrint("Joined [ ${joinIsolates.length} ] isolates");
   }
   on Exception catch(e){
@@ -162,7 +162,7 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
 
 }
 
-Future<String?> createOCRJob(dynamic srcFile, String rawJson, bool replacing) async{
+Future<Map<String, dynamic>?> createOCRJob(dynamic srcFile, String rawJson, bool replacing) async{
   debugPrint("Entering createOCRJob()...");
   final prefs = await SharedPreferences.getInstance();
 
@@ -174,15 +174,17 @@ Future<String?> createOCRJob(dynamic srcFile, String rawJson, bool replacing) as
     prefs.remove(key);
 
     debugPrint("Running OCR redo in main thread...");
-    result = await runOCR(srcFile.path, crop: false);
+    String ocr = await runOCR(srcFile.path, crop: false);
 
-    await StorageUtils.save(key, ocrResult: result, snap: "", overridingUsername: false, backup: true); //The "await" is needed for synchronization with main thread
+    result = postProcessOCR(ocr);
+
+    await StorageUtils.save(key, ocrResult: ocr, snap: "", overridingUsername: false, backup: true); //The "await" is needed for synchronization with main thread
   }
 
   // Check if this file's' OCR has been cached
   else if(await StorageUtils.get(key, reload: true) != null){
     debugPrint("This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
-    result = await StorageUtils.get(key, reload: false);
+    result = await StorageUtils.get(key, asMap:true, reload: false);
   }
   else {
     // Start up the thread and configures the callbacks
@@ -201,8 +203,29 @@ void increaseProgressBar(int completed, int pathsLength){
   MyApp.pr.update(value: completed, msg: "Loading...");
 }
 
+Map<String, dynamic> postProcessOCR(String ocr) {
+  Map<String, dynamic> map = StorageUtils.convertValueToMap(ocr);
+  String snap = suggestionSnapName(ocr) ?? "";
+  String insta = suggestionInstaName(ocr) ?? "";
+  String discord = suggestionDiscordName(ocr) ?? "";
+
+  if (snap.isNotEmpty) {
+    map[SubKeys.SnapUsername] = snap;
+  }
+
+  if (insta.isNotEmpty) {
+    map[SubKeys.InstaUsername] = snap;
+  }
+
+  if (discord.isNotEmpty) {
+    map[SubKeys.DiscordUsername] = snap;
+  }
+
+  return map;
+}
+
 @pragma('vm:entry-point')
-Future<String?> ocrThread(String receivedData) async {
+Future<Map<String, dynamic>?> ocrThread(String receivedData) async {
 
   Map<String, dynamic> message = json.decode(receivedData);
   String filePath = message["f"];
@@ -213,106 +236,78 @@ Future<String?> ocrThread(String receivedData) async {
 
   debugPrint("Running thread for >> $filePath");
 
-  dynamic result;
+  String? ocr;
   try {
-    result = await runOCR(filePath, size: size);
+    ocr = await runOCR(filePath, size: size);
   }
   catch(error, stackTrace){
-    result = null;
+    ocr = null;
     debugPrint("File ($filePath) failed");
     debugPrint("$error \n $stackTrace");
     debugPrint("Leaving try-catch");
   }
-  if (result is String) {
+  if (ocr is String) {
       String key = getKeyOfFilename(filePath);
       // Save OCR result
-      debugPrint("Save OCR result of key:[$key] >> ${result.replaceAll("\n", " ")}");
+      debugPrint("Save OCR result of key:[$key] >> ${ocr.replaceAll("\n", " ")}");
 
-      await StorageUtils.save(key, ocrResult: result, backup: false);
+      Map<String, dynamic> result = postProcessOCR(ocr);
+
+      await StorageUtils.save(key, asMap: result, backup: false);
+
+      // Reload storage for this thread
+      await StorageUtils.get("", reload: true);
 
       // Send back result to main thread
       debugPrint("Sending OCR result...");
       return result;
   }
   else{
-    return "";
+    return {};
   }
 
 }
 
 Future onEachOcrResult (
-    String? result,
+    Map<String, dynamic>? result,
     srcFile,
     String? query,
     Map? replace,
     timeElapsed,
     filesListLength,
     int completed,
-    isolates,
     ) async {
     debugPrint("Entering onOCRResult...");
-    if (result is String) {
-      String ocr = result;
-      // If query word has been found
-      String key = getKeyOfFilename(srcFile.path);
-      String savedSnapUser = (await StorageUtils.get(key, reload: true, snap: true)) as String;
-      String savedInstaUser = (await StorageUtils.get(key, reload: false, insta: true) as String);
-      String savedDiscordUser = (await StorageUtils.get(key, reload: false, discord: true) as String);
-      String? snapUsername, instaUsername = "", discordUsername = "";
-      if (savedSnapUser.isNotEmpty) {
-        snapUsername = savedSnapUser.replaceAll(new RegExp('^[@]'), "");
-      }
-      else {
-        String snap = suggestionSnapName(ocr) ?? "";
-        if (snap.isNotEmpty)
-          StorageUtils.save(key, backup: true, snap: snap, overridingUsername: false);
-        snapUsername = snap;
-      }
 
-      if (savedInstaUser.isNotEmpty) {
-        instaUsername = savedInstaUser.replaceAll(new RegExp('^[@]'), "");
-      }
-      else {
-        String insta = suggestionInstaName(ocr) ?? "";
-        if (insta.isNotEmpty)
-          StorageUtils.save(key, backup: true, insta: insta, overridingUsername: false);
-        instaUsername = insta;
-      }
+  // If query word has been found
+  String ocr = result?[SubKeys.OCR] ?? "";
+  String snapUsername = result?[SubKeys.SnapUsername] as String;
+  String instaUsername = result?[SubKeys.InstaUsername] as String;
+  String discordUsername = result?[SubKeys.DiscordUsername] as String;
 
-      if (savedDiscordUser.isNotEmpty) {
-        discordUsername = savedDiscordUser;
-      }
-      else {
-        String discord = suggestionDiscordName(ocr) ?? "";
-        if (discord.isNotEmpty)
-          StorageUtils.save(key, backup: true, discord: discord, overridingUsername: false);
-        discordUsername = discord;
-      }
 
-      // Skip this image if query word has not been found
-      bool skipImage =
-          query != null
-          && !snapUsername.toLowerCase().contains(query.toLowerCase())
-          && !ocr.toLowerCase().contains(query.toLowerCase());
+  // Skip this image if query word has not been found
+  bool skipImage = query != null &&
+      !snapUsername.toLowerCase().contains(query.toLowerCase()) &&
+      !ocr.toLowerCase().contains(query.toLowerCase());
 
-      if (!skipImage) {
-        if (replace == null)
-          MyApp.gallery.addNewCell(
-              ocr, snapUsername, srcFile, new File(srcFile.path), instaUsername: instaUsername, discordUsername: discordUsername);
-        else {
-          var pair = replace.entries.first;
-          int idx = pair.key;
-          MyApp.gallery.redoCell(ocr, snapUsername, "", "", idx);
-          // Note: scrFile will always be a File for redo and ONLY redo
-          (srcFile as File).delete();
-        }
-
-        debugPrint("Elapsed: ${timeElapsed.elapsedMilliseconds}ms");
-      }
-
+  if (!skipImage) {
+    if (replace == null)
+      MyApp.gallery.addNewCell(
+          ocr, snapUsername, srcFile, new File(srcFile.path),
+          instaUsername: instaUsername, discordUsername: discordUsername);
+    else {
+      var pair = replace.entries.first;
+      int idx = pair.key;
+      MyApp.gallery.redoCell(ocr, snapUsername, "", "", idx);
+      // Note: scrFile will always be a File for redo and ONLY redo
+      (srcFile as File).delete();
     }
 
-    increaseProgressBar(completed, filesListLength);
+    debugPrint("Elapsed: ${timeElapsed.elapsedMilliseconds}ms");
+  }
+
+  increaseProgressBar(completed, filesListLength);
 
     debugPrint("Leaving onOCRResult...");
 }
