@@ -84,7 +84,7 @@ String getKeyOfFilename(String f){
 
 Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = false, Map<int, String?>? replace}) async{
 
-  await MyApp.showProgress(limit: filesList.length);
+  await MyApp.showProgress(autoComplete: false, limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
   await Future.delayed(const Duration(milliseconds: 300), (){});
 
@@ -142,23 +142,21 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
   }
   debugPrint("completed: $completed");
 
-
-
   debugPrint("popping...");
-
-  // Quick fix for this callback being called twice
-  // TODO: Find way to stop isolates immediately so they don't get to this point
-  if (MyApp.pr.isOpen()) {
-    MyApp.pr.close();
-
-    MyApp.updateFrame(() => null);
-    debugPrint(">>> getting in.");
-  }
 
   final int finalStorageSize = prefs.getKeys().length;
   // Only backup when getting new data
   if (startingStorageSize < finalStorageSize || replace != null)
     await StorageUtils.syncLocalAndCloud();
+
+  // Quick fix for this callback being called twice
+  // TODO: Find way to stop isolates immediately so they don't get to this point
+  if (MyApp.pr.isOpen()) {
+    MyApp.pr.close(delay:1000);
+
+    debugPrint(">>> getting in.");
+  }
+  MyApp.updateFrame(() => null);
 
 }
 
