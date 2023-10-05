@@ -127,7 +127,8 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
     debugPrint("srcFilePath [${srcFile.path}] :: isolate name $isoName :: rawJson -> $rawJson");
 
     Future<Map<String, dynamic>?> job = createOCRJob(srcFile, rawJson, replace != null);
-    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, timeElasped, filesList.length, ++completed));
+    // Subtracting the completed number by 1 in order to control the auto complete of the progress dialog
+    Future processResult = job.then((result) => onEachOcrResult(result, srcFile, query, replace, timeElasped, filesList.length, ++completed-1));
     isolates.add( processResult );
 
   }
@@ -142,21 +143,20 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
   }
   debugPrint("completed: $completed");
 
-  debugPrint("popping...");
+  MyApp.updateFrame(() => null);
 
   final int finalStorageSize = prefs.getKeys().length;
   // Only backup when getting new data
   if (startingStorageSize < finalStorageSize || replace != null)
     await StorageUtils.syncLocalAndCloud();
 
-  // Quick fix for this callback being called twice
-  // TODO: Find way to stop isolates immediately so they don't get to this point
+  // Display completed status
+  increaseProgressBar(completed, filesList.length);
+  // Close dialog and control delay
   if (MyApp.pr.isOpen()) {
-    MyApp.pr.close(delay:1000);
-
+    MyApp.pr.close(delay:500);
     debugPrint(">>> getting in.");
   }
-  MyApp.updateFrame(() => null);
 
 }
 
