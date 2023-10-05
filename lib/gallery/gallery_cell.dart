@@ -351,7 +351,7 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 
   openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
-    await MyApp.showProgress(autoComplete: true);
+    await MyApp.showProgress();
     String key = widget.storageKey;
     Uri _site;
     switch(social){

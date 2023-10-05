@@ -58,7 +58,7 @@ class MyApp extends StatelessWidget {
 
   }
 
-  static showProgress({required bool autoComplete, int limit=1}) {
+  static showProgress({int limit=1}) {
     debugPrint("Entering showProgress()...");
     if(pr.isOpen()){
       debugPrint("Closing.");
@@ -77,10 +77,10 @@ class MyApp extends StatelessWidget {
       elevation: 10.0,
       msgColor: Colors.black, msgFontSize: 19.0, msgFontWeight: FontWeight.w600,
       // progressValueColor: Colors.black,
-      completed: autoComplete ? Completed(
+      completed: Completed(
         completedMsg: "Done!",
         completionDelay: 1000,
-      ) : null,
+      ),
     );
     debugPrint("show return: $temp");
     debugPrint("Leaving showProgress()...");
@@ -362,7 +362,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
       Stopwatch timer = new Stopwatch();
-      await MyApp.showProgress(autoComplete: true);
+      await MyApp.showProgress();
       paths = (await FilePicker.platform.pickFiles(
           type: _pickingType,
           allowMultiple: _multiPick
@@ -376,7 +376,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     else{
-      await MyApp.showProgress(autoComplete: true);
+      await MyApp.showProgress();
       paths = Directory(_directoryPath!).listSync(recursive: false, followLinks:false);
     }
 
