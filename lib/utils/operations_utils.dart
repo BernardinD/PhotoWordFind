@@ -34,7 +34,9 @@ class Operation{
         break;
       case(Operations.FIND):
         retryOp = () {
-          find(directoryPath!, findQuery!, context);
+          MyApp.updateFrame((){
+            find(directoryPath!, findQuery!, context);
+          });
         };
         retryOp!();
         return;
