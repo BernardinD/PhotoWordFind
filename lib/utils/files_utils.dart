@@ -84,7 +84,7 @@ String getKeyOfFilename(String f){
 
 Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = false, Map<int, String?>? replace}) async{
 
-  await MyApp.showProgress(limit: filesList.length);
+  await MyApp.showProgress(autoComplete: false, limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
   await Future.delayed(const Duration(milliseconds: 300), (){});
 
