@@ -28,7 +28,7 @@ class Gallery{
     return _images;
   }
   Set<String> get selected => _selected;
-  get galleryController => _galleryController;
+  PageController get galleryController => _galleryController;
 
   // Setters
   set selected(Set selected) {

@@ -508,7 +508,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     width: MediaQuery.of(context).size.width/3,
                     child: Center(
                       child: Text("${gallery.galleryController.positions.isNotEmpty ?
-                      gallery.galleryController.page.round()+1 :
+                      gallery.galleryController.page!.round()+1 :
                       gallery.galleryController.initialPage+1}"
                           "/${gallery.images.length}"),
                     ),
