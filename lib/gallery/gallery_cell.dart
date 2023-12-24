@@ -11,6 +11,7 @@ import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
+import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -54,7 +55,8 @@ class _GalleryCellState extends State<GalleryCell> {
   late final Key? cellKey = ValueKey(fileName);
   late final String fileName = widget.f.path.split("/").last;
   late final PhotoView _photo;
-  final SplayTreeMap<SocialType?, Future<Text?>> _dates = SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
+  final SplayTreeMap<SocialType?, Future<Text?>> _dates =
+      SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
   int _displayDatesCounter = 0;
 
   @override
@@ -120,42 +122,41 @@ class _GalleryCellState extends State<GalleryCell> {
                   flex: 1,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                      /**
+                    /**
                        * Date
                         */
-                    child: Builder(
-                      builder: (context) {
-                        return FutureBuilder(
-                            future: Future.wait(_dates.values),
-                            builder:
-                                (context, AsyncSnapshot<List<Text?>> snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return createTextWidget("Loading...");
-                              } else if (snapshot.hasError) {
-                                throw snapshot.error!;
-                              } else {
-                                List<Text?> displayDates =
-                                    snapshot.data as List<Text?>;
-                                displayDates
-                                    .removeWhere((element) => element == null);
+                    child: Builder(builder: (context) {
+                      return FutureBuilder(
+                          future: Future.wait(_dates.values),
+                          builder:
+                              (context, AsyncSnapshot<List<Text?>> snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return createTextWidget("Loading...");
+                            } else if (snapshot.hasError) {
+                              throw snapshot.error!;
+                            } else {
+                              List<Text?> displayDates =
+                                  snapshot.data as List<Text?>;
+                              displayDates
+                                  .removeWhere((element) => element == null);
 
-                                return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _displayDatesCounter++;
-                                        _displayDatesCounter %= displayDates.length;
-                                      });
-                                    },
-                                    child: IndexedStack(
-                                      index: _displayDatesCounter,
-                                      children:
-                                          displayDates.map((e) => e!).toList(),
-                                    ));
-                              }
-                            });
-                      }
-                    ),
+                              return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _displayDatesCounter++;
+                                      _displayDatesCounter %=
+                                          displayDates.length;
+                                    });
+                                  },
+                                  child: IndexedStack(
+                                    index: _displayDatesCounter,
+                                    children:
+                                        displayDates.map((e) => e!).toList(),
+                                  ));
+                            }
+                          });
+                    }),
                   ),
                 ),
                 Expanded(
@@ -466,6 +467,15 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 
   unAddUser(SocialType social) async {
+    bool result = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ConfirmationDialog(message: "Are you sure you want to unadd?");
+      },
+    );
+
+    if (!result) return;
+
     Toasts.showToast(true, (_) => "Marked as unadded");
     switch (social) {
       case SocialType.Snapchat:
@@ -484,11 +494,10 @@ class _GalleryCellState extends State<GalleryCell> {
     }
 
     _dates.remove(social);
-    if (_displayDatesCounter >= _dates.length){
+    if (_displayDatesCounter >= _dates.length) {
       _displayDatesCounter--;
     }
-    MyApp.updateFrame(() {
-    });
+    MyApp.updateFrame(() {});
   }
 
   openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
@@ -498,7 +507,8 @@ class _GalleryCellState extends State<GalleryCell> {
     DateTime date = DateTime.now();
     switch (social) {
       case (SocialType.Snapchat):
-        _dates[social] = Future.value(createTextWidget(snapchatDisplayDate(date)));
+        _dates[social] =
+            Future.value(createTextWidget(snapchatDisplayDate(date)));
         _site = Uri.parse(
             "https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
         if (addOnSocial) {
@@ -509,9 +519,10 @@ class _GalleryCellState extends State<GalleryCell> {
       case (SocialType.Instagram):
         _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
         if (addOnSocial)
-          _dates[social] = Future.value(createTextWidget(instagramDisplayDate(date)));
-          await StorageUtils.save(key,
-              backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+          _dates[social] =
+              Future.value(createTextWidget(instagramDisplayDate(date)));
+        await StorageUtils.save(key,
+            backup: true, instaAdded: true, instaAddedDate: DateTime.now());
         break;
       case (SocialType.Discord):
       default:
@@ -519,11 +530,10 @@ class _GalleryCellState extends State<GalleryCell> {
         Clipboard.setData(ClipboardData(text: widget.discordUsername));
         SocialIcon.discordIconButton?.openApp();
         if (true || addOnSocial)
-          _dates[social] = Future.value(createTextWidget(discordDisplayDate(date)));
-          await StorageUtils.save(key,
-              backup: true,
-              discordAdded: true,
-              discordAddedDate: DateTime.now());
+          _dates[social] =
+              Future.value(createTextWidget(discordDisplayDate(date)));
+        await StorageUtils.save(key,
+            backup: true, discordAdded: true, discordAddedDate: DateTime.now());
         break;
     }
     debugPrint("site URI: $_site");
