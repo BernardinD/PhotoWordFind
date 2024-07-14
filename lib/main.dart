@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
+import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
@@ -19,6 +21,11 @@ import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 
+import 'package:flutter_gemini/flutter_gemini.dart';
+import 'package:image_picker/image_picker.dart';
+
+import 'package:google_generative_ai/google_generative_ai.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -28,6 +35,18 @@ void main() {
     EmailManualHandler(["bdezius@gmail.com"],
         emailTitle: "Photo Word Find - Crashed", emailHeader: "Error message")
   ]);
+
+  // Initialize Gemini
+  Gemini.init(
+      apiKey: "", enableDebugging: true);
+
+  final model = GenerativeModel(
+  model: 'gemini-1.5-flash-latest',
+  apiKey: apiKey,
+  safetySettings: [
+    SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.high)
+  ],
+  generationConfig: GenerationConfig(maxOutputTokens: 200));
 
   Catcher(
       rootWidget: MyApp(title: 'Flutter Demo Home Page'),
@@ -134,6 +153,132 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<File> _images = [];
+  List<String> _results = [];
+
+  Future<void> _pickImage() async {
+    final pickedFiles = await ImagePicker().pickMultiImage();
+    if (pickedFiles != null && pickedFiles.isNotEmpty) {
+      setState(() {
+        _images =
+            pickedFiles.map((pickedFile) => File(pickedFile.path)).toList();
+      });
+      _sendToGemini();
+    }
+  }
+
+  Future<void> _sendToGemini() async {
+    try {
+      final gemini = Gemini.instance;
+
+      // Get full path
+      final srcList = gallery.selected.toList();
+      var lst = srcList
+          .map((x) => (getDirectoryPath().toString() + "/" + x))
+          .toList();
+      _images = lst.map((path) => File(path)).toList();
+
+      // Convert to list of files
+      // ...
+      String prompt = """
+Task:
+Extract the Instagram, Snapchat, and Discord handles from these Bumble profile screenshots. As well as all the locations specified at the bottom of the screenshots. The screenshots are in order of appearance. Please return the handles as a JSON array, with null values for any handles that are not present.
+
+Example output: 
+
+[
+  {
+    "social_handles": {
+      "snapchat": "snap_handle",
+      "instagram": "insta_handle",
+      "discord": "discord_handle"
+    },
+    "location": "location_text"
+  }
+]
+
+Requirements:
+1. Extract social media handles for Snapchat, Instagram, and Discord, and the location at the bottom.
+2. Maintain the order of input images in the output.
+3. Return null for missing handles or location.
+4. Keep in mind that instagram and snapchat can to denoted using shorthand like "snap", "sc", and "insta", as well as ghost and camera emojis
+
+Examples:
+1. If an image has:
+   - Snapchat: snap_handle
+   - Instagram: insta_handle
+   - Discord: discord_handle
+   - Location: City, Country
+
+   The output should be:
+
+   [
+     {
+       "social_handles": {
+         "snapchat": "snap_handle",
+         "instagram": "insta_handle",
+         "discord": "discord_handle"
+       },
+       "location": "City, Country"
+     }
+   ]
+
+2. If an image has:
+   - Instagram: insta_handle
+   - Location: City, Country
+
+   The output should be:
+
+   [
+     {
+       "social_handles": {
+         "snapchat": null,
+         "instagram": "insta_handle",
+         "discord": null
+       },
+       "location": "City, Country"
+     }
+   ]
+""";
+
+      final result = (await gemini.textAndImage(
+              text: prompt,
+              images: _images.map((image) => image.readAsBytesSync()).toList()))
+          ?.content
+          .toString();
+
+      String geminiResponseStr =
+          result!.substring(result.indexOf('['), result.lastIndexOf(']') + 1);
+      List? geminiResponseList;
+      try {
+        geminiResponseList = json.decode(geminiResponseStr) as List;
+      } on FormatException catch (e) {
+        throw ("Couldn't decode message: \n\n-----------\n$geminiResponseStr\n${e.message}");
+      }
+      setState(() {
+        _results.add(result.toString());
+        debugPrint("Gemini results: $result");
+
+        final galleryImages = gallery.images;
+        for (int idx = 0; idx < gallery.images.length; idx++) {
+          final galleryPage = galleryImages[idx];
+          final cell = galleryPage.child as GalleryCell;
+          final geminiResponse = geminiResponseList![idx];
+          if (gallery.selected.contains(
+              ((galleryPage.child as GalleryCell).key as ValueKey<String>)
+                  .value)) {
+            gallery.redoCell(cell.text, geminiResponse[0], geminiResponse[1],
+                cell.discordUsername, idx);
+          }
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _results.add('Error: $e');
+      });
+    }
+  }
+
   String? _directoryPath;
   Gallery gallery = MyApp._gallery;
 
@@ -316,6 +461,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: gallery.selected.isEmpty ? null : _sendToGemini,
+        tooltip: 'Pick Image',
+        child: const Icon(Icons.camera_alt),
+      ),
     );
   }
 
