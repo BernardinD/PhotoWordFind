@@ -7,11 +7,11 @@ class ConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) async {
         // Handle the case when the user presses the back button or taps outside the dialog
         Navigator.of(context).pop(false); // Return false when dismissed
-        return false;
       },
       child: AlertDialog(
         shape: RoundedRectangleBorder(

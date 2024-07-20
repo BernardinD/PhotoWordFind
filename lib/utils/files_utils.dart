@@ -90,8 +90,9 @@ Future ocrParallel(List filesList, Size size, { String? query, bool findFirst = 
 
   // Reset Gallery
   if(replace == null) {
-    if(MyApp.gallery.length() > 0)
+    if(MyApp.gallery.length() > 0){
       MyApp.gallery.galleryController.jumpToPage(0);
+      }
     MyApp.gallery.clear();
   }
 
