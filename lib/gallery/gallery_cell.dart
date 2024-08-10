@@ -33,7 +33,7 @@ class GalleryCell extends StatefulWidget {
       {required ValueKey<String> key})
       : super(key: key);
 
-  final String text;
+  final List<Map<String, String>> text;
   final String snapUsername;
   final String instaUsername;
   final String discordUsername;

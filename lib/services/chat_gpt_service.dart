@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:collection';
+import 'package:image/image.dart' as imglib;
 
 class Gpt4oModel extends Gpt4OChatModel {
   Gpt4oModel() : super() {
@@ -38,23 +39,25 @@ class ChatGPTService {
     systemMessage = {
       "role": 'system',
       "content": '''
-Extract the social media handles, name, age, and location, and text from the given Bumble profile screenshot. The social media handles may include Instagram, Snapchat, Discord, or others. These handles can be denoted with shorthands like "sc", "amos", or "snap" for Snapchat and "insta" or "ig" for Instagram. The location is usually found at the bottom of the profile. Return the extracted data in JSON array format.
-For the text return them broken up by their section titles and the underlying text under the "sections" field, and please include any emojis in the underlying text.
+Extract the social media handles, name, age, location, and text from the given Bumble profile screenshot using an OCR process optimized for handling emojis. The social media handles may include Instagram, Snapchat, Discord, or others. These handles can be denoted with shorthands like "sc", "amos", or "snap" for Snapchat and "insta" or "ig" for Instagram. The location is usually found at the bottom of the profile. Return the extracted data in JSON array format. For the text, return them broken up by their section titles and the underlying text under the "sections" field.
 
 These handles can possibly also be denoted with emojis:
 - Instagram: 📷 
 - Snapchat: 👻 
 
-Notice that the text sections are wrapped around. And for debugging purposes, name all the emojis you see in the image if that exist under "emojis".
+Notice:
+  1) The text sections are wrapped around, and that the image is a long screenshot and will need to be cropped and broken up vertically in order to clearly see all the text section, I recommend breaking up into 6 chunks.
+  2) Feel free to re-combine any chunks that have the text cut off. 
+  3) For debugging purposes, name all the emojis you see in the image if they exist under "emojis".
 
 [
   {
     "name": "<their name>",
     "age": <age>,
     "social_media_handles": {
-      "Instagram": "<instagram handle>",
-      "Snapchat": "<snapchat handle>",
-      "Discord": "<discord handle>"
+      "insta": "<instagram handle>",
+      "snap": "<snapchat handle>",
+      "discord": "<discord handle>"
     },
     "location": "<location>",
     "sections": [
@@ -79,7 +82,8 @@ Notice that the text sections are wrapped around. And for debugging purposes, na
     int maxRetries = 3,
   }) async {
     if (!_initialized) {
-      throw Exception("ChatGPTService not initialized. Call initialize() first.");
+      throw Exception(
+          "ChatGPTService not initialized. Call initialize() first.");
     }
 
     final completer = Completer<Map<String, dynamic>?>();
@@ -130,17 +134,20 @@ Notice that the text sections are wrapped around. And for debugging purposes, na
     int maxRetries = 3,
   }) async {
     int attempt = 0;
+    // List<File> chunks = _preprocessAndSplitImage(imageFile);
+    List<File> chunks = [imageFile];
+    List<Map<String, dynamic>> content = chunks.map((imageFileChunk) {
+      final encodedImage = base64Encode(imageFileChunk.readAsBytesSync());
+      return {
+        "type": "image_url",
+        "image_url": {"url": "data:image/jpeg;base64,$encodedImage"}
+      };
+    }).toList();
     while (attempt < maxRetries) {
       try {
-        final encodedImage = base64Encode(imageFile.readAsBytesSync());
         final imageMessage = {
           "role": 'user',
-          "content": [
-            {
-              "type": "image_url",
-              "image_url": {"url": "data:image/jpeg;base64,$encodedImage"}
-            }
-          ],
+          "content": content,
         };
 
         final request = ChatCompleteText(
@@ -170,7 +177,8 @@ Notice that the text sections are wrapped around. And for debugging purposes, na
           case 'rate_limit_exceeded':
             debugPrint("Retrying... (Attempt ${attempt + 1} of $maxRetries)");
             attempt++;
-            await Future.delayed(Duration(seconds: 2)); // Optional: delay between retries
+            await Future.delayed(
+                Duration(seconds: 2)); // Optional: delay between retries
             break;
           default:
             debugPrint("An unknown error occurred");
@@ -192,7 +200,8 @@ Notice that the text sections are wrapped around. And for debugging purposes, na
     bool useMiniModel = true,
   }) async {
     if (!_initialized) {
-      throw Exception("ChatGPTService not initialized. Call initialize() first.");
+      throw Exception(
+          "ChatGPTService not initialized. Call initialize() first.");
     }
 
     List<Future<Map<String, dynamic>?>> tasks = imageFiles
@@ -207,5 +216,36 @@ Notice that the text sections are wrapped around. And for debugging purposes, na
       _currentRequestCount = 0;
       _handleRequestQueue();
     });
+  }
+
+  static List<File> _preprocessAndSplitImage(File imageFile) {
+    // Read the image from the file
+    final image = imglib.decodeImage(imageFile.readAsBytesSync());
+
+    if (image == null) {
+      throw Exception("Unable to decode image.");
+    }
+
+    // Convert the image to grayscale
+    final grayscaleImage = imglib.grayscale(image);
+
+    // Enhance contrast
+    final enhancedImage = imglib.adjustColor(grayscaleImage, contrast: 1.5);
+
+    // Split the image into smaller chunks
+    final chunkHeight =
+        (image.height / 4).ceil(); // Split into 4 horizontal chunks
+    final chunkWidth = image.width; // Keep the full width
+
+    List<File> chunks = [];
+    for (int i = 0; i < 4; i++) {
+      final chunk = imglib.copyCrop(enhancedImage,
+          x: 0, y: i * chunkHeight, width: chunkWidth, height: chunkHeight);
+      final chunkFile = File('${imageFile.path}_chunk_$i.jpg')
+        ..writeAsBytesSync(imglib.encodeJpg(chunk));
+      chunks.add(chunkFile);
+    }
+
+    return chunks;
   }
 }

@@ -80,19 +80,19 @@ class Gallery{
   }
 
   // Creates standardized Widget that will seen in gallery
-  void addNewCell(String text, String snapUsername, dynamic file, File displayImage, {String instaUsername = "", String discordUsername = ""}){
+  void addNewCell(List<Map<String,String>> body, String snapUsername, dynamic file, File displayImage, {String instaUsername = "", String discordUsername = ""}){
     Function redoListPos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, snapUsername, instaUsername, discordUsername, file, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
+      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, file, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
     _images.add(cell);
   }
 
-  void redoCell(String text, String snapUsername, String instaUsername, String discordUsername, int idx){
+  void redoCell(List<Map<String,String>> body, String snapUsername, String instaUsername, String discordUsername, int idx){
     Function redoListPos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
@@ -102,7 +102,7 @@ class Gallery{
     var key = replacing.key!;
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(text, snapUsername, instaUsername, discordUsername, f, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: key as ValueKey<String>),
+      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, f, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: key as ValueKey<String>),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 

@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
-import 'package:PhotoWordFind/gallery/gallery_cell.dart';
+import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
-import 'package:PhotoWordFind/utils/chat_gpt_utils.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
@@ -24,9 +22,9 @@ import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 
 // import 'package:image_picker/image_picker.dart';
 
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  ChatGPTService.initialize();
 
   CatcherOptions debugOptions =
       CatcherOptions(PageReportMode(), [ConsoleHandler()]);
@@ -144,8 +142,9 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> _results = [];
 
   Future<void> _sendToChatGPT() async {
-    try {
+    MyApp.pr.show(max: _images.length);
 
+    try {
       // Get full path
       final srcList = gallery.selected.toList();
       var lst = srcList
@@ -153,8 +152,8 @@ class _MyHomePageState extends State<MyHomePage> {
           .toList();
       _images = lst.map((path) => File(path)).toList();
 
-      var result = await sendImagesToChatGPT(_images);
-
+      var result = await ChatGPTService.processMultipleImages(
+          imageFiles: _images, useMiniModel: true);
 
       setState(() {
         _results.add(result.toString());
@@ -173,11 +172,10 @@ class _MyHomePageState extends State<MyHomePage> {
         //   }
         // }
       });
-    } catch (e) {
-      setState(() {
-        _results.add('Error: $e');
-      });
+    } catch (e, s) {
+      Catcher.reportCheckedError(e, s);
     }
+    MyApp.pr.close();
   }
 
   String? _directoryPath;
