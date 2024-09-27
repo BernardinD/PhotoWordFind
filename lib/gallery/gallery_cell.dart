@@ -212,13 +212,13 @@ class _GalleryCellState extends State<GalleryCell> {
                                           widget.storageKey,
                                           reload: false,
                                           asMap: true),
-                                      builder: (context, snapshot) {
+                                      builder: (context, AsyncSnapshot<dynamic> snapshot) {
                                         if (snapshot.connectionState ==
                                             ConnectionState.waiting)
                                           return SizedBox();
                                         if (snapshot.hasData &&
                                             !snapshot.hasError) {
-                                          Map map = snapshot.data as Map;
+                                          Map? map = snapshot.data as Map?;
                                           return FittedBox(
                                             fit: BoxFit.fitHeight,
                                             child: PopupMenuButton<int>(
@@ -231,56 +231,48 @@ class _GalleryCellState extends State<GalleryCell> {
                                                   "Redo",
                                                   showRedoWindow,
                                                 ),
-                                                if (map[SubKeys.SnapUsername] !=
-                                                        null &&
-                                                    map[SubKeys.SnapUsername]
-                                                        .isNotEmpty)
-                                                  OurMenuItem(
-                                                    "Open on snap",
-                                                    () => openUserAppPage(
-                                                        SocialType.Snapchat,
-                                                        addOnSocial: false),
-                                                  ),
-                                                if (map[SubKeys
-                                                            .InstaUsername] !=
-                                                        null &&
-                                                    map[SubKeys.InstaUsername]
-                                                        .isNotEmpty)
-                                                  OurMenuItem(
-                                                    "Open on insta",
-                                                    () => openUserAppPage(
-                                                        SocialType.Instagram,
-                                                        addOnSocial: false),
-                                                  ),
-                                                if (map[SubKeys
-                                                            .DiscordUsername] !=
-                                                        null &&
-                                                    map[SubKeys.DiscordUsername]
-                                                        .isNotEmpty)
-                                                  OurMenuItem(
-                                                    "Open on discord",
-                                                    () => openUserAppPage(
-                                                        SocialType.Discord,
-                                                        addOnSocial: false),
-                                                  ),
-                                                if (map[SubKeys.AddedOnSnap])
-                                                  OurMenuItem(
-                                                    "Unadd Snap",
-                                                    () => unAddUser(
-                                                        SocialType.Snapchat),
-                                                  ),
-                                                if (map[SubKeys.AddedOnInsta])
-                                                  OurMenuItem(
-                                                    "Unadd Insta",
-                                                    () => unAddUser(
-                                                        SocialType.Instagram),
-                                                  ),
-                                                if (map[SubKeys.AddedOnDiscord])
+                                                // Assumes that if map isn't null then it follows the formot STRICTLY
+                                                if(map != null) ...[
+                                                  if (widget.snapUsername.isNotEmpty)
+                                                    OurMenuItem(
+                                                      "Open on snap",
+                                                      () => openUserAppPage(
+                                                          SocialType.Snapchat,
+                                                          addOnSocial: false),
+                                                    ),
+                                                  if (widget.instaUsername.isNotEmpty)
+                                                    OurMenuItem(
+                                                      "Open on insta",
+                                                      () => openUserAppPage(
+                                                          SocialType.Instagram,
+                                                          addOnSocial: false),
+                                                    ),
+                                                  if (widget.discordUsername.isNotEmpty)
+                                                    OurMenuItem(
+                                                      "Open on discord",
+                                                      () => openUserAppPage(
+                                                          SocialType.Discord,
+                                                          addOnSocial: false),
+                                                    ),
+                                                  if (map[SubKeys.AddedOnSnap])
+                                                    OurMenuItem(
+                                                      "Unadd Snap",
+                                                      () => unAddUser(
+                                                          SocialType.Snapchat),
+                                                    ),
+                                                  if (map[SubKeys.AddedOnInsta])
+                                                    OurMenuItem(
+                                                      "Unadd Insta",
+                                                      () => unAddUser(
+                                                          SocialType.Instagram),
+                                                    ),
+                                                  if (map[SubKeys.AddedOnDiscord])
                                                   OurMenuItem(
                                                     "Unadd Discord",
                                                     () => unAddUser(
                                                         SocialType.Discord),
                                                   ),
+                                                ],
                                                 OurMenuItem(
                                                   "Override username",
                                                   _manuallyUpdateUsername,

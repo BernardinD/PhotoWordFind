@@ -10,6 +10,7 @@ class ConfirmationDialog extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvoked: (bool didPop) async {
+        if (didPop) return;
         // Handle the case when the user presses the back button or taps outside the dialog
         Navigator.of(context).pop(false); // Return false when dismissed
       },

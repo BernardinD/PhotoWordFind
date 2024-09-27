@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:flutter/material.dart';
 
 import 'package:PhotoWordFind/constants/constants.dart';
@@ -171,7 +172,7 @@ Future<Map<String, dynamic>?> createThread(Map<String, dynamic> rawJson) {
   return flutterCompute(ocrThread, rawJson);
 }
 
-typedef FunctionType<T> = Future<Map<String,dynamic>?> Function(T);
+typedef FunctionType<T> = Future<Map<String, dynamic>?> Function(T);
 Function(Future<Map<String, dynamic>>) createThread_<T>(
     FunctionType<Map<String, dynamic>> function) {
   return (Future<Map<String, dynamic>> rawJson) {
@@ -184,18 +185,62 @@ Future<Map<String, dynamic>?> createOCRJob(
   debugPrint("Entering createOCRJob()...");
 
   String key = getKeyOfFilename(srcFile.path);
+  bool useChatGPT = true;
 
   var result;
   rawJson["replacing"] = replacing;
+  Map<String, dynamic>? originalValues =
+      await StorageUtils.get(key, asMap: true, reload: true);
 
   // Check if this file's' OCR has been cached
-  if (await StorageUtils.get(key, reload: true) != null && !replacing) {
+  if (originalValues != null && !replacing) {
     debugPrint(
         "This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
-    result = await StorageUtils.get(key, asMap: true, reload: false);
+    result = originalValues;
   } else {
-    Future<Map<String,dynamic>?> Function(Map<String,dynamic>) funct = replacing ? ocrThread : createThread;
-    result = funct(rawJson);
+    if (useChatGPT) {
+      result = ChatGPTService.processImage(imageFile: File(srcFile.path))
+          .then((onValue) async {
+        debugPrint(json.encode(onValue));
+        originalValues = originalValues ?? {};
+
+        // Avoid overriding sensitive info
+        if (originalValues?["location"] != null &&
+            onValue?["location"] != null) {
+          onValue?.remove("location");
+        }
+
+        if (originalValues?["sections"] != null &&
+            onValue?["sections"] != null) {
+          List<Map<String, String>> originalSections =
+              (originalValues?["sections"] as List)
+                  .map((item) => Map<String, String>.from(item as Map))
+                  .toList();
+          List<Map<String, String>> newSections = (onValue?["sections"] as List)
+              .map((item) => Map<String, String>.from(item as Map))
+              .toList();
+
+          for (var newSection in newSections) {
+            originalSections.removeWhere((originalSection) =>
+                originalSection["title"] == newSection["title"]);
+          }
+
+          newSections.addAll(originalSections);
+          onValue?["sections"].addAll(originalSections);
+        }
+
+        originalValues!.addAll(onValue ?? {});
+        await StorageUtils.save(key, asMap: originalValues, backup: replacing);
+
+        // Reload storage for this thread
+        await StorageUtils.get("", reload: true);
+        return originalValues;
+      });
+    } else {
+      Future<Map<String, dynamic>?> Function(Map<String, dynamic>) funct =
+          replacing ? ocrThread : createThread;
+      result = funct(rawJson);
+    }
   }
 
   debugPrint("Leaving createOCRJob()...");
@@ -210,7 +255,7 @@ void increaseProgressBar(int completed, int pathsLength) {
 }
 
 Map<String, dynamic> postProcessOCR(String ocr) {
-  Map<String, dynamic> map = StorageUtils.convertValueToMap(ocr);
+  Map<String, dynamic> map = StorageUtils.convertValueToMap(ocr, enforceMapOutput: true)!;
   String snap = suggestionSnapName(ocr) ?? "";
   String insta = suggestionInstaName(ocr) ?? "";
   String discord = suggestionDiscordName(ocr) ?? "";
@@ -274,12 +319,20 @@ Future onEachOcrResult(
   int completed,
 ) async {
   debugPrint("Entering onOCRResult...");
+  List<Map<String, String>>? sections;
 
-  List<Map<String, String>>? sections = result?["sections"];
+  if (result?["sections"] is List) {
+    sections = (result?["sections"] as List)
+        .map((item) => Map<String, String>.from(item as Map))
+        .toList();
+  } else {
+    sections = null;
+  }
   String? ocr = result?[SubKeys.OCR];
-  String snapUsername = result?[SubKeys.SnapUsername] as String;
-  String instaUsername = result?[SubKeys.InstaUsername] as String;
-  String discordUsername = result?[SubKeys.DiscordUsername] as String;
+  Map<String, dynamic>? usernames = result?["social_media_handles"] ?? result;
+  String snapUsername = usernames?[SubKeys.SnapUsername] as String? ?? "";
+  String instaUsername = usernames?[SubKeys.InstaUsername] as String? ?? "";
+  String discordUsername = usernames?[SubKeys.DiscordUsername] as String? ?? "";
 
   if (ocr == null && sections == null) {
     ocr = "";
@@ -304,7 +357,8 @@ Future onEachOcrResult(
     else {
       var pair = replace.entries.first;
       int idx = pair.key;
-      MyApp.gallery.redoCell(cellBody, snapUsername, "", "", idx);
+      MyApp.gallery.redoCell(
+          cellBody, snapUsername, instaUsername, discordUsername, idx);
       // Note: scrFile will always be a File for redo and ONLY redo
       (srcFile as File).delete();
     }

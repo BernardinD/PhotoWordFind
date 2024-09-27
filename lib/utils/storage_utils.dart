@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 
-class SubKeys{
+class SubKeys {
   // ignore: non_constant_identifier_names
   static String get OCR => "ocr";
   // ignore: non_constant_identifier_names
@@ -29,7 +30,6 @@ class SubKeys{
   static String get DiscordDate => "dateAddedOnDiscord";
   // ignore: non_constant_identifier_names
   static String get PreviousUsernames => "previousUsernames";
-
 }
 
 class StorageUtils {
@@ -40,12 +40,19 @@ class StorageUtils {
     return ret;
   }
 
-  static Map<String, dynamic> convertValueToMap(String? value) {
+  static Map<String, dynamic>? convertValueToMap(String? value,
+      {bool enforceMapOutput = false}) {
     Map<String, dynamic> _map;
     try {
-      if(value == null) throw FormatException("value was null. Creating empty fresh mapping");
+      if (value == null)
+        throw FormatException("value was null. Creating empty fresh mapping");
       _map = json.decode(value);
     } on FormatException catch (e) {
+      log(e.message);
+      if (!enforceMapOutput) {
+        return null;
+      }
+
       // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
       _map = {};
     }
@@ -63,13 +70,18 @@ class StorageUtils {
       SubKeys.PreviousUsernames:     _map[SubKeys.PreviousUsernames] ?? <String, List<String>>{
         SubKeys.SnapUsername: <String>[],
         SubKeys.InstaUsername: <String>[],
-      }
+          },
+      // New values from chat GPT
+      "social_media_handles": _map["social_media_handles"],
+      "sections": _map["sections"],
+      "name": _map["name"],
+      "age": _map["age"],
+      "location": _map["location"],
     };
     return map;
   }
 
   static Future syncLocalAndCloud() async {
-
     await _getStorageInstance(reload: true);
 
     // Save to cloud
@@ -97,13 +109,21 @@ class StorageUtils {
       DateTime? instaAddedDate,
       DateTime? discordAddedDate,
       Map<String, dynamic>? asMap}) async {
-    if ((snap != null || insta != null || discord != null) && overridingUsername == null){
+    if ((snap != null || insta != null || discord != null) &&
+        overridingUsername == null) {
       throw Exception("Must declare if username is being overwritten");
-    }
-    else if(overridingUsername != null && overridingUsername && snap == null && insta == null && discord == null){
+    } else if (overridingUsername != null &&
+        overridingUsername &&
+        snap == null &&
+        insta == null &&
+        discord == null) {
       throw Exception("Missing username to overwrite");
     }
-    Map<String, dynamic> map = (await get(storageKey, reload: false, asMap: true)) as Map<String, dynamic>;
+    Map<String, dynamic>? map =
+        (await get(storageKey, reload: false, asMap: true))
+            as Map<String, dynamic>?;
+
+    map ??= convertValueToMap("", enforceMapOutput: true)!;
 
     // Todo: If Map is sent in concat with current saved values
     // ...
@@ -122,9 +142,9 @@ class StorageUtils {
     }
     if (asMap              != null) map.addAll(asMap);
     if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
-    if (snap               != null) map[SubKeys.SnapUsername]    = snap;
-    if (insta              != null) map[SubKeys.InstaUsername]   = insta;
-    if (discord            != null) map[SubKeys.DiscordUsername] = discord;
+    if (snap               != null) map["social_media_handles"][SubKeys.SnapUsername]    = snap;
+    if (insta              != null) map["social_media_handles"][SubKeys.InstaUsername]   = insta;
+    if (discord            != null) map["social_media_handles"][SubKeys.DiscordUsername] = discord;
     if (snapAdded          != null) map[SubKeys.AddedOnSnap]     = snapAdded;
     if (instaAdded         != null) map[SubKeys.AddedOnInsta]    = instaAdded;
     if (discordAdded       != null) map[SubKeys.AddedOnDiscord]  = discordAdded;
@@ -157,12 +177,14 @@ class StorageUtils {
     SharedPreferences prefs = (await _getStorageInstance(reload: reload));
     String? rawJson = prefs.getString(key);
 
-    Map<String, dynamic> map = convertValueToMap(rawJson);
+    Map<String, dynamic>? map = convertValueToMap(rawJson);
+
+    if(map == null) return null;
 
     if      (asMap)        { return map; }
-    else if (snap)         { return map[ SubKeys.SnapUsername    ]; }
-    else if (insta)        { return map[ SubKeys.InstaUsername   ]; }
-    else if (discord)      { return map[ SubKeys.DiscordUsername ]; }
+    else if (snap)         { return map["social_media_handles"]?[ SubKeys.SnapUsername    ] ?? map[ SubKeys.SnapUsername    ]; }
+    else if (insta)        { return map["social_media_handles"]?[ SubKeys.InstaUsername   ] ?? map[ SubKeys.InstaUsername   ]; }
+    else if (discord)      { return map["social_media_handles"]?[ SubKeys.DiscordUsername ] ?? map[ SubKeys.DiscordUsername ]; }
     else if (snapAdded)    { return map[ SubKeys.AddedOnSnap    ] ??  false; }
     else if (instaAdded)   { return map[ SubKeys.AddedOnInsta   ] ??  false; }
     else if (discordAdded) { return map[ SubKeys.AddedOnDiscord ] ??  false; }
@@ -180,7 +202,7 @@ class StorageUtils {
       String? localValue = (await get(key, reload: false)) as String?;
       // Assuming that if it isn't saved locally then it must be just an OCR before the format change
       if (localValue == null) {
-        var returned = convertValueToMap(cloud[key]);
+        var returned = convertValueToMap(cloud[key], enforceMapOutput: true);
         save(key, asMap: returned, backup: false);
         debugPrint("Saving...");
       } else {
@@ -188,12 +210,13 @@ class StorageUtils {
         // debugPrint("String ($key) matches: ${(value == cloud[key])}");
 
         if (localValue != cloud[key] && isJSON(localValue)) {
-          mismatches.add(Exception("Cloud and local copies don't match: [$key] \n local: $localValue \n cloud: ${cloud[key]}"));
+          mismatches.add(Exception(
+              "Cloud and local copies don't match: [$key] \n local: $localValue \n cloud: ${cloud[key]}"));
         }
       }
     }
     debugPrint("Leaving merge()...");
-    if(mismatches.isNotEmpty) {
+    if (mismatches.isNotEmpty) {
       throw Exception(mismatches);
     }
   }

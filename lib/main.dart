@@ -141,6 +141,12 @@ class _MyHomePageState extends State<MyHomePage> {
   List<File> _images = [];
   List<String> _results = [];
 
+  // TODO: Delete after testing
+  void debugPrintLargeString(String message, {int chunkSize = 1000}) {
+    final pattern = RegExp('.{1,$chunkSize}', dotAll: true);
+    pattern.allMatches(message).forEach((match) => debugPrint(match.group(0)));
+  }
+
   Future<void> _sendToChatGPT() async {
     MyApp.pr.show(max: _images.length);
 
@@ -157,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       setState(() {
         _results.add(result.toString());
-        debugPrint("ChatGPT results: $result");
+        debugPrintLargeString("ChatGPT results: ${result.toString()}");
 
         // final galleryImages = gallery.images;
         // for (int idx = 0; idx < gallery.images.length; idx++) {
