@@ -205,18 +205,18 @@ Future<Map<String, dynamic>?> createOCRJob(
         originalValues = originalValues ?? {};
 
         // Avoid overriding sensitive info
-        if (originalValues?["location"] != null &&
-            onValue?["location"] != null) {
-          onValue?.remove("location");
+        if (originalValues?[SubKeys.Location] != null &&
+            onValue?[SubKeys.Location] != null) {
+          onValue?.remove(SubKeys.Location);
         }
 
-        if (originalValues?["sections"] != null &&
-            onValue?["sections"] != null) {
+        if (originalValues?[SubKeys.Sections] != null &&
+            onValue?[SubKeys.Sections] != null) {
           List<Map<String, String>> originalSections =
-              (originalValues?["sections"] as List)
+              (originalValues?[SubKeys.Sections] as List)
                   .map((item) => Map<String, String>.from(item as Map))
                   .toList();
-          List<Map<String, String>> newSections = (onValue?["sections"] as List)
+          List<Map<String, String>> newSections = (onValue?[SubKeys.Sections] as List)
               .map((item) => Map<String, String>.from(item as Map))
               .toList();
 
@@ -226,7 +226,7 @@ Future<Map<String, dynamic>?> createOCRJob(
           }
 
           newSections.addAll(originalSections);
-          onValue?["sections"].addAll(originalSections);
+          onValue?[SubKeys.Sections].addAll(originalSections);
         }
 
         originalValues!.addAll(onValue ?? {});
@@ -321,15 +321,15 @@ Future onEachOcrResult(
   debugPrint("Entering onOCRResult...");
   List<Map<String, String>>? sections;
 
-  if (result?["sections"] is List) {
-    sections = (result?["sections"] as List)
+  if (result?[SubKeys.Sections] is List) {
+    sections = (result?[SubKeys.Sections] as List)
         .map((item) => Map<String, String>.from(item as Map))
         .toList();
   } else {
     sections = null;
   }
   String? ocr = result?[SubKeys.OCR];
-  Map<String, dynamic>? usernames = result?["social_media_handles"] ?? result;
+  Map<String, dynamic>? usernames = result?[SubKeys.SocialMediaHandles] ?? result;
   String snapUsername = usernames?[SubKeys.SnapUsername] as String? ?? "";
   String instaUsername = usernames?[SubKeys.InstaUsername] as String? ?? "";
   String discordUsername = usernames?[SubKeys.DiscordUsername] as String? ?? "";

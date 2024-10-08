@@ -30,6 +30,16 @@ class SubKeys {
   static String get DiscordDate => "dateAddedOnDiscord";
   // ignore: non_constant_identifier_names
   static String get PreviousUsernames => "previousUsernames";
+  // ignore: non_constant_identifier_names
+  static String get SocialMediaHandles => "social_media_handles";
+  // ignore: non_constant_identifier_names
+  static String get Sections => "sections";
+  // ignore: non_constant_identifier_names
+  static String get Name => "name";
+  // ignore: non_constant_identifier_names
+  static String get Age => "age";
+  // ignore: non_constant_identifier_names
+  static String get Location => "location";
 }
 
 class StorageUtils {
@@ -72,11 +82,11 @@ class StorageUtils {
         SubKeys.InstaUsername: <String>[],
           },
       // New values from chat GPT
-      "social_media_handles": _map["social_media_handles"],
-      "sections": _map["sections"],
-      "name": _map["name"],
-      "age": _map["age"],
-      "location": _map["location"],
+      SubKeys.SocialMediaHandles: _map[SubKeys.SocialMediaHandles],
+      SubKeys.Sections: _map[SubKeys.Sections],
+      SubKeys.Name: _map[SubKeys.Name],
+      SubKeys.Age: _map[SubKeys.Age],
+      SubKeys.Location: _map[SubKeys.Location],
     };
     return map;
   }
@@ -142,9 +152,9 @@ class StorageUtils {
     }
     if (asMap              != null) map.addAll(asMap);
     if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
-    if (snap               != null) map["social_media_handles"][SubKeys.SnapUsername]    = snap;
-    if (insta              != null) map["social_media_handles"][SubKeys.InstaUsername]   = insta;
-    if (discord            != null) map["social_media_handles"][SubKeys.DiscordUsername] = discord;
+    if (snap               != null) map[SubKeys.SocialMediaHandles][SubKeys.SnapUsername]    = snap;
+    if (insta              != null) map[SubKeys.SocialMediaHandles][SubKeys.InstaUsername]   = insta;
+    if (discord            != null) map[SubKeys.SocialMediaHandles][SubKeys.DiscordUsername] = discord;
     if (snapAdded          != null) map[SubKeys.AddedOnSnap]     = snapAdded;
     if (instaAdded         != null) map[SubKeys.AddedOnInsta]    = instaAdded;
     if (discordAdded       != null) map[SubKeys.AddedOnDiscord]  = discordAdded;
@@ -182,9 +192,9 @@ class StorageUtils {
     if(map == null) return null;
 
     if      (asMap)        { return map; }
-    else if (snap)         { return map["social_media_handles"]?[ SubKeys.SnapUsername    ] ?? map[ SubKeys.SnapUsername    ]; }
-    else if (insta)        { return map["social_media_handles"]?[ SubKeys.InstaUsername   ] ?? map[ SubKeys.InstaUsername   ]; }
-    else if (discord)      { return map["social_media_handles"]?[ SubKeys.DiscordUsername ] ?? map[ SubKeys.DiscordUsername ]; }
+    else if (snap)         { return map[SubKeys.SocialMediaHandles]?[ SubKeys.SnapUsername    ] ?? map[ SubKeys.SnapUsername    ]; }
+    else if (insta)        { return map[SubKeys.SocialMediaHandles]?[ SubKeys.InstaUsername   ] ?? map[ SubKeys.InstaUsername   ]; }
+    else if (discord)      { return map[SubKeys.SocialMediaHandles]?[ SubKeys.DiscordUsername ] ?? map[ SubKeys.DiscordUsername ]; }
     else if (snapAdded)    { return map[ SubKeys.AddedOnSnap    ] ??  false; }
     else if (instaAdded)   { return map[ SubKeys.AddedOnInsta   ] ??  false; }
     else if (discordAdded) { return map[ SubKeys.AddedOnDiscord ] ??  false; }

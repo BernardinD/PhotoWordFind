@@ -23,7 +23,6 @@ import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 // import 'package:image_picker/image_picker.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   ChatGPTService.initialize();
 
   CatcherOptions debugOptions =
@@ -36,7 +35,8 @@ void main() {
   Catcher(
       rootWidget: MyApp(title: 'Flutter Demo Home Page'),
       debugConfig: debugOptions,
-      releaseConfig: releaseOptions);
+      releaseConfig: releaseOptions,
+      ensureInitialized: true);
 
   // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
   // runApp(MyApp('Flutter Demo Home Page'));
@@ -230,7 +230,11 @@ class _MyHomePageState extends State<MyHomePage> {
         MyApp.pr.update(value: 0, msg: "Setting up...");
 
         CloudUtils.firstSignIn()
-            .then((bool value) {})
+            .then((bool signedIn) {
+              if(!signedIn){
+                throw Exception("Sign-in failed");
+              }
+            })
             .onError((dynamic error, stackTrace) async =>
                 debugPrint("Sign in error: $error \n$stackTrace")
                     as FutureOr<Null>)
