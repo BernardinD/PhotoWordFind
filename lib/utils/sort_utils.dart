@@ -98,7 +98,7 @@ class Sortings {
 
     for (String key in localPrefs.getKeys()) {
       String rawJson = localPrefs.getString(key)!;
-      Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson);
+      Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson , enforceMapOutput: true)!;
 
       if(!map.containsKey("discord") ?? false){
         debugPrint("this key failed: $key");

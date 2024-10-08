@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery.dart';
+import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
@@ -19,8 +20,10 @@ import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 
+// import 'package:image_picker/image_picker.dart';
+
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
+  ChatGPTService.initialize();
 
   CatcherOptions debugOptions =
       CatcherOptions(PageReportMode(), [ConsoleHandler()]);
@@ -32,7 +35,8 @@ void main() {
   Catcher(
       rootWidget: MyApp(title: 'Flutter Demo Home Page'),
       debugConfig: debugOptions,
-      releaseConfig: releaseOptions);
+      releaseConfig: releaseOptions,
+      ensureInitialized: true);
 
   // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
   // runApp(MyApp('Flutter Demo Home Page'));
@@ -89,8 +93,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: MaterialApp(
         title: 'Flutter Demo',
         theme: ThemeData(
@@ -134,6 +138,52 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<File> _images = [];
+  List<String> _results = [];
+
+  // TODO: Delete after testing
+  void debugPrintLargeString(String message, {int chunkSize = 1000}) {
+    final pattern = RegExp('.{1,$chunkSize}', dotAll: true);
+    pattern.allMatches(message).forEach((match) => debugPrint(match.group(0)));
+  }
+
+  Future<void> _sendToChatGPT() async {
+    MyApp.pr.show(max: _images.length);
+
+    try {
+      // Get full path
+      final srcList = gallery.selected.toList();
+      var lst = srcList
+          .map((x) => (getDirectoryPath().toString() + "/" + x))
+          .toList();
+      _images = lst.map((path) => File(path)).toList();
+
+      var result = await ChatGPTService.processMultipleImages(
+          imageFiles: _images, useMiniModel: true);
+
+      setState(() {
+        _results.add(result.toString());
+        debugPrintLargeString("ChatGPT results: ${result.toString()}");
+
+        // final galleryImages = gallery.images;
+        // for (int idx = 0; idx < gallery.images.length; idx++) {
+        //   final galleryPage = galleryImages[idx];
+        //   final cell = galleryPage.child as GalleryCell;
+        //   final geminiResponse = geminiResponseList![idx];
+        //   if (gallery.selected.contains(
+        //       ((galleryPage.child as GalleryCell).key as ValueKey<String>)
+        //           .value)) {
+        //     gallery.redoCell(cell.text, geminiResponse[0], geminiResponse[1],
+        //         cell.discordUsername, idx);
+        //   }
+        // }
+      });
+    } catch (e, s) {
+      Catcher.reportCheckedError(e, s);
+    }
+    MyApp.pr.close();
+  }
+
   String? _directoryPath;
   Gallery gallery = MyApp._gallery;
 
@@ -180,7 +230,11 @@ class _MyHomePageState extends State<MyHomePage> {
         MyApp.pr.update(value: 0, msg: "Setting up...");
 
         CloudUtils.firstSignIn()
-            .then((bool value) {})
+            .then((bool signedIn) {
+              if(!signedIn){
+                throw Exception("Sign-in failed");
+              }
+            })
             .onError((dynamic error, stackTrace) async =>
                 debugPrint("Sign in error: $error \n$stackTrace")
                     as FutureOr<Null>)
@@ -316,6 +370,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: gallery.selected.isEmpty ? null : _sendToChatGPT,
+        tooltip: 'Pick Image',
+        child: const Icon(Icons.camera_alt),
+      ),
     );
   }
 
