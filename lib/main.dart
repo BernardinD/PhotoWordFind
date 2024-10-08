@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:PhotoWordFind/experimental/2attempt/imageGalleryScreen.dart';
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
@@ -9,6 +10,7 @@ import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
+import 'package:PhotoWordFind/experimental/1attempt/test_new_gallery.dart';
 import 'package:catcher/catcher.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -19,6 +21,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
+import 'package:responsive_framework/responsive_framework.dart';
 
 // import 'package:image_picker/image_picker.dart';
 
@@ -33,7 +36,17 @@ void main() {
   ]);
 
   Catcher(
-      rootWidget: MyApp(title: 'Flutter Demo Home Page'),
+      // rootWidget: MyApp(title: 'Flutter Demo Home Page'),
+      rootWidget: MaterialApp(
+      builder: (context, widget) => ResponsiveBreakpoints.builder(
+        child: widget!,
+        breakpoints: [
+      const Breakpoint(start: 0, end: 350, name: MOBILE),
+      const Breakpoint(start: 451, end: 600, name: TABLET),
+      const Breakpoint(start: 601, end: double.infinity, name: DESKTOP),
+        ],
+      ),
+      home: ImageGalleryScreen(),),
       debugConfig: debugOptions,
       releaseConfig: releaseOptions,
       ensureInitialized: true);
@@ -333,6 +346,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               if (gallery.images.isNotEmpty)
                 showGallery()
+                // ImageListScreen()
               else if (Operation.isRetryOp())
                 showRetry(),
             ],

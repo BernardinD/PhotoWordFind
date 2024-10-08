@@ -80,6 +80,8 @@ dependencies:
   # For checking internet connection
   connectivity_plus: ^3.0.3
 
+  responsive_framework: '1.3.0'
+
   # Format Date for being shown
   intl: ^0.17.0
 
