@@ -12,6 +12,7 @@ import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
+import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -55,6 +56,7 @@ class _GalleryCellState extends State<GalleryCell> {
   late final Key? cellKey = ValueKey(fileName);
   late final String fileName = widget.f.path.split("/").last;
   late final PhotoView _photo;
+  late String? _notes;
   final SplayTreeMap<SocialType?, Future<Text?>> _dates =
       SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
   int _displayDatesCounter = 0;
@@ -94,6 +96,11 @@ class _GalleryCellState extends State<GalleryCell> {
         Future.value(widget.srcImage.lastModifiedSync()).then((date) {
       String text = "Profile Found on: \n ${dateFormat.format(date)}";
       return createTextWidget(text);
+    });
+
+    StorageUtils.get(widget.storageKey, reload: false, notes: true)
+            .then((value) {
+      _notes = value;
     });
   }
 
@@ -182,7 +189,21 @@ class _GalleryCellState extends State<GalleryCell> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Spacer(),
+                  /**
+                   * Notes button
+                   */
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      FloatingActionButton(
+                        onPressed: () async {
+                          _notes = await showNoteDialog(context, widget.storageKey, existingNotes: _notes) ?? _notes;
+                        },
+                        child: Icon(Icons.note_alt_outlined),  // Note icon
+                        backgroundColor: const Color.fromARGB(255, 58, 158, 183),
+                      ),
+                    ],
+                  ),
                   /**
                    * "Select" and options
                    */
@@ -288,7 +309,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                       }),
                                 ),
                               ),
-                            )
+                            ),
                           ],
                         ),
                       )),
