@@ -190,17 +190,39 @@ class _GalleryCellState extends State<GalleryCell> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   /**
-                   * Notes button
+                   * Notes button, right edge shifted
                    */
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      FloatingActionButton(
-                        onPressed: () async {
-                          _notes = await showNoteDialog(context, widget.storageKey, existingNotes: _notes) ?? _notes;
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Use MediaQuery to get the screen height
+                          var screenHeight = MediaQuery.of(context).size.height;
+
+                          // Define smaller size for FAB in vertical split-screen mode (based on height)
+                          double fabSize = screenHeight < 400
+                              ? 40.0
+                              : 56.0; // Adjust size when height is below 400
+
+                          return SizedBox(
+                            height: fabSize, // Adjust the height of the FAB
+                            width: fabSize, // Adjust the width of the FAB
+                            child: FloatingActionButton(
+                              onPressed: () async {
+                                _notes = await showNoteDialog(
+                                        context, widget.storageKey,
+                                        existingNotes: _notes) ??
+                                    _notes;
+                              },
+                              child: Icon(Icons.note_alt_outlined,
+                                  size: fabSize *
+                                      0.6), // Scale the icon size with the FAB
+                              backgroundColor:
+                                  const Color.fromARGB(255, 58, 158, 183),
+                            ),
+                          );
                         },
-                        child: Icon(Icons.note_alt_outlined),  // Note icon
-                        backgroundColor: const Color.fromARGB(255, 58, 158, 183),
                       ),
                     ],
                   ),
