@@ -40,6 +40,8 @@ class SubKeys {
   static String get Age => "age";
   // ignore: non_constant_identifier_names
   static String get Location => "location";
+  // ignore: non_constant_identifier_names
+  static String get Notes => "notes";
 }
 
 class StorageUtils {
@@ -81,6 +83,7 @@ class StorageUtils {
         SubKeys.SnapUsername: <String>[],
         SubKeys.InstaUsername: <String>[],
           },
+      SubKeys.Notes: _map[SubKeys.Notes],
       // New values from chat GPT
       SubKeys.SocialMediaHandles: _map[SubKeys.SocialMediaHandles],
       SubKeys.Sections: _map[SubKeys.Sections],
@@ -118,6 +121,7 @@ class StorageUtils {
       DateTime? snapAddedDate,
       DateTime? instaAddedDate,
       DateTime? discordAddedDate,
+      String? notes,
       Map<String, dynamic>? asMap}) async {
     if ((snap != null || insta != null || discord != null) &&
         overridingUsername == null) {
@@ -161,6 +165,7 @@ class StorageUtils {
     if (snapAddedDate      != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
     if (instaAddedDate     != null) map[SubKeys.InstaDate]       = instaAddedDate.toIso8601String();
     if (discordAddedDate   != null) map[SubKeys.DiscordDate]     = discordAddedDate.toIso8601String();
+    if (notes              != null) map[SubKeys.Notes]                 = notes;
 
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
@@ -180,9 +185,10 @@ class StorageUtils {
       bool snapAdded = false,
       bool instaAdded = false,
       bool discordAdded = false,
-      snapDate = false,
-      instaDate = false,
-      discordDate = false,
+      bool snapDate = false,
+      bool instaDate = false,
+      bool discordDate = false,
+      bool notes = false,
       bool asMap = false}) async {
     SharedPreferences prefs = (await _getStorageInstance(reload: reload));
     String? rawJson = prefs.getString(key);
@@ -201,6 +207,7 @@ class StorageUtils {
     else if (snapDate)     { return map[ SubKeys.SnapDate      ]; }
     else if (instaDate)    { return map[ SubKeys.InstaDate     ]; }
     else if (discordDate)  { return map[ SubKeys.DiscordDate   ]; }
+    else if (notes)        { return map[ SubKeys.Notes         ]; }
     else                   { return map[ SubKeys.OCR           ]; }
   }
 
