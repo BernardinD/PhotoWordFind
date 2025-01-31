@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:PhotoWordFind/apiSecretKeys.dart';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:collection';
@@ -30,7 +31,7 @@ class ChatGPTService {
 
   static void initialize() {
     _openAI = OpenAI.instance.build(
-      token: "",
+      token: chatGPTApiKey,
       baseOption: HttpSetup(
         receiveTimeout: const Duration(seconds: 60),
         connectTimeout: const Duration(seconds: 60),

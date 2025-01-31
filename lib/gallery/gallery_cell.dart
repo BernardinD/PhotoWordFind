@@ -99,7 +99,7 @@ class _GalleryCellState extends State<GalleryCell> {
     });
 
     StorageUtils.get(widget.storageKey, reload: false, notes: true)
-            .then((value) {
+        .then((value) {
       _notes = value;
     });
   }
@@ -310,11 +310,11 @@ class _GalleryCellState extends State<GalleryCell> {
                                                           SocialType.Instagram),
                                                     ),
                                                   if (map[SubKeys.AddedOnDiscord])
-                                                  OurMenuItem(
-                                                    "Unadd Discord",
-                                                    () => unAddUser(
-                                                        SocialType.Discord),
-                                                  ),
+                                                    OurMenuItem(
+                                                      "Unadd Discord",
+                                                      () => unAddUser(
+                                                          SocialType.Discord),
+                                                    ),
                                                 ],
                                                 OurMenuItem(
                                                   "Override username",
@@ -539,40 +539,60 @@ class _GalleryCellState extends State<GalleryCell> {
     await MyApp.showProgress(autoComplete: true);
     String key = widget.storageKey;
     Uri _site;
-    DateTime date = DateTime.now();
+    DateTime? date;
+
+    // TODO: enhance this check to see if the previous `_Added` value has changed and only save then
+    if (addOnSocial || await _dates[social] == null) {
+      date = DateTime.now();
+    }
+
+    Future saving = Future.value();
+
     switch (social) {
       case (SocialType.Snapchat):
-        _dates[social] =
-            Future.value(createTextWidget(snapchatDisplayDate(date)));
         _site = Uri.parse(
             "https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
         if (addOnSocial) {
-          await StorageUtils.save(key,
-              backup: true, snapAdded: true, snapAddedDate: date);
+          if (date != null) {
+            _dates[social] ??=
+              Future.value(createTextWidget(snapchatDisplayDate(date)));
+            saving = StorageUtils.save(key,
+                backup: true, snapAddedDate: date);
+          }
+          saving = saving.then((_) => StorageUtils.save(key, backup: true, snapAdded: true) );
         }
         break;
       case (SocialType.Instagram):
         _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
-        if (addOnSocial)
-          _dates[social] =
+        if (addOnSocial) {
+          if (date != null) {
+            _dates[social] ??=
               Future.value(createTextWidget(instagramDisplayDate(date)));
-        await StorageUtils.save(key,
-            backup: true, instaAdded: true, instaAddedDate: DateTime.now());
+            saving = StorageUtils.save(key,
+                backup: true, instaAddedDate: date);
+          }
+          saving = saving.then((_) => StorageUtils.save(key, backup: true, instaAdded: true) );
+        }
         break;
       case (SocialType.Discord):
       default:
         _site = Uri.parse("");
         Clipboard.setData(ClipboardData(text: widget.discordUsername));
         SocialIcon.discordIconButton?.openApp();
-        if (true || addOnSocial)
-          _dates[social] =
+        if (true || addOnSocial) {
+          if (date != null) {
+            _dates[social] ??=
               Future.value(createTextWidget(discordDisplayDate(date)));
-        await StorageUtils.save(key,
-            backup: true, discordAdded: true, discordAddedDate: DateTime.now());
+            saving = StorageUtils.save(key,
+                backup: true, discordAddedDate: date);
+          }
+          saving = saving.then((_) => StorageUtils.save(key, backup: true, discordAdded: true) );
+        }
         break;
     }
+    saving.then((_) => Sortings.updateCache());
+
     debugPrint("site URI: $_site");
-    await Sortings.updateCache();
     if (!_site.hasEmptyPath)
       launchUrl(_site, mode: LaunchMode.externalApplication)
           .then((value) => MyApp.pr.close(delay: 500));
