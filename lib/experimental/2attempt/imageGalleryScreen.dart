@@ -38,34 +38,39 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Image Gallery'),
-      ),
-      body: Column(
-        children: [
-          _buildTopBar(),
-          _buildSortingFilteringBar(),
-          Expanded(
-            child: ImageGallery(
-              images: images,
-              selectedImages: selectedImages,
-              extractedTexts: extractedTexts,
-              identifiers: identifiers,
-              onImageSelected: (String imagePath) {
-                setState(() {
-                  if (selectedImages.contains(imagePath)) {
-                    selectedImages.remove(imagePath);
-                  } else {
-                    selectedImages.add(imagePath);
-                  }
-                });
-              },
-              onMenuOptionSelected: (String imagePath, String option) {
-                // Handle image option
-              },
-            ),
-          ),
-        ],
+      appBar: AppBar(title: Text('Image Gallery')),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          double screenWidth = constraints.maxWidth;
+          double screenHeight = constraints.maxHeight;
+          return Column(
+            children: [
+              _buildTopBar(),
+              _buildSortingFilteringBar(),
+              Expanded(
+                child: ImageGallery(
+                    images: images,
+                    selectedImages: selectedImages,
+                    extractedTexts: extractedTexts,
+                    identifiers: identifiers,
+                    onImageSelected: (String imagePath) {
+                      setState(() {
+                        if (selectedImages.contains(imagePath)) {
+                          selectedImages.remove(imagePath);
+                        } else {
+                          selectedImages.add(imagePath);
+                        }
+                      });
+                    },
+                    onMenuOptionSelected: (String imagePath, String option) {
+                      // Handle image option
+                    },
+                    galleryHeight: screenHeight,  // Pass height dynamically
+                  ),
+              ),
+            ],
+          );
+        }
       ),
       floatingActionButton: selectedImages.isNotEmpty
           ? FloatingActionButton(
@@ -109,6 +114,32 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       ],
     );
   }
+
+  Widget _buildImageTile(String imagePath) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (selectedImages.contains(imagePath)) {
+            selectedImages.remove(imagePath);
+          } else {
+            selectedImages.add(imagePath);
+          }
+        });
+      },
+      child: Stack(
+        children: [
+          Image.asset(imagePath, fit: BoxFit.cover),
+          if (selectedImages.contains(imagePath))
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Icon(Icons.check_circle, color: Colors.blue),
+            ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildTopBar() {
     return Padding(
@@ -323,6 +354,7 @@ class ImageGallery extends StatelessWidget {
   final Map<String, String> identifiers;
   final Function(String) onImageSelected;
   final Function(String, String) onMenuOptionSelected;
+  final double galleryHeight; // New dynamic height parameter
 
   ImageGallery({
     required this.images,
@@ -331,49 +363,42 @@ class ImageGallery extends StatelessWidget {
     required this.identifiers,
     required this.onImageSelected,
     required this.onMenuOptionSelected,
+    required this.galleryHeight,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveRowColumn(
-      layout: ResponsiveBreakpoints.of(context).smallerThan(DESKTOP)
-          ? ResponsiveRowColumnType.COLUMN
-          : ResponsiveRowColumnType.ROW,
-      children: [
-        ResponsiveRowColumnItem(
-          child: ScrollbarTheme(
-            data: ScrollbarThemeData(
-              thumbColor: WidgetStateProperty.all(Colors.blueAccent),
-              thickness: WidgetStateProperty.all(8.0),
-              radius: Radius.circular(8),
-              trackColor: WidgetStateProperty.all(Colors.grey.withOpacity(0.3)),
-              trackBorderColor: WidgetStateProperty.all(Colors.transparent),
-            ),
-            child: Scrollbar(
-              thumbVisibility: true,
-              // trackVisibility: true,
-              interactive: true,
-              thickness: 10,
-              controller: _pageController,  // Use the same controller here
-              child: PageView.builder(
-                // scrollDirection: Axis.horizontal,
-                controller: _pageController,
-                itemCount: images.length,
-                itemBuilder: (context, index) {
-                  return ImageTile(
-                    imagePath: images[index],
-                    isSelected: selectedImages.contains(images[index]),
-                    extractedText: extractedTexts[images[index]]!,
-                    identifier: identifiers[images[index]]!,
-                    onSelected: onImageSelected,
-                    onMenuOptionSelected: onMenuOptionSelected,
-                  );
-                },
-              ),
-            ),
+    return SizedBox(
+      height: galleryHeight,  // Ensure it adapts to screen changes
+      child: ScrollbarTheme(
+        data: ScrollbarThemeData(
+          thumbColor: WidgetStateProperty.all(Colors.blueAccent),
+          thickness: WidgetStateProperty.all(8.0),
+          radius: Radius.circular(8),
+          trackColor: WidgetStateProperty.all(Colors.grey.withOpacity(0.3)),
+          trackBorderColor: WidgetStateProperty.all(Colors.transparent),
+        ),
+        child: Scrollbar(
+          thumbVisibility: true,
+          interactive: true,
+          thickness: 10,
+          controller: _pageController,  // Use the same controller here
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              return ImageTile(
+                imagePath: images[index],
+                isSelected: selectedImages.contains(images[index]),
+                extractedText: extractedTexts[images[index]]!,
+                identifier: identifiers[images[index]]!,
+                onSelected: onImageSelected,
+                onMenuOptionSelected: onMenuOptionSelected,
+              );
+            },
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -399,99 +424,93 @@ class ImageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveScaledBox(
-      width: ResponsiveValue(context, defaultValue: 250.0, conditionalValues: [
-        Condition.smallerThan(name: TABLET, value: 200.0),
-        Condition.largerThan(name: DESKTOP, value: 300.0),
-      ]).value,
-      child: GestureDetector(
-        onLongPress: () {
-          onSelected(imagePath);
-        },
-        child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 10),
-          width: 250,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: isSelected
-                ? Border.all(color: Colors.blueAccent, width: 3)
-                : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black26,
-                offset: Offset(0, 4),
-                blurRadius: 4,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image Display
-              ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                child: Stack(
-                  children: [
-                    PhotoView(
-                      imageProvider: AssetImage(imagePath),
-                      backgroundDecoration: BoxDecoration(color: Colors.white),
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 2.5,
-                    ),
-                    if (isSelected)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Icon(
-                          Icons.check_circle,
-                          color: Colors.blueAccent,
-                          size: 30,
-                        ),
+    return GestureDetector(
+      onLongPress: () {
+        onSelected(imagePath);
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 10),
+        width: 250,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? Border.all(color: Colors.blueAccent, width: 3)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              offset: Offset(0, 4),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Display
+            ClipRRect(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+              child: Stack(
+                children: [
+                  PhotoView(
+                    imageProvider: AssetImage(imagePath),
+                    backgroundDecoration: BoxDecoration(color: Colors.white),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 2.5,
+                  ),
+                  if (isSelected)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Icon(
+                        Icons.check_circle,
+                        color: Colors.blueAccent,
+                        size: 30,
                       ),
-                  ],
+                    ),
+                ],
+              ),
+            ),
+    
+            // Extracted Text Field
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                extractedText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
                 ),
               ),
-      
-              // Extracted Text Field
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  extractedText,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
+            ),
+    
+            // Identifier Label
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                identifier,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[600],
                 ),
               ),
-      
-              // Identifier Label
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                  identifier,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                  ),
-                ),
+            ),
+    
+            // Popup Menu Icon
+            Align(
+              alignment: Alignment.bottomRight,
+              child: IconButton(
+                icon: Icon(Icons.more_vert),
+                onPressed: () {
+                  _showPopupMenu(context, imagePath);
+                },
               ),
-      
-              // Popup Menu Icon
-              Align(
-                alignment: Alignment.bottomRight,
-                child: IconButton(
-                  icon: Icon(Icons.more_vert),
-                  onPressed: () {
-                    _showPopupMenu(context, imagePath);
-                  },
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

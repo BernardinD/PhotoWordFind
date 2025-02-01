@@ -36,20 +36,25 @@ void main() {
   ]);
 
   Catcher(
-      // rootWidget: MyApp(title: 'Flutter Demo Home Page'),
-      rootWidget: MaterialApp(
-      builder: (context, widget) => ResponsiveBreakpoints.builder(
-        child: widget!,
-        breakpoints: [
-      const Breakpoint(start: 0, end: 350, name: MOBILE),
-      const Breakpoint(start: 451, end: 600, name: TABLET),
-      const Breakpoint(start: 601, end: double.infinity, name: DESKTOP),
-        ],
-      ),
-      home: ImageGalleryScreen(),),
-      debugConfig: debugOptions,
-      releaseConfig: releaseOptions,
-      ensureInitialized: true);
+    rootWidget: MaterialApp(
+      builder: (context, child) {
+        return ResponsiveBreakpoints.builder(
+          child: child!,
+          breakpoints: [
+            const Breakpoint(start: 0, end: 600, name: MOBILE),
+            const Breakpoint(start: 601, end: 1200, name: TABLET),
+            const Breakpoint(start: 1201, end: double.infinity, name: DESKTOP),
+          ],
+        );
+      },
+      home: ImageGalleryScreen(),
+    ),
+    // rootWidget: MyApp(title: 'Flutter Demo Home Page'),
+    debugConfig: debugOptions,
+    releaseConfig: releaseOptions,
+    ensureInitialized: true,
+  );
+
 
   // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
   // runApp(MyApp('Flutter Demo Home Page'));
