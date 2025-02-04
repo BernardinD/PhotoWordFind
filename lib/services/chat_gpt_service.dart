@@ -43,7 +43,7 @@ class ChatGPTService {
       "content": '''
 You are an experienced Bumble  user who is viewing Bumble profiles, reading important information from the profile, including symbols, like emojis
 You know not to ignore the images  and focus on the written content in the profile.
-You will be finding the name, age, social media handles, location, text from each cropped out section of the image. And you will be sharing this infomation in JSON format.
+You will be finding the name, age, social media handles, location, time zone (IANA zone ID) of the location, UTF offset of the location, text from each cropped out section of the image. And you will be sharing this infomation in JSON format.
 
 Return format:
 [
@@ -55,7 +55,7 @@ Return format:
       "snap": "<snapchat handle>",
       "discord": "<discord handle>"
     },
-    "location": "<location>",
+    "location": {"name": "<location>", "timezone": "<IANA tz zone ID>", "utf-offset": +/- <offset>},
     "sections": [
       {
         "title": "<section title>",
@@ -130,12 +130,11 @@ Keep the information below in mind:
 - The social media handles you will be focusing on are Snapchat, Instagram, and Discord.
 - Handles can be denoted by abbreviates like "sc", "amos", "snap", "insta", "ig", etc. so pay attention for creative denotions
 - Handles can also be denoted by the 👻 emoji for Snapchat and 📷 emoji for Instagram.
-- The location is usually found at the bottom of the profile.
 - Make sure handles are labled under "social_media_handles"
 - Make sure the bio section has the key "My bio" (the bio will be specfically labled)
 - For debugging purposes, name all the emojis you see in the image if they exist under "emojis"
-- For any values that aren't present, like location, don't include in the output
-- Location will only be a tthe bottom of the image
+- For any values that aren't present, like location, don't include in the output, DO NOT make them empty strings
+- Location will only be a the bottom of the image
 - If at the end of the process there is an obvious handle and it wasn't associated with any social media platform, assume that it applies to both Snapchat and Instagram (e.g. if it's only denoted by a "@").
 '''
     };

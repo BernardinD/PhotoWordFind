@@ -6,6 +6,9 @@ import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
+import 'package:geocoding/geocoding.dart' as geo;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class SubKeys {
   // ignore: non_constant_identifier_names
@@ -139,6 +142,40 @@ class StorageUtils {
 
     map ??= convertValueToMap("", enforceMapOutput: true)!;
 
+    // Code used to convert locations
+    // if (map[SubKeys.Location] != null && !(map[SubKeys.Location] is Map)) {
+    //   // Get coordinates from location string
+    //   double? lat = null, long = null;
+    //   try {
+    //     if ((map[SubKeys.Location] as String?)!.isNotEmpty) {
+    //       List<geo.Location> locations = await geo
+    //           .locationFromAddress(map[SubKeys.Location])
+    //           .timeout(Duration(seconds: 5));
+    //       if (locations.isEmpty) throw "Could not determine a location";
+
+    //       var loc = locations.first;
+    //       lat = loc.latitude;
+    //       long = loc.longitude;
+    //     }
+    //   } on geo.NoResultFoundException catch (e) {
+    //   } finally {
+    //     debugPrint(
+    //         "Failed location determination from file: $storageKey: ${map[SubKeys.Location]}");
+    //   }
+    //   map[SubKeys.Location] = {
+    //     'name': map[SubKeys.Location],
+    //     'lat': lat,
+    //     'long': long,
+    //   };
+    // }
+    // if (map[SubKeys.Location] != null && map[SubKeys.Location] is Map) {
+    //   Map<String, dynamic> location =
+    //       map[SubKeys.Location] as Map<String, dynamic>;
+    //   if (location['name'] != null && (location['name'] as String).isEmpty) {
+    //     location['name'] = null;
+    //   }
+    // }
+
     // Todo: If Map is sent in concat with current saved values
     // ...
 
@@ -247,5 +284,36 @@ class StorageUtils {
     }
 
     return ret;
+  }
+
+  /// Takes in a map of contact values and updates the location to {name, lat, long} equivalent if
+  /// location exists in the map. If it is null then nothing happens
+  static Future<Map<String, dynamic>> getCoordinatesOfLocation(
+      dynamic map) async {
+    if (map[SubKeys.Location] != null && !(map[SubKeys.Location] is Map)) {
+      // Get coordinates from location string
+      double? lat = null, long = null;
+      try {
+        if ((map[SubKeys.Location] as String?)!.isNotEmpty) {
+          List<geo.Location> locations = await geo
+              .locationFromAddress(map[SubKeys.Location] as String)
+              .timeout(Duration(seconds: 5));
+          if (locations.isEmpty) throw "Could not determine a location";
+
+          var loc = locations.first;
+          lat = loc.latitude;
+          long = loc.longitude;
+        }
+      } on geo.NoResultFoundException catch (e) {
+        debugPrint("Inputted an invalid location: ${map[SubKeys.Location]}");
+      }
+      map[SubKeys.Location] = {
+        'name': map[SubKeys.Location],
+        'lat': lat,
+        'long': long,
+      };
+    }
+
+    return map[SubKeys.Location];
   }
 }

@@ -13,6 +13,9 @@ import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocoding/geocoding.dart' as geo;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 Future<Map<String, dynamic>> extractProfileData(String filePath,
     {bool crop = true, ui.Size? size}) async {
@@ -193,7 +196,7 @@ Future<Map<String, dynamic>?> createOCRJob(
       await StorageUtils.get(key, asMap: true, reload: true);
 
   // Check if this file's' OCR has been cached
-  if (originalValues != null && !replacing) {
+  if (originalValues is Map && !replacing) {
     debugPrint(
         "This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
     result = originalValues;
@@ -208,6 +211,16 @@ Future<Map<String, dynamic>?> createOCRJob(
         if (originalValues?[SubKeys.Location] != null &&
             onValue?[SubKeys.Location] != null) {
           onValue?.remove(SubKeys.Location);
+        }
+
+        // Validate timezone identifier
+        if (onValue?[SubKeys.Location] is Map) {
+          try {
+            tz.getLocation(onValue?[SubKeys.Location]["timezone"]); // Replace with real mapping logic
+          } catch (e) {
+            print("❌ Failed to validate time zone: ${onValue?[SubKeys.Location]["timezone"]}");
+            throw("❌ Message: $e");
+          }
         }
 
         if (originalValues?[SubKeys.Sections] != null &&

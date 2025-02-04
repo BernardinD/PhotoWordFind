@@ -22,6 +22,8 @@ import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 // import 'package:image_picker/image_picker.dart';
 
@@ -34,6 +36,8 @@ void main() {
     EmailManualHandler(["bdezius@gmail.com"],
         emailTitle: "Photo Word Find - Crashed", emailHeader: "Error message")
   ]);
+  
+    tz.initializeTimeZones();
 
   Catcher(
     // rootWidget: ImageGalleryScreen(),
