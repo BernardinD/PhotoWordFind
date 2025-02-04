@@ -37,81 +37,93 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Image Gallery')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          double screenWidth = constraints.maxWidth;
-          double screenHeight = constraints.maxHeight;
-          return Column(
-            children: [
-              _buildTopBar(),
-              _buildSortingFilteringBar(),
-              Expanded(
-                child: ImageGallery(
-                    images: images,
-                    selectedImages: selectedImages,
-                    extractedTexts: extractedTexts,
-                    identifiers: identifiers,
-                    onImageSelected: (String imagePath) {
-                      setState(() {
-                        if (selectedImages.contains(imagePath)) {
-                          selectedImages.remove(imagePath);
-                        } else {
-                          selectedImages.add(imagePath);
-                        }
-                      });
-                    },
-                    onMenuOptionSelected: (String imagePath, String option) {
-                      // Handle image option
-                    },
-                    galleryHeight: screenHeight,  // Pass height dynamically
-                  ),
-              ),
-            ],
-          );
-        }
-      ),
-      floatingActionButton: selectedImages.isNotEmpty
-          ? FloatingActionButton(
-              onPressed: () {
-                // Trigger move operation
-                // Optionally show confirmation dialog here
-              },
-              child: Icon(Icons.move_to_inbox),
-            )
-          : null,
-      persistentFooterButtons: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Container(
-            width: MediaQuery.of(context).size.width * 1.20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return MaterialApp(
+      builder: (context, child) {
+        return ResponsiveBreakpoints.builder(
+          child: child!,
+          breakpoints: [
+            const Breakpoint(start: 0, end: 600, name: MOBILE),
+            const Breakpoint(start: 601, end: 1200, name: TABLET),
+            const Breakpoint(start: 1201, end: double.infinity, name: DESKTOP),
+          ],
+        );
+      },
+      home: Scaffold(
+        appBar: AppBar(title: Text('Image Gallery')),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            double screenWidth = constraints.maxWidth;
+            double screenHeight = constraints.maxHeight;
+            return Column(
               children: [
-                SocialIcon.snapchatIconButton!,
-                Spacer(),
-                SocialIcon.galleryIconButton!,
-                Spacer(),
-                SocialIcon.bumbleIconButton!,
-                Spacer(),
-                FloatingActionButton(
-                  heroTag: null,
-                  tooltip: 'Change current directory',
-                  onPressed: null, //changeDir,
-                  child: Icon(Icons.drive_folder_upload),
+                _buildTopBar(),
+                _buildSortingFilteringBar(),
+                Expanded(
+                  child: ImageGallery(
+                      images: images,
+                      selectedImages: selectedImages,
+                      extractedTexts: extractedTexts,
+                      identifiers: identifiers,
+                      onImageSelected: (String imagePath) {
+                        setState(() {
+                          if (selectedImages.contains(imagePath)) {
+                            selectedImages.remove(imagePath);
+                          } else {
+                            selectedImages.add(imagePath);
+                          }
+                        });
+                      },
+                      onMenuOptionSelected: (String imagePath, String option) {
+                        // Handle image option
+                      },
+                      galleryHeight: screenHeight,  // Pass height dynamically
+                    ),
                 ),
-                Spacer(),
-                SocialIcon.instagramIconButton!,
-                Spacer(),
-                SocialIcon.discordIconButton!,
-                Spacer(),
-                SocialIcon.kikIconButton!,
               ],
+            );
+          }
+        ),
+        floatingActionButton: selectedImages.isNotEmpty
+            ? FloatingActionButton(
+                onPressed: () {
+                  // Trigger move operation
+                  // Optionally show confirmation dialog here
+                },
+                child: Icon(Icons.move_to_inbox),
+              )
+            : null,
+        persistentFooterButtons: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 1.20,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SocialIcon.snapchatIconButton!,
+                  Spacer(),
+                  SocialIcon.galleryIconButton!,
+                  Spacer(),
+                  SocialIcon.bumbleIconButton!,
+                  Spacer(),
+                  FloatingActionButton(
+                    heroTag: null,
+                    tooltip: 'Change current directory',
+                    onPressed: null, //changeDir,
+                    child: Icon(Icons.drive_folder_upload),
+                  ),
+                  Spacer(),
+                  SocialIcon.instagramIconButton!,
+                  Spacer(),
+                  SocialIcon.discordIconButton!,
+                  Spacer(),
+                  SocialIcon.kikIconButton!,
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
