@@ -22,7 +22,7 @@ class ContactEntry {
   // New chatGPT responses
   Map<String, String>? socialMediaHandles;
   List<Map<String, String>>? sections;
-  final String name;
+  final String? name;
   final int? age;
   final Location? location;
 
@@ -59,11 +59,15 @@ class ContactEntry {
       identifier: storageKey,
       dateFound: File(imagePath).lastModifiedSync(),
       name: json[SubKeys.Name],
-      age: json[SubKeys.Age],
+      age: json[SubKeys.Age] is int ? json[SubKeys.Age] : null,
       location: Location(
-          rawLocation: json[SubKeys.Location]['name'],
-          timezone: json[SubKeys.Location]['timezone'] as String?),
-      // socialMediaHandles: json[SubKeys.SocialMediaHandles],
+          rawLocation: json[SubKeys.Location]?['name'],
+          timezone: json[SubKeys.Location]?['timezone'] as String?),
+      socialMediaHandles: (json[SubKeys.SocialMediaHandles] as Map<String,dynamic>?)?.cast<String, String>() ??
+          <String, String>{
+            SubKeys.SnapUsername: "",
+            SubKeys.InstaUsername: "",
+          },
       snapUsername: json[SubKeys.SnapUsername],
       instaUsername: json[SubKeys.InstaUsername],
       discordUsername: json[SubKeys.DiscordUsername],
@@ -82,8 +86,7 @@ class ContactEntry {
             SubKeys.InstaUsername: <String>[],
           },
       notes: json[SubKeys.Notes],
-      // sections: json[SubKeys.Sections],
-
+      sections: (json[SubKeys.Sections] as List<dynamic>?)?.cast<Map<String, String>>() ?? [],
     );
   }
 }

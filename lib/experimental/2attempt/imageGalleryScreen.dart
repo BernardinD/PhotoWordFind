@@ -400,10 +400,10 @@ class ImageGallery extends StatelessWidget {
             itemCount: images.length,
             itemBuilder: (context, index) {
               return ImageTile(
-                imagePath: images[index],
-                isSelected: selectedImages.contains(images[index]),
-                extractedText: extractedTexts[images[index]]!,
-                identifier: identifiers[images[index]]!,
+                imagePath: images[index].imagePath,
+                isSelected: selectedImages.contains(images[index].identifier),
+                extractedText: images[index].extractedText,
+                identifier: images[index].identifier,
                 onSelected: onImageSelected,
                 onMenuOptionSelected: onMenuOptionSelected,
               );
@@ -440,90 +440,100 @@ class ImageTile extends StatelessWidget {
       onLongPress: () {
         onSelected(imagePath);
       },
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 10),
-        width: 250,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected
-              ? Border.all(color: Colors.blueAccent, width: 3)
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              offset: Offset(0, 4),
-              blurRadius: 4,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            margin: EdgeInsets.symmetric(horizontal: 10),
+            width: constraints.maxWidth * 0.80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                  ? Border.all(color: Colors.blueAccent, width: 3)
+                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  offset: Offset(0, 4),
+                  blurRadius: 4,
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image Display
-            ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-              child: Stack(
-                children: [
-                  PhotoView(
-                    imageProvider: AssetImage(imagePath),
-                    backgroundDecoration: BoxDecoration(color: Colors.white),
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: PhotoViewComputedScale.covered * 2.5,
-                  ),
-                  if (isSelected)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Icon(
-                        Icons.check_circle,
-                        color: Colors.blueAccent,
-                        size: 30,
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image Display
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  child: Container(
+                    constraints: BoxConstraints(maxHeight: constraints.maxHeight * 0.70),
+                    child: Stack(
+                      children: [
+                        Flexible(
+                          // height: 250,
+                          child: PhotoView(
+                            imageProvider: FileImage(File(imagePath)),
+                            backgroundDecoration: BoxDecoration(color: Colors.white),
+                            minScale: PhotoViewComputedScale.contained,
+                            maxScale: PhotoViewComputedScale.covered * 2.5,
+                          ),
+                        ),
+                        if (isSelected)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Icon(
+                              Icons.check_circle,
+                              color: Colors.blueAccent,
+                              size: 30,
+                            ),
+                          ),
+                      ],
                     ),
-                ],
-              ),
-            ),
-    
-            // Extracted Text Field
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                extractedText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
+                  ),
                 ),
-              ),
-            ),
-    
-            // Identifier Label
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(
-                identifier,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
+          
+                // Extracted Text Field
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    extractedText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
-              ),
+          
+                // Identifier Label
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    identifier,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+          
+                // Popup Menu Icon
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: IconButton(
+                    icon: Icon(Icons.more_vert),
+                    onPressed: () {
+                      _showPopupMenu(context, imagePath);
+                    },
+                  ),
+                ),
+              ],
             ),
-    
-            // Popup Menu Icon
-            Align(
-              alignment: Alignment.bottomRight,
-              child: IconButton(
-                icon: Icon(Icons.more_vert),
-                onPressed: () {
-                  _showPopupMenu(context, imagePath);
-                },
-              ),
-            ),
-          ],
-        ),
+          );
+        }
       ),
     );
   }
