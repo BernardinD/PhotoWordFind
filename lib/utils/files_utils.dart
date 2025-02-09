@@ -197,6 +197,33 @@ Future<Map<String, dynamic>?> createOCRJob(
 
   // Check if this file's' OCR has been cached
   if (originalValues is Map && !replacing) {
+    
+    // // ✅ Step 1: Fix old location format if it contains the typo `"utf-offset"`
+    // if (originalValues!["location"] is Map) {
+    //   Map<String, dynamic> location = originalValues["location"];
+      
+    //   if (location.containsKey("utf-offset")) {
+    //     location["utc-offset"] = location.remove("utf-offset"); // ✅ Rename key
+    //   }
+    // }
+
+    // // ✅ Step 2: Check if location is missing or needs updating
+    // if (originalValues["location"] != null && (originalValues["location"] is String || !originalValues["location"].containsKey("timezone"))) {
+    //   String locationName = (originalValues["location"] is Map) ? originalValues["location"]["name"] : originalValues["location"];
+
+    //   // 🔹 Fetch new location details from ChatGPT
+    //   Map<String, dynamic>? updatedLocation = await ChatGPTService.fetchUpdatedLocationFromChatGPT(locationName);
+
+    //   if (updatedLocation != null) {
+    //     originalValues["location"] = updatedLocation;
+    //   }
+    // }
+
+    // // ✅ Step 3: Add new "tag" field
+    // originalValues["tag"] = "Buzz buzz";
+      
+    // await StorageUtils.save(key, asMap: originalValues, backup: false);
+
     debugPrint(
         "This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
     result = originalValues;
@@ -229,9 +256,10 @@ Future<Map<String, dynamic>?> createOCRJob(
               (originalValues?[SubKeys.Sections] as List)
                   .map((item) => Map<String, String>.from(item as Map))
                   .toList();
-          List<Map<String, String>> newSections = (onValue?[SubKeys.Sections] as List)
-              .map((item) => Map<String, String>.from(item as Map))
-              .toList();
+          List<Map<String, String>> newSections =
+              (onValue?[SubKeys.Sections] as List)
+                  .map((item) => Map<String, String>.from(item as Map))
+                  .toList();
 
           for (var newSection in newSections) {
             originalSections.removeWhere((originalSection) =>

@@ -59,8 +59,9 @@ class StorageUtils {
       {bool enforceMapOutput = false}) {
     Map<String, dynamic> _map;
     try {
-      if (value == null)
+      if (value == null) {
         throw FormatException("value was null. Creating empty fresh mapping");
+      }
       _map = json.decode(value);
     } on FormatException catch (e) {
       log(e.message);
@@ -232,7 +233,7 @@ class StorageUtils {
 
     Map<String, dynamic>? map = convertValueToMap(rawJson);
 
-    if(map == null) return null;
+    if (map == null) return null;
 
     if      (asMap)        { return map; }
     else if (snap)         { return map[SubKeys.SocialMediaHandles]?[ SubKeys.SnapUsername    ] ?? map[ SubKeys.SnapUsername    ]; }
@@ -265,7 +266,9 @@ class StorageUtils {
 
         if (localValue != cloud[key] && isJSON(localValue)) {
           mismatches.add(Exception(
-              "Cloud and local copies don't match: [$key] \n local: $localValue \n cloud: ${cloud[key]}"));
+              '''Cloud and local copies don't match: [$key]
+               local: $localValue
+               cloud: ${cloud[key]}'''));
         }
       }
     }
