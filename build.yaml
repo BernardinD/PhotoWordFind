@@ -1,0 +1,10 @@
+targets:
+  $default:
+    builders:
+      mobx_codegen|mobx_generator:
+        generate_for:
+          include:
+            - lib/**.dart
+          exclude:
+            - lib/**temp*.dart  # Exclude this file
+            # - lib/sandbox/**            # Exclude an entire folder
