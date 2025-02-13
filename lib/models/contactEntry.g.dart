@@ -173,13 +173,13 @@ mixin _$ContactEntry on _ContactEntry, Store {
       Atom(name: '_ContactEntry.previousHandles', context: context);
 
   @override
-  ObservableMap<String, List<String>>? get previousHandles {
+  ObservableMap<String, ObservableList<String>>? get previousHandles {
     _$previousHandlesAtom.reportRead();
     return super.previousHandles;
   }
 
   @override
-  set previousHandles(ObservableMap<String, List<String>>? value) {
+  set previousHandles(ObservableMap<String, ObservableList<String>>? value) {
     _$previousHandlesAtom.reportWrite(value, super.previousHandles, () {
       super.previousHandles = value;
     });
@@ -220,13 +220,13 @@ mixin _$ContactEntry on _ContactEntry, Store {
       Atom(name: '_ContactEntry.sections', context: context);
 
   @override
-  ObservableList<Map<String, String>>? get sections {
+  ObservableList<ObservableMap<String, String>>? get sections {
     _$sectionsAtom.reportRead();
     return super.sections;
   }
 
   @override
-  set sections(ObservableList<Map<String, String>>? value) {
+  set sections(ObservableList<ObservableMap<String, String>>? value) {
     _$sectionsAtom.reportWrite(value, super.sections, () {
       super.sections = value;
     });

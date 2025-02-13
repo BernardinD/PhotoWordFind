@@ -97,12 +97,15 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
           addedOnInsta: json[SubKeys.AddedOnInsta] ?? false,
           addedOnDiscord: json[SubKeys.AddedOnDiscord] ?? false,
           previousHandles: ObservableMap.of(
-              ((json[SubKeys.PreviousUsernames] as Map<String, dynamic>?)?.map(
-                    (key, value) => MapEntry(key, List<String>.from(value)),
-                  )) ??
-                  <String, List<String>>{
-                    SubKeys.SnapUsername: <String>[],
-                    SubKeys.InstaUsername: <String>[],
+              (json[SubKeys.PreviousUsernames] as Map<String, dynamic>?)?.map(
+                    (key, value) => MapEntry(
+                        key,
+                        ObservableList<String>.of(
+                            (value as List<dynamic>).cast<String>())),
+                  ) ??
+                  <String, ObservableList<String>>{
+                    SubKeys.SnapUsername: ObservableList<String>(),
+                    SubKeys.InstaUsername: ObservableList<String>(),
                   }),
           notes: json[SubKeys.Notes],
           socialMediaHandles: ObservableMap.of(
@@ -110,7 +113,8 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
                       ?.map((key, value) => MapEntry(key, value as String?)) ??
                   {}),
           sections: ObservableList.of((json[SubKeys.Sections] as List<dynamic>?)
-                  ?.map((map) => Map<String, String>.from(map as Map)) ??
+                  ?.map((map) => ObservableMap<String, String>.of(
+                      (map as Map<String, dynamic>).cast<String, String>())) ??
               []),
         ) {
     _setupAutoSave();
@@ -191,7 +195,7 @@ abstract class _ContactEntry with Store {
   @JsonKey(
       fromJson: fromJsonObservableMapOfLists,
       toJson: toJsonObservableMapOfLists)
-  ObservableMap<String, List<String>>? previousHandles;
+  ObservableMap<String, ObservableList<String>>? previousHandles;
 
   @observable
   String? notes;
@@ -216,7 +220,7 @@ abstract class _ContactEntry with Store {
   @JsonKey(
       fromJson: fromJsonObservableListOfMaps,
       toJson: toJsonObservableListOfMaps)
-  ObservableList<Map<String, String>>? sections;
+  ObservableList<ObservableMap<String, String>>? sections;
 
   _ContactEntry({
     required this.extractedText,
