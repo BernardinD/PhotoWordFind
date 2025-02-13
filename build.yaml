@@ -6,5 +6,6 @@ targets:
           include:
             - lib/**.dart
           exclude:
-            - lib/**temp*.dart  # Exclude this file
+            - lib/**/*temp.dart  # Exclude this file
+            - ./**/*temp.dart  # Exclude this file
             # - lib/sandbox/**            # Exclude an entire folder

@@ -204,13 +204,13 @@ mixin _$ContactEntry on _ContactEntry, Store {
       Atom(name: '_ContactEntry.socialMediaHandles', context: context);
 
   @override
-  ObservableMap<String, String>? get socialMediaHandles {
+  ObservableMap<String, String?>? get socialMediaHandles {
     _$socialMediaHandlesAtom.reportRead();
     return super.socialMediaHandles;
   }
 
   @override
-  set socialMediaHandles(ObservableMap<String, String>? value) {
+  set socialMediaHandles(ObservableMap<String, String?>? value) {
     _$socialMediaHandlesAtom.reportWrite(value, super.socialMediaHandles, () {
       super.socialMediaHandles = value;
     });

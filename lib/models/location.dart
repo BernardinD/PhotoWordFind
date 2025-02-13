@@ -2,14 +2,16 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:mobx/mobx.dart';
 import 'dart:convert';
+import 'package:json_annotation/json_annotation.dart';
 
 part 'location.g.dart';
 
+@JsonSerializable()
 class Location = _Location with _$Location;
 
 abstract class _Location with Store {
   @observable
-  String rawLocation;
+  String? rawLocation;
 
   @observable
   String? timezone;

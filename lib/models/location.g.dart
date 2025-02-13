@@ -13,13 +13,13 @@ mixin _$Location on _Location, Store {
       Atom(name: '_Location.rawLocation', context: context);
 
   @override
-  String get rawLocation {
+  String? get rawLocation {
     _$rawLocationAtom.reportRead();
     return super.rawLocation;
   }
 
   @override
-  set rawLocation(String value) {
+  set rawLocation(String? value) {
     _$rawLocationAtom.reportWrite(value, super.rawLocation, () {
       super.rawLocation = value;
     });
