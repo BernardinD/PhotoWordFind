@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -228,25 +229,22 @@ class StorageUtils {
       bool discordDate = false,
       bool notes = false,
       bool asMap = false}) async {
-    SharedPreferences prefs = (await _getStorageInstance(reload: reload));
-    String? rawJson = prefs.getString(key);
+    ContactEntry? entry = await ContactEntry.loadFromPreferences(key);
 
-    Map<String, dynamic>? map = convertValueToMap(rawJson);
+    if (entry == null) return null;
 
-    if (map == null) return null;
-
-    if      (asMap)        { return map; }
-    else if (snap)         { return map[SubKeys.SocialMediaHandles]?[ SubKeys.SnapUsername    ] ?? map[ SubKeys.SnapUsername    ]; }
-    else if (insta)        { return map[SubKeys.SocialMediaHandles]?[ SubKeys.InstaUsername   ] ?? map[ SubKeys.InstaUsername   ]; }
-    else if (discord)      { return map[SubKeys.SocialMediaHandles]?[ SubKeys.DiscordUsername ] ?? map[ SubKeys.DiscordUsername ]; }
-    else if (snapAdded)    { return map[ SubKeys.AddedOnSnap    ] ??  false; }
-    else if (instaAdded)   { return map[ SubKeys.AddedOnInsta   ] ??  false; }
-    else if (discordAdded) { return map[ SubKeys.AddedOnDiscord ] ??  false; }
-    else if (snapDate)     { return map[ SubKeys.SnapDate      ]; }
-    else if (instaDate)    { return map[ SubKeys.InstaDate     ]; }
-    else if (discordDate)  { return map[ SubKeys.DiscordDate   ]; }
-    else if (notes)        { return map[ SubKeys.Notes         ]; }
-    else                   { return map[ SubKeys.OCR           ]; }
+    if      (asMap)        { return entry.toJson(); }
+    else if (snap)         { return entry.snapUsername; }
+    else if (insta)        { return entry.instaUsername; }
+    else if (discord)      { return entry.discordUsername; }
+    else if (snapAdded)    { return entry.addedOnSnap; }
+    else if (instaAdded)   { return entry.addedOnInsta; }
+    else if (discordAdded) { return entry.addedOnDiscord; }
+    else if (snapDate)     { return entry.dateAddedOnSnap; }
+    else if (instaDate)    { return entry.dateAddedOnInsta; }
+    else if (discordDate)  { return entry.dateAddedOnDiscord; }
+    else if (notes)        { return entry.notes; }
+    else                   { return entry.extractedText; }
   }
 
   static Future merge(Map<String, String> cloud) async {

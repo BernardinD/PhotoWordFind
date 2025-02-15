@@ -1,8 +1,9 @@
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:flutter/material.dart';
 
-Future<String?> showNoteDialog(BuildContext context, String key, {String? existingNotes}) {
+Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? contact, {String? existingNotes}) {
   final _formKey = GlobalKey<FormState>(); // Key for the form
   TextEditingController noteController = TextEditingController(text: existingNotes);
 

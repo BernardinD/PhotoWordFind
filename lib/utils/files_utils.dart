@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:flutter/material.dart';
 
@@ -138,7 +139,7 @@ Future ocrParallel(List filesList, Size size,
     debugPrint(
         "srcFilePath [${srcFile.path}] :: isolate name $isoName :: rawJson -> $rawJson");
 
-    Future<Map<String, dynamic>?> job =
+    Future<ContactEntry?> job =
         createOCRJob(srcFile, message, replace != null);
     // Subtracting the completed number by 1 in order to control the auto complete of the progress dialog
     Future processResult = job.then((result) => onEachOcrResult(result, srcFile,
@@ -183,7 +184,7 @@ Function(Future<Map<String, dynamic>>) createThread_<T>(
   };
 }
 
-Future<Map<String, dynamic>?> createOCRJob(
+Future<ContactEntry?> createOCRJob(
     dynamic srcFile, Map<String, dynamic> rawJson, bool replacing) async {
   debugPrint("Entering createOCRJob()...");
 
@@ -275,12 +276,15 @@ Future<Map<String, dynamic>?> createOCRJob(
 
         // Reload storage for this thread
         await StorageUtils.get("", reload: true);
-        return originalValues;
+        return originalValues != null ? ContactEntry.fromJson(key, srcFile.path, originalValues!) : originalValues;
       });
     } else {
       Future<Map<String, dynamic>?> Function(Map<String, dynamic>) funct =
           replacing ? ocrThread : createThread;
       result = funct(rawJson);
+      if(result != null){
+        ContactEntry.fromJson(key, srcFile.path, originalValues!);
+      }
     }
   }
 
@@ -351,7 +355,7 @@ Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async
 }
 
 Future onEachOcrResult(
-  Map<String, dynamic>? result,
+  ContactEntry? result,
   srcFile,
   String? query,
   Map? replace,
@@ -362,18 +366,12 @@ Future onEachOcrResult(
   debugPrint("Entering onOCRResult...");
   List<Map<String, String>>? sections;
 
-  if (result?[SubKeys.Sections] is List) {
-    sections = (result?[SubKeys.Sections] as List)
-        .map((item) => Map<String, String>.from(item as Map))
-        .toList();
-  } else {
-    sections = null;
-  }
-  String? ocr = result?[SubKeys.OCR];
-  Map<String, dynamic>? usernames = result?[SubKeys.SocialMediaHandles] ?? result;
-  String snapUsername = usernames?[SubKeys.SnapUsername] as String? ?? "";
-  String instaUsername = usernames?[SubKeys.InstaUsername] as String? ?? "";
-  String discordUsername = usernames?[SubKeys.DiscordUsername] as String? ?? "";
+  sections = result?.sections?.toList();
+
+  String? ocr = result?.extractedText;
+  String snapUsername = result?.snapUsername ?? "";
+  String instaUsername = result?.instaUsername ?? "";
+  String discordUsername = result?.discordUsername ?? "";
 
   if (ocr == null && sections == null) {
     ocr = "";
@@ -393,8 +391,8 @@ Future onEachOcrResult(
     // If query word has been found
     if (replace == null)
       MyApp.gallery.addNewCell(
-          cellBody, snapUsername, srcFile, new File(srcFile.path),
-          instaUsername: instaUsername, discordUsername: discordUsername);
+          cellBody, snapUsername, srcFile, new File(srcFile.path), result,
+          instaUsername: instaUsername, discordUsername: discordUsername,);
     else {
       var pair = replace.entries.first;
       int idx = pair.key;

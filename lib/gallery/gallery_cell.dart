@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/gallery/display_dates.dart';
 import 'package:PhotoWordFind/main.dart';
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
@@ -31,6 +32,7 @@ class GalleryCell extends StatefulWidget {
       this.listPos,
       this.onPressedHandler,
       this.onLongPressedHandler,
+    this.contact,
       {required ValueKey<String> key})
       : super(key: key);
 
@@ -40,6 +42,7 @@ class GalleryCell extends StatefulWidget {
   final String discordUsername;
   final dynamic f;
   final File srcImage;
+  final ContactEntry? contact;
   final int Function(GalleryCell cell) listPos;
   final void Function(String fileName) onPressedHandler;
   final void Function(String fileName) onLongPressedHandler;
@@ -74,29 +77,16 @@ class _GalleryCellState extends State<GalleryCell> {
       basePosition: Alignment.topCenter,
     );
 
-    _dates[SocialType.Snapchat] =
-        StorageUtils.get(widget.storageKey, reload: false, snapDate: true)
-            .then((value) {
-      value = value as String;
-      if (value.isEmpty) return null;
-      var date = DateTime.parse(value);
-      String text = snapchatDisplayDate(date);
-      return createTextWidget(text);
-    });
-    _dates[SocialType.Instagram] =
-        StorageUtils.get(widget.storageKey, reload: false, instaDate: true)
-            .then((value) {
-      value = value as String;
-      if (value.isEmpty) return null;
-      var date = DateTime.parse(value);
-      String text = instagramDisplayDate(date);
-      return createTextWidget(text);
-    });
-    _dates[null] =
-        Future.value(widget.srcImage.lastModifiedSync()).then((date) {
-      String text = "Profile Found on: \n ${dateFormat.format(date)}";
-      return createTextWidget(text);
-    });
+    if (widget.contact?.dateAddedOnSnap != null) {
+      String text = snapchatDisplayDate(widget.contact!.dateAddedOnSnap!);
+      _dates[SocialType.Snapchat] = createTextWidget(text);
+    }
+    if (widget.contact?.dateAddedOnInsta != null) {
+      String text = instagramDisplayDate(widget.contact!.dateAddedOnInsta!);
+      _dates[SocialType.Instagram] = createTextWidget(text);
+    }
+    _dates[null] = createTextWidget(
+        "Profile Found on: \n ${dateFormat.format(widget.contact!.dateFound)}");
 
     StorageUtils.get(widget.storageKey, reload: false, notes: true)
         .then((value) {
@@ -211,7 +201,7 @@ class _GalleryCellState extends State<GalleryCell> {
                             child: FloatingActionButton(
                               onPressed: () async {
                                 _notes = await showNoteDialog(
-                                        context, widget.storageKey,
+                                        context, widget.storageKey, widget.contact,
                                         existingNotes: _notes) ??
                                     _notes;
                               },

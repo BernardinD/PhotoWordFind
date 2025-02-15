@@ -69,7 +69,8 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       required this.dateFound,
       required Map<String, dynamic> json})
       : super(
-          extractedText: json[SubKeys.OCR] ?? json.toString(),
+          extractedText: json[SubKeys.Sections]?.toString() ?? json[SubKeys.OCR],
+          ocr: json[SubKeys.OCR],
           name: json[SubKeys.Name],
           age: json[SubKeys.Age] is int ? json[SubKeys.Age] : null,
           location: json[SubKeys.Location] != null
@@ -78,10 +79,10 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
                   timezone: json[SubKeys.Location]['timezone'] as String?,
                 )
               : null,
-          snapUsername: json[SubKeys.SnapUsername],
-          instaUsername: json[SubKeys.InstaUsername],
-          discordUsername: json[SubKeys.DiscordUsername],
-          dateAddedOnSnap: json[SubKeys.SnapDate] != null &&
+          snapUsername:     json[SubKeys.SocialMediaHandles]?[ SubKeys.SnapUsername    ] ?? json[ SubKeys.SnapUsername    ],
+          instaUsername:    json[SubKeys.SocialMediaHandles]?[ SubKeys.InstaUsername   ] ?? json[ SubKeys.InstaUsername   ],
+          discordUsername:  json[SubKeys.SocialMediaHandles]?[ SubKeys.DiscordUsername ] ?? json[ SubKeys.DiscordUsername ],
+          dateAddedOnSnap:  json[SubKeys.SnapDate] != null &&
                   json[SubKeys.SnapDate].isNotEmpty
               ? DateTime.parse(json[SubKeys.SnapDate])
               : null,
@@ -135,6 +136,30 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
         dateFound: File(imagePath).lastModifiedSync(),
         json: json);
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      SubKeys.OCR: ocr,
+      SubKeys.SnapUsername: snapUsername,
+      SubKeys.InstaUsername: instaUsername,
+      SubKeys.DiscordUsername: discordUsername,
+      SubKeys.SnapDate: dateAddedOnSnap?.toIso8601String(),
+      SubKeys.InstaDate: dateAddedOnInsta?.toIso8601String(),
+      SubKeys.DiscordDate: dateAddedOnDiscord?.toIso8601String(),
+      SubKeys.AddedOnSnap: addedOnSnap,
+      SubKeys.AddedOnInsta: addedOnInsta,
+      SubKeys.AddedOnDiscord: addedOnDiscord,
+      SubKeys.PreviousUsernames:
+          previousHandles != null ? Map.from(previousHandles!.map((key,value) => MapEntry(key, value.toList()))) : null,
+      SubKeys.Notes: notes,
+      SubKeys.SocialMediaHandles: socialMediaHandles != null ? Map.from(socialMediaHandles!) : null,
+      SubKeys.Sections: sections?.toList().map(Map.from).toList(),
+      SubKeys.Name: name,
+      SubKeys.Age: age,
+      SubKeys.Location: location?.toJson(),
+    };
+  }
+
   void _setupAutoSave() {
     reaction((_) => toJson(), (_) => _saveToPreferences());
   }
@@ -150,7 +175,26 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
     if (jsonString == null) return null;
 
     final Map<String, dynamic> json = jsonDecode(jsonString);
-    return ContactEntry.fromJson(identifier, identifier, json);
+
+    List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb"];
+    String? imagePath = null;
+    dirs.forEach((_dir) {
+      if (imagePath != null) {
+        return;
+      }
+
+      imagePath = "/storage/emulated/0/DCIM/$_dir/$identifier.jpg";
+      if (File(imagePath!).existsSync()) {
+        return;
+      }
+      imagePath = null;
+    });
+    if (imagePath == null) {
+      return null;
+    }
+
+    return ContactEntry.fromJson(
+        identifier, imagePath!, json);
   }
 }
 
@@ -160,6 +204,8 @@ abstract class _ContactEntry with Store {
   @observable
   @JsonKey(disallowNullValue: true)
   String extractedText;
+
+  final String? ocr;
 
   @observable
   String? snapUsername;
@@ -230,6 +276,7 @@ abstract class _ContactEntry with Store {
     required this.addedOnSnap,
     required this.addedOnInsta,
     required this.addedOnDiscord,
+    this.ocr,
     this.snapUsername,
     this.instaUsername,
     this.discordUsername,
@@ -243,28 +290,5 @@ abstract class _ContactEntry with Store {
   }) {
     this.previousHandles = ObservableMap.of(previousHandles ?? {});
     this.sections = ObservableList.of(sections ?? []);
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      "extractedText": extractedText,
-      "snapUsername": snapUsername,
-      "instaUsername": instaUsername,
-      "discordUsername": discordUsername,
-      "dateAddedOnSnap": dateAddedOnSnap?.toIso8601String(),
-      "dateAddedOnInsta": dateAddedOnInsta?.toIso8601String(),
-      "dateAddedOnDiscord": dateAddedOnDiscord?.toIso8601String(),
-      "addedOnSnap": addedOnSnap,
-      "addedOnInsta": addedOnInsta,
-      "addedOnDiscord": addedOnDiscord,
-      "previousHandles":
-          previousHandles != null ? Map.from(previousHandles!) : null,
-      "notes": notes,
-      "socialMediaHandles": socialMediaHandles,
-      "sections": sections,
-      "name": name,
-      "age": age,
-      "location": location?.toJson(),
-    };
   }
 }

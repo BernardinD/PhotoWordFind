@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
@@ -80,12 +81,12 @@ class Gallery{
   }
 
   // Creates standardized Widget that will seen in gallery
-  void addNewCell(List<Map<String,String>> body, String snapUsername, dynamic file, File displayImage, {String instaUsername = "", String discordUsername = ""}){
+  void addNewCell(List<Map<String,String>> body, String snapUsername, dynamic file, File displayImage, ContactEntry? contact, {String instaUsername = "", String discordUsername = ""}){
     Function redoListPos = (GalleryCell cell) => _images.indexWhere((element) => element.child == cell);
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, file, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: ValueKey(path.basename(file.path))),
+      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, file, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, contact, key: ValueKey(path.basename(file.path)),),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
@@ -102,7 +103,7 @@ class Gallery{
     var key = replacing.key!;
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, f, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, key: key as ValueKey<String>),
+      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, f, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, replacing.contact, key: key as ValueKey<String>),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
