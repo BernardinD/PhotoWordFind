@@ -75,15 +75,15 @@ class StorageUtils {
     }
     Map<String, dynamic> map = {
       SubKeys.OCR:             _map[SubKeys.OCR] ?? value,
-      SubKeys.SnapUsername:    _map[SubKeys.SnapUsername] ?? "",
-      SubKeys.InstaUsername:   _map[SubKeys.InstaUsername] ?? "",
-      SubKeys.DiscordUsername: _map[SubKeys.DiscordUsername] ?? "",
+      SubKeys.SnapUsername:    _map[SubKeys.SnapUsername],
+      SubKeys.InstaUsername:   _map[SubKeys.InstaUsername],
+      SubKeys.DiscordUsername: _map[SubKeys.DiscordUsername],
       SubKeys.AddedOnSnap:     _map[SubKeys.AddedOnSnap] ?? false,
       SubKeys.AddedOnInsta:    _map[SubKeys.AddedOnInsta] ?? false,
       SubKeys.AddedOnDiscord:  _map[SubKeys.AddedOnDiscord] ?? false,
-      SubKeys.SnapDate:        _map[SubKeys.SnapDate]    != null && _map[SubKeys.SnapDate].isNotEmpty    ? DateTime.parse(_map[SubKeys.SnapDate]).toIso8601String()  : "",
-      SubKeys.InstaDate:       _map[SubKeys.InstaDate]   != null && _map[SubKeys.InstaDate].isNotEmpty   ? DateTime.parse(_map[SubKeys.InstaDate  ]).toIso8601String() : "",
-      SubKeys.DiscordDate:     _map[SubKeys.DiscordDate] != null && _map[SubKeys.DiscordDate].isNotEmpty ? DateTime.parse(_map[SubKeys.DiscordDate  ]).toIso8601String() : "",
+      SubKeys.SnapDate:        _map[SubKeys.SnapDate]    != null && _map[SubKeys.SnapDate].isNotEmpty    ? DateTime.parse(_map[SubKeys.SnapDate]) : null,
+      SubKeys.InstaDate:       _map[SubKeys.InstaDate]   != null && _map[SubKeys.InstaDate].isNotEmpty   ? DateTime.parse(_map[SubKeys.InstaDate  ]) : null,
+      SubKeys.DiscordDate:     _map[SubKeys.DiscordDate] != null && _map[SubKeys.DiscordDate].isNotEmpty ? DateTime.parse(_map[SubKeys.DiscordDate  ]) : null,
       SubKeys.PreviousUsernames:     _map[SubKeys.PreviousUsernames] ?? <String, List<String>>{
         SubKeys.SnapUsername: <String>[],
         SubKeys.InstaUsername: <String>[],
@@ -91,9 +91,9 @@ class StorageUtils {
       SubKeys.Notes: _map[SubKeys.Notes],
       // New values from chat GPT
       SubKeys.SocialMediaHandles: _map[SubKeys.SocialMediaHandles],
-      SubKeys.Sections: _map[SubKeys.Sections],
-      SubKeys.Name: _map[SubKeys.Name],
-      SubKeys.Age: _map[SubKeys.Age],
+      SubKeys.Sections: ((_map[SubKeys.Sections] as List?)?.isNotEmpty ?? false) ? _map[SubKeys.Sections] : null,
+      SubKeys.Name: (_map[SubKeys.Name] as String?)?.isNotEmpty ?? false ? _map[SubKeys.Name] : null,
+      SubKeys.Age: (_map[SubKeys.Age] is int) ? _map[SubKeys.Age] : null,
       SubKeys.Location: _map[SubKeys.Location],
     };
     return map;

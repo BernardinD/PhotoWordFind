@@ -71,7 +71,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       : super(
           extractedText: json[SubKeys.Sections]?.toString() ?? json[SubKeys.OCR],
           ocr: json[SubKeys.OCR],
-          name: json[SubKeys.Name],
+          name: (json[SubKeys.Name]  as String?)?.isNotEmpty ?? false ? json[SubKeys.Name] : null,
           age: json[SubKeys.Age] is int ? json[SubKeys.Age] : null,
           location: json[SubKeys.Location] != null
               ? Location(
@@ -109,14 +109,12 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
                     SubKeys.InstaUsername: ObservableList<String>(),
                   }),
           notes: json[SubKeys.Notes],
-          socialMediaHandles: ObservableMap.of(
-              (json[SubKeys.SocialMediaHandles] as Map<String, dynamic>?)
-                      ?.map((key, value) => MapEntry(key, value as String?)) ??
-                  {}),
-          sections: ObservableList.of((json[SubKeys.Sections] as List<dynamic>?)
-                  ?.map((map) => ObservableMap<String, String>.of(
-                      (map as Map<String, dynamic>).cast<String, String>())) ??
-              []),
+          socialMediaHandles: json[SubKeys.SocialMediaHandles] != null ? ObservableMap.of(
+              (json[SubKeys.SocialMediaHandles] as Map<String, dynamic>)
+                      .map((key, value) => MapEntry(key, value as String?))) : null,
+          sections: ((json[SubKeys.Sections] as List?)?.isNotEmpty ?? false) ? ObservableList.of((json[SubKeys.Sections] as List<dynamic>)
+                  .map((map) => ObservableMap<String, String>.of(
+                      (map as Map<String, dynamic>).cast<String, String>()))) : null,
         ) {
     _setupAutoSave();
   }
@@ -143,17 +141,17 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       SubKeys.SnapUsername: snapUsername,
       SubKeys.InstaUsername: instaUsername,
       SubKeys.DiscordUsername: discordUsername,
-      SubKeys.SnapDate: dateAddedOnSnap?.toIso8601String(),
-      SubKeys.InstaDate: dateAddedOnInsta?.toIso8601String(),
-      SubKeys.DiscordDate: dateAddedOnDiscord?.toIso8601String(),
       SubKeys.AddedOnSnap: addedOnSnap,
       SubKeys.AddedOnInsta: addedOnInsta,
       SubKeys.AddedOnDiscord: addedOnDiscord,
+      SubKeys.SnapDate: dateAddedOnSnap/*?.toIso8601String()*/,
+      SubKeys.InstaDate: dateAddedOnInsta/*?.toIso8601String()*/,
+      SubKeys.DiscordDate: dateAddedOnDiscord/*?.toIso8601String()*/,
       SubKeys.PreviousUsernames:
-          previousHandles != null ? Map.from(previousHandles!.map((key,value) => MapEntry(key, value.toList()))) : null,
+          previousHandles?.isNotEmpty ?? false ? Map.from(previousHandles!.map((key,value) => MapEntry(key, value.toList()))) : null,
       SubKeys.Notes: notes,
-      SubKeys.SocialMediaHandles: socialMediaHandles != null ? Map.from(socialMediaHandles!) : null,
-      SubKeys.Sections: sections?.toList().map(Map.from).toList(),
+      SubKeys.SocialMediaHandles: socialMediaHandles?.isNotEmpty ?? false ? Map.from(socialMediaHandles!) : null,
+      SubKeys.Sections: sections?.isNotEmpty ?? false ? sections!.toList().map(Map.from).toList() : null,
       SubKeys.Name: name,
       SubKeys.Age: age,
       SubKeys.Location: location?.toJson(),
