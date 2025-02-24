@@ -193,12 +193,12 @@ Future<ContactEntry?> createOCRJob(
 
   var result;
   rawJson["replacing"] = replacing;
-  Map<String, dynamic>? originalValues =
-      await StorageUtils.get(key, asMap: true, reload: true);
+  // Map<String, dynamic>? originalValues =
+  //     await StorageUtils.get(key, asMap: true, reload: true);
+  ContactEntry? originalValues = await ContactEntry.loadFromPreferences(key, reload: true);
 
   // Check if this file's' OCR has been cached
-  if (originalValues is Map && !replacing) {
-    
+  if (originalValues is ContactEntry && !replacing) {
     // // ✅ Step 1: Fix old location format if it contains the typo `"utf-offset"`
     // if (originalValues!["location"] is Map) {
     //   Map<String, dynamic> location = originalValues["location"];

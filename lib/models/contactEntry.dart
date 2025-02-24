@@ -62,6 +62,27 @@ List<Map<String, String>>? toJsonObservableListOfMaps(
       object); // Convert ObservableList to regular List
 }
 
+typedef FieldUpdater<T> = void Function(T model, dynamic value);
+final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
+  SubKeys.Sections: (model, value) => model.sections =
+      ((value as List?)?.isNotEmpty ?? false)
+          ? ObservableList.of((value as List<dynamic>).map((map) =>
+              ObservableMap<String, String>.of(
+                  (map as Map<String, dynamic>).cast<String, String>())))
+          : null,
+  SubKeys.Location: (model, value) => model.location = value != null
+      ? Location(
+          rawLocation: value['name'],
+          timezone: value['timezone'] as String?,
+        )
+      : null,
+  SubKeys.SocialMediaHandles: (model, value) => model.socialMediaHandles =
+      value != null
+          ? ObservableMap.of((value as Map<String, dynamic>)
+              .map((key, value) => MapEntry(key, value as String?)))
+          : null,
+};
+
 class ContactEntry extends _ContactEntry with _$ContactEntry {
   ContactEntry(
       {required this.identifier,
@@ -69,20 +90,12 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       required this.dateFound,
       required Map<String, dynamic> json})
       : super(
-          extractedText: json[SubKeys.Sections]?.toString() ?? json[SubKeys.OCR],
           ocr: json[SubKeys.OCR],
-          name: (json[SubKeys.Name]  as String?)?.isNotEmpty ?? false ? json[SubKeys.Name] : null,
-          age: json[SubKeys.Age] is int ? json[SubKeys.Age] : null,
-          location: json[SubKeys.Location] != null
-              ? Location(
-                  rawLocation: json[SubKeys.Location]['name'],
-                  timezone: json[SubKeys.Location]['timezone'] as String?,
-                )
+          name: (json[SubKeys.Name] as String?)?.isNotEmpty ?? false
+              ? json[SubKeys.Name]
               : null,
-          snapUsername:     json[SubKeys.SocialMediaHandles]?[ SubKeys.SnapUsername    ] ?? json[ SubKeys.SnapUsername    ],
-          instaUsername:    json[SubKeys.SocialMediaHandles]?[ SubKeys.InstaUsername   ] ?? json[ SubKeys.InstaUsername   ],
-          discordUsername:  json[SubKeys.SocialMediaHandles]?[ SubKeys.DiscordUsername ] ?? json[ SubKeys.DiscordUsername ],
-          dateAddedOnSnap:  json[SubKeys.SnapDate] != null &&
+          age: json[SubKeys.Age] is int ? json[SubKeys.Age] : null,
+          dateAddedOnSnap: json[SubKeys.SnapDate] != null &&
                   json[SubKeys.SnapDate].isNotEmpty
               ? DateTime.parse(json[SubKeys.SnapDate])
               : null,
@@ -109,30 +122,46 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
                     SubKeys.InstaUsername: ObservableList<String>(),
                   }),
           notes: json[SubKeys.Notes],
-          socialMediaHandles: json[SubKeys.SocialMediaHandles] != null ? ObservableMap.of(
-              (json[SubKeys.SocialMediaHandles] as Map<String, dynamic>)
-                      .map((key, value) => MapEntry(key, value as String?))) : null,
-          sections: ((json[SubKeys.Sections] as List?)?.isNotEmpty ?? false) ? ObservableList.of((json[SubKeys.Sections] as List<dynamic>)
-                  .map((map) => ObservableMap<String, String>.of(
-                      (map as Map<String, dynamic>).cast<String, String>()))) : null,
         ) {
     _setupAutoSave();
   }
-
-  @JsonKey(includeFromJson: false)
   final String identifier;
-  @JsonKey(includeFromJson: false)
   final String imagePath;
-  @JsonKey(includeFromJson: false)
   final DateTime dateFound;
 
   factory ContactEntry.fromJson(
-      String storageKey, String imagePath, Map<String, dynamic> json) {
-    return ContactEntry(
+      String storageKey, String imagePath, Map<String, dynamic> json,
+      {bool save = false}) {
+    var instance = ContactEntry(
         identifier: storageKey,
         imagePath: imagePath,
         dateFound: File(imagePath).lastModifiedSync(),
         json: json);
+
+    instance.mergeFromJson(json, save);
+
+    return instance;
+  }
+
+  void mergeFromJson(Map<String, dynamic> json_, bool save) {
+    _suppressAutoSave = false;
+
+    json_.forEach((key, value) {
+      final updater = fieldUpdaters[key];
+      if (updater != null) {
+        updater(this, value);
+      }
+    });
+    extractedText = extractedText ?? ocr;
+    snapUsername = socialMediaHandles?[SubKeys.SnapUsername] ?? snapUsername;
+    instaUsername = socialMediaHandles?[SubKeys.InstaUsername] ?? instaUsername;
+    discordUsername =
+        socialMediaHandles?[SubKeys.DiscordUsername] ?? discordUsername;
+
+    _suppressAutoSave = true;
+    if (save) {
+      _saveToPreferences();
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -144,14 +173,20 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       SubKeys.AddedOnSnap: addedOnSnap,
       SubKeys.AddedOnInsta: addedOnInsta,
       SubKeys.AddedOnDiscord: addedOnDiscord,
-      SubKeys.SnapDate: dateAddedOnSnap/*?.toIso8601String()*/,
-      SubKeys.InstaDate: dateAddedOnInsta/*?.toIso8601String()*/,
-      SubKeys.DiscordDate: dateAddedOnDiscord/*?.toIso8601String()*/,
-      SubKeys.PreviousUsernames:
-          previousHandles?.isNotEmpty ?? false ? Map.from(previousHandles!.map((key,value) => MapEntry(key, value.toList()))) : null,
+      SubKeys.SnapDate: dateAddedOnSnap?.toIso8601String(),
+      SubKeys.InstaDate: dateAddedOnInsta?.toIso8601String(),
+      SubKeys.DiscordDate: dateAddedOnDiscord?.toIso8601String(),
+      SubKeys.PreviousUsernames: previousHandles?.isNotEmpty ?? false
+          ? Map.from(previousHandles!
+              .map((key, value) => MapEntry(key, value.toList())))
+          : null,
       SubKeys.Notes: notes,
-      SubKeys.SocialMediaHandles: socialMediaHandles?.isNotEmpty ?? false ? Map.from(socialMediaHandles!) : null,
-      SubKeys.Sections: sections?.isNotEmpty ?? false ? sections!.toList().map(Map.from).toList() : null,
+      SubKeys.SocialMediaHandles: socialMediaHandles?.isNotEmpty ?? false
+          ? Map.from(socialMediaHandles!)
+          : null,
+      SubKeys.Sections: sections?.isNotEmpty ?? false
+          ? sections!.toList().map(Map.from).toList()
+          : null,
       SubKeys.Name: name,
       SubKeys.Age: age,
       SubKeys.Location: location?.toJson(),
@@ -159,16 +194,19 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
   }
 
   void _setupAutoSave() {
-    reaction((_) => toJson(), (_) => _saveToPreferences());
+    reaction((_) => toJson(),
+        (_) => _suppressAutoSave ? _saveToPreferences() : null);
   }
 
   Future<void> _saveToPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(identifier, jsonEncode(toJson()));
+    // await prefs.setString(identifier, jsonEncode(toJson()));
   }
 
-  static Future<ContactEntry?> loadFromPreferences(String identifier) async {
+  static Future<ContactEntry?> loadFromPreferences(String identifier, {bool reload = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    if(reload) await prefs.reload();
+    
     final jsonString = prefs.getString(identifier);
     if (jsonString == null) return null;
 
@@ -191,18 +229,29 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       return null;
     }
 
-    return ContactEntry.fromJson(
-        identifier, imagePath!, json);
+    return ContactEntry.fromJson(identifier, imagePath!, json);
   }
 }
 
+/// This class represents the data parsed from each image and has an update tracking
+/// on each fail as to allow for syncing the sharedPreferences (presistent data)
+/// with the update values. Also, each field is able to be nullable as to account
+/// for failed transcribing and still wanting to display the image in the UI
+/// for reprocessing or optical feedback to the user.
 abstract class _ContactEntry with Store {
   // _ContactEntry();
 
-  @observable
-  @JsonKey(disallowNullValue: true)
-  String extractedText;
+  // Variable used for disabling auto updating of persistence
+  bool _suppressAutoSave = true;
 
+  /// Holds all the transcribed data. For other entries this will be the ocr.
+  /// And for newer ones this will be all the values of "sections" for now.
+  /// In the future will possible be just "my bio" or removed all togeter
+  /// in place of image overlaying.
+  @observable
+  String? extractedText;
+
+  /// The ocr scanned from images BEFORE switching over to chatGPT approach.
   final String? ocr;
 
   @observable
@@ -224,15 +273,12 @@ abstract class _ContactEntry with Store {
   DateTime? dateAddedOnDiscord;
 
   @observable
-  @JsonKey(disallowNullValue: true)
   bool addedOnSnap;
 
   @observable
-  @JsonKey(disallowNullValue: true)
   bool addedOnInsta;
 
   @observable
-  @JsonKey(disallowNullValue: true)
   bool addedOnDiscord;
 
   @observable
@@ -241,52 +287,146 @@ abstract class _ContactEntry with Store {
       toJson: toJsonObservableMapOfLists)
   ObservableMap<String, ObservableList<String>>? previousHandles;
 
+  /// Stored text of user notes and reminders for this person
   @observable
   String? notes;
 
   // New chatGPT responses
-  @JsonKey(required: true, disallowNullValue: true)
   final String? name;
 
-  @JsonKey(required: true, disallowNullValue: true)
   final int? age;
 
-  @JsonKey(required: true, disallowNullValue: true)
-  final Location? location;
+  Location? location;
 
+  /// The chatGPT response of the handles seen in the sent image. All though
+  /// there are specific entries for each common handle type, this entry is
+  /// kept as to make it much easier to combine maps of the pre-existing map
+  /// and all new reiteration for this image.
   @observable
-  @JsonKey(
-      fromJson: fromJsonObservableMapOfStrings,
-      toJson: toJsonObservableMapOfStrings)
   ObservableMap<String, String?>? socialMediaHandles;
 
   @observable
-  @JsonKey(
-      fromJson: fromJsonObservableListOfMaps,
-      toJson: toJsonObservableListOfMaps)
   ObservableList<ObservableMap<String, String>>? sections;
 
+  @action
+  updateSnapchat(String snapchat) {
+    _suppressAutoSave = false;
+    if (snapUsername != null) {
+      previousHandles?[SubKeys.SnapUsername]?.add(snapchat);
+      snapUsername = snapchat;
+    }
+    _suppressAutoSave = true;
+  }
+
+  @action
+  updateInstagram(String instagram) {
+    _suppressAutoSave = false;
+    if (instaUsername != null) {
+      previousHandles?[SubKeys.InstaUsername]?.add(instagram);
+      instaUsername = instagram;
+    }
+    _suppressAutoSave = true;
+  }
+
+  @action
+  updateDiscord(String discord) {
+    _suppressAutoSave = false;
+    if (discordUsername != null) {
+      previousHandles?[SubKeys.DiscordUsername]?.add(discord);
+      discordUsername = discord;
+    }
+    _suppressAutoSave = true;
+  }
+
+  @action
+  addSnapchat() {
+    // Avoid repeated calls for each field
+    _suppressAutoSave = false;
+    dateAddedOnSnap = DateTime.now();
+    _suppressAutoSave = true;
+
+
+    addedOnSnap = true;
+  }
+
+  @action
+  addInstagram() {
+    // Avoid repeated calls for each field
+    _suppressAutoSave = false;
+    dateAddedOnInsta = DateTime.now();
+    _suppressAutoSave = true;
+
+
+    addedOnInsta = true;
+  }
+
+  @action
+  addDiscord() {
+    // Avoid repeated calls for each field
+    _suppressAutoSave = false;
+    dateAddedOnDiscord = DateTime.now();
+    _suppressAutoSave = true;
+
+
+    addedOnDiscord = true;
+  }
+
+  @action
+  resetSnapchatAdd() {
+    // Avoid repeated calls for each field
+    _suppressAutoSave = false;
+    dateAddedOnSnap = DateTime.now();
+    _suppressAutoSave = true;
+
+
+    addedOnSnap = false;
+  }
+
+  @action
+  resetInstagramAdd() {
+    // Avoid repeated calls for each field
+    _suppressAutoSave = false;
+    dateAddedOnInsta = DateTime.now();
+    _suppressAutoSave = true;
+
+
+    addedOnInsta = false;
+  }
+
+  @action
+  resetDiscordAdd() {
+    // Avoid repeated calls for each field
+    _suppressAutoSave = false;
+    dateAddedOnDiscord = DateTime.now();
+    _suppressAutoSave = true;
+
+
+    addedOnDiscord = false;
+  }
+
   _ContactEntry({
-    required this.extractedText,
     required this.name,
     required this.age,
-    required this.location,
-    required this.addedOnSnap,
-    required this.addedOnInsta,
-    required this.addedOnDiscord,
-    this.ocr,
-    this.snapUsername,
-    this.instaUsername,
-    this.discordUsername,
+    required this.ocr,
+
+    /// If this exists it will be accounted for from the beginning and shouldn't need to be updated
+    // this.extractedText,
+    this.addedOnSnap = false,
+    this.addedOnInsta = false,
+    this.addedOnDiscord = false,
+    // this.snapUsername,
+    // this.instaUsername,
+    // this.discordUsername,
     this.dateAddedOnSnap,
     this.dateAddedOnInsta,
     this.dateAddedOnDiscord,
     this.previousHandles,
     this.notes,
-    this.sections,
-    this.socialMediaHandles,
+    // this.sections,
+    // this.socialMediaHandles,
+    // this.location,
   }) {
     this.previousHandles = ObservableMap.of(previousHandles ?? {});
-    this.sections = ObservableList.of(sections ?? []);
+    // this.sections = ObservableList.of(sections ?? []);
   }
 }

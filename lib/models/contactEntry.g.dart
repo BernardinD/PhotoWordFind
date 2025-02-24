@@ -13,13 +13,13 @@ mixin _$ContactEntry on _ContactEntry, Store {
       Atom(name: '_ContactEntry.extractedText', context: context);
 
   @override
-  String get extractedText {
+  String? get extractedText {
     _$extractedTextAtom.reportRead();
     return super.extractedText;
   }
 
   @override
-  set extractedText(String value) {
+  set extractedText(String? value) {
     _$extractedTextAtom.reportWrite(value, super.extractedText, () {
       super.extractedText = value;
     });

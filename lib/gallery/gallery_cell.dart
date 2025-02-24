@@ -60,7 +60,7 @@ class _GalleryCellState extends State<GalleryCell> {
   late final String fileName = widget.f.path.split("/").last;
   late final PhotoView _photo;
   late String? _notes;
-  final SplayTreeMap<SocialType?, Future<Text?>> _dates =
+  final SplayTreeMap<SocialType?, Text?> _dates =
       SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
   int _displayDatesCounter = 0;
 
@@ -123,18 +123,11 @@ class _GalleryCellState extends State<GalleryCell> {
                        * Date
                         */
                     child: Builder(builder: (context) {
-                      return FutureBuilder(
-                          future: Future.wait(_dates.values),
+                      return Builder(
                           builder:
-                              (context, AsyncSnapshot<List<Text?>> snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return createTextWidget("Loading...");
-                            } else if (snapshot.hasError) {
-                              throw snapshot.error!;
-                            } else {
+                              (contextt) {
                               List<Text?> displayDates =
-                                  snapshot.data as List<Text?>;
+                                  _dates.values.toList();
                               displayDates
                                   .removeWhere((element) => element == null);
 
@@ -151,7 +144,6 @@ class _GalleryCellState extends State<GalleryCell> {
                                     children:
                                         displayDates.map((e) => e!).toList(),
                                   ));
-                            }
                           });
                     }),
                   ),
