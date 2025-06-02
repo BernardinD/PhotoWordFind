@@ -7,15 +7,15 @@ import 'package:flutter/foundation.dart';
 import 'dart:collection';
 import 'package:image/image.dart' as imglib;
 
-class Gpt4oModel extends Gpt4OChatModel {
-  Gpt4oModel() : super() {
-    model = "gpt-4o-2024-08-06";
+class Gpt4_1Model extends Gpt4OChatModel {
+  Gpt4_1Model() : super() {
+    model = "gpt-4.1";
   }
 }
 
-class Gpt4oMiniModel extends Gpt4OChatModel {
-  Gpt4oMiniModel() : super() {
-    model = "gpt-4o-mini";
+class Gpt4_1MiniModel extends Gpt4OChatModel {
+  Gpt4_1MiniModel() : super() {
+    model = "gpt-4.1-mini";
   }
 }
 
@@ -206,7 +206,7 @@ Keep the information below in mind:
 
         final request = ChatCompleteText(
             maxToken: 2000,
-            model: useMiniModel ? Gpt4oMiniModel() : Gpt4oModel(),
+            model: useMiniModel ? Gpt4_1MiniModel() : Gpt4_1Model(),
             messages: [systemMessage, userMessage, imageMessage],
             responseFormat: ResponseFormat.jsonObject,
             temperature: 1);
