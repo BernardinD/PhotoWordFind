@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:flutter/material.dart';
@@ -214,7 +215,7 @@ Future<Map<String, dynamic>?> createOCRJob(
             onValue?[SubKeys.Sections] != null) {
           List<Map<String, String>> originalSections =
               (originalValues?[SubKeys.Sections] as List)
-                  .map((item) => Map<String, String>.from(item as Map))
+                  .map((item) => (item as Map).map<String, String>((key, value) => MapEntry(key.toString(), value?.toString() ?? '')))
                   .toList();
           List<Map<String, String>> newSections = (onValue?[SubKeys.Sections] as List)
               .map((item) => Map<String, String>.from(item as Map))
@@ -323,8 +324,9 @@ Future onEachOcrResult(
 
   if (result?[SubKeys.Sections] is List) {
     sections = (result?[SubKeys.Sections] as List)
-        .map((item) => Map<String, String>.from(item as Map))
-        .toList();
+      .where((item) => item != null)
+      .map((item) => Map<String, String>.from((item as Map).map((e, v) => MapEntry(e.toString(), v?.toString() ?? ''))))
+      .toList();
   } else {
     sections = null;
   }
