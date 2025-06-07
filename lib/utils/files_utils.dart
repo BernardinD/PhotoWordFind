@@ -324,8 +324,7 @@ Map<String, dynamic> postProcessOCR(String ocr) {
 }
 
 @pragma('vm:entry-point')
-Future<Map<String, dynamic>?> ocrThread(
-    Map<String, dynamic> receivedData) async {
+Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async {
   String filePath = receivedData["f"];
   ui.Size size = ui.Size(
       receivedData['width'].toDouble(), receivedData['height'].toDouble());
@@ -352,9 +351,12 @@ Future<Map<String, dynamic>?> ocrThread(
     debugPrint("Sending OCR result...");
     return result;
   } catch (error, stackTrace) {
-    debugPrint("File ($filePath) failed");
-    debugPrint("$error \n $stackTrace");
-    debugPrint("Leaving try-catch");
+    debugPrint("❌ File ($filePath) failed with error:");
+    debugPrint("$error");
+    debugPrint("Stack Trace:");
+    debugPrint("$stackTrace");
+    result['error'] = error.toString();
+    result['stackTrace'] = stackTrace.toString();
   }
   return result;
 }

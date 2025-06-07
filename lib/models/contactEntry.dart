@@ -65,18 +65,35 @@ List<Map<String, String>>? toJsonObservableListOfMaps(
 
 typedef FieldUpdater<T> = void Function(T model, dynamic value);
 final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
-  SubKeys.Sections: (model, value) => model.sections =
-      ((value as List?)?.isNotEmpty ?? false)
-          ? ObservableList.of((value as List<dynamic>).map((map) =>
-              ObservableMap<String, String>.of(
-                  (map as Map<String, dynamic>).cast<String, String>())))
-          : null,
-  SubKeys.Location: (model, value) => model.location = value != null
-      ? Location(
-          rawLocation: value['name'],
-          timezone: value['timezone'] as String?,
-        )
-      : null,
+  SubKeys.Sections: (model, value) {
+    if (value is List && value.isNotEmpty) {
+      final listOfMaps = value.map((item) {
+        if (item is Map) {
+          final safeMap = item.map(
+            (ky, vl) => MapEntry(
+              ky.toString(),
+              vl?.toString() ?? "",
+            ),
+          );
+          return ObservableMap<String, String>.of(safeMap);
+        }
+        return ObservableMap<String, String>();
+      }).toList();
+      model.sections = ObservableList.of(listOfMaps);
+    } else {
+      model.sections = null;
+    }
+  },
+  SubKeys.Location: (model, value) {
+    if (value is Map) {
+      model.location = Location(
+        rawLocation: value['name'],
+        timezone: value['timezone'] as String?,
+      );
+    } else {
+      model.location = null;
+    }
+  },
   SubKeys.SocialMediaHandles: (model, value) => model.socialMediaHandles =
       value != null
           ? ObservableMap.of((value as Map<String, dynamic>)
