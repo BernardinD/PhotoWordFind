@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:mobx/mobx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -100,6 +101,9 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
                   json[SubKeys.SnapDate].isNotEmpty
               ? DateTime.parse(json[SubKeys.SnapDate])
               : null,
+          instaUsername: json[SubKeys.InstaUsername],
+          discordUsername: json[SubKeys.DiscordUsername],
+          snapUsername: json[SubKeys.SnapUsername],
           dateAddedOnInsta: json[SubKeys.InstaDate] != null &&
                   json[SubKeys.InstaDate].isNotEmpty
               ? DateTime.parse(json[SubKeys.InstaDate])
@@ -226,30 +230,29 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
         StorageUtils.filePaths[identifier] ?? filePaths[identifier];
 
     if (imagePath == null) {
-      print("The save didn't work: $identifier");
-      return null;
-      List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb"];
-      dirs.forEach((_dir) {
-        if (imagePath != null) {
-          return;
+      debugPrint("The save didn't work: $identifier");
+      // return null;
+      List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb", "Delete"];
+      String testFilePath;
+      
+      for (final _dir in dirs) {
+        testFilePath = "/storage/emulated/0/DCIM/$_dir/$identifier.jpg";
+        if (File(testFilePath).existsSync()) {
+          filePaths[identifier] = testFilePath;
+          imagePath = testFilePath;
+          debugPrint(
+              "Found image path: $imagePath for identifier: $identifier");
+          StorageUtils.writeJson(filePaths);
+          break;
         }
-
-        imagePath = "/storage/emulated/0/DCIM/$_dir/$identifier.jpg";
-        if (File(imagePath!).existsSync()) {
-          return;
-        }
-        imagePath = null;
-      });
+      }
       if (imagePath == null) {
+        debugPrint("No image found for identifier: $identifier");
         return null;
       }
-
-      filePaths[identifier] = imagePath!;
-
-      await StorageUtils.writeJson(filePaths);
     }
 
-    return ContactEntry.fromJson(identifier, imagePath!, json);
+    return ContactEntry.fromJson(identifier, imagePath, json);
   }
 }
 
@@ -431,9 +434,9 @@ abstract class _ContactEntry with Store {
     this.addedOnSnap = false,
     this.addedOnInsta = false,
     this.addedOnDiscord = false,
-    // this.snapUsername,
-    // this.instaUsername,
-    // this.discordUsername,
+    this.snapUsername,
+    this.instaUsername,
+    this.discordUsername,
     this.dateAddedOnSnap,
     this.dateAddedOnInsta,
     this.dateAddedOnDiscord,

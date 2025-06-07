@@ -232,6 +232,108 @@ mixin _$ContactEntry on _ContactEntry, Store {
     });
   }
 
+  late final _$_ContactEntryActionController =
+      ActionController(name: '_ContactEntry', context: context);
+
+  @override
+  dynamic updateSnapchat(String snapchat) {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.updateSnapchat');
+    try {
+      return super.updateSnapchat(snapchat);
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic updateInstagram(String instagram) {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.updateInstagram');
+    try {
+      return super.updateInstagram(instagram);
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic updateDiscord(String discord) {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.updateDiscord');
+    try {
+      return super.updateDiscord(discord);
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic addSnapchat() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.addSnapchat');
+    try {
+      return super.addSnapchat();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic addInstagram() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.addInstagram');
+    try {
+      return super.addInstagram();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic addDiscord() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.addDiscord');
+    try {
+      return super.addDiscord();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic resetSnapchatAdd() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.resetSnapchatAdd');
+    try {
+      return super.resetSnapchatAdd();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic resetInstagramAdd() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.resetInstagramAdd');
+    try {
+      return super.resetInstagramAdd();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic resetDiscordAdd() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.resetDiscordAdd');
+    try {
+      return super.resetDiscordAdd();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
   @override
   String toString() {
     return '''

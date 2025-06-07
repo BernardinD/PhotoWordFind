@@ -41,8 +41,8 @@ void main() {
     tz.initializeTimeZones();
 
   Catcher(
-    rootWidget: ImageGalleryScreen(),
-    // rootWidget: MyApp(title: 'Flutter Demo Home Page'),
+    // rootWidget: ImageGalleryScreen(),
+    rootWidget: MyApp(title: 'Flutter Demo Home Page'),
     debugConfig: debugOptions,
     releaseConfig: releaseOptions,
     ensureInitialized: true,

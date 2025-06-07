@@ -341,11 +341,11 @@ class _GalleryCellState extends State<GalleryCell> {
                         },
                         children: [
                           getSocialRow(
-                              (widget.snapUsername.isNotEmpty &&
+                              ((widget.contact?.snapUsername ?? "").isNotEmpty &&
                                   SocialIcon.snapchatIconButton != null),
                               SocialType.Snapchat),
                           getSocialRow(
-                              (widget.instaUsername.isNotEmpty &&
+                              ((widget.contact?.instaUsername ?? "").isNotEmpty &&
                                   SocialIcon.instagramIconButton != null),
                               SocialType.Instagram),
                         ],

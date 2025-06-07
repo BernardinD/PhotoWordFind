@@ -89,6 +89,7 @@ class StorageUtils {
       return jsonDecode(jsonString);
     } catch (e) {
       // If encountering an error, return an empty map.
+      debugPrint("Error reading JSON file: $e");
       return {};
     }
   }

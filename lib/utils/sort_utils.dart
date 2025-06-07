@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
-import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -99,24 +98,32 @@ class Sortings {
     SharedPreferences localPrefs = (await _localPrefs)!;
     localPrefs.reload();
 
-    var map = await StorageUtils.readJson();
+    return;
     for (String key in localPrefs.getKeys()) {
-      // String rawJson = localPrefs.getString(key)!;
-      // Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson , enforceMapOutput: true)!;
+      ContactEntry? entry;
+      try {
+        entry = await ContactEntry.loadFromPreferences(key);
+      } catch (e) {
+        debugPrint("Failed to load ContactEntry for $key: $e");
+        entry = null;
+      }
 
-      // if(!map.containsKey("discord") ?? false){
-      //   debugPrint("this key failed: $key");
-      // }
+      if (entry == null) {
+        debugPrint("Entry is null for key: $key");
+        localCache[key] = null;
+        continue;
+      }
 
-      ContactEntry? entry = await ContactEntry.loadFromPreferences(key);
-
-      if (entry?.discordUsername is! String) {
-        debugPrint("this key failed: $key");
+      // Check if the file exists
+      if (!File(entry.imagePath).existsSync()) {
+        debugPrint(
+            "File does not exist for key: $key, path: ${entry.imagePath}");
+        localCache[key] = null;
+        continue;
       }
 
       localCache[key] = entry;
     }
-
     // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
   }
 
@@ -145,8 +152,17 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    aDate = localCache[aKey]!.dateFound;
-    bDate = localCache[bKey]!.dateFound;
+    // Defensive: If file doesn't exist or cache entry is missing, use maxDateTime
+    if (!aFile.existsSync() || localCache[aKey] == null) {
+      aDate = maxDateTime;
+    } else {
+      aDate = localCache[aKey]!.dateFound;
+    }
+    if (!bFile.existsSync() || localCache[bKey] == null) {
+      bDate = maxDateTime;
+    } else {
+      bDate = localCache[bKey]!.dateFound;
+    }
     return aDate.compareTo(bDate) * (_reverseSortBy ? -1 : 1);
   }
 
@@ -165,8 +181,12 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    DateTime aDate = getter(localCache[aKey]) ?? maxDateTime;
-    DateTime bDate = getter(localCache[bKey]) ?? maxDateTime;
+    DateTime aDate =
+        (localCache[aKey] != null ? getter(localCache[aKey]) : null) ??
+            maxDateTime;
+    DateTime bDate =
+        (localCache[bKey] != null ? getter(localCache[bKey]) : null) ??
+            maxDateTime;
 
     int ret;
     ret = aDate.compareTo(bDate);
@@ -191,8 +211,10 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    bool aSnap = getter(localCache[aKey]) ?? false;
-    bool bSnap = getter(localCache[bKey]) ?? false;
+    bool aSnap =
+        (localCache[aKey] != null ? getter(localCache[aKey]) : null) ?? false;
+    bool bSnap =
+        (localCache[bKey] != null ? getter(localCache[bKey]) : null) ?? false;
 
     Function secondarySort = getSortBy();
     return (aSnap != bSnap)
@@ -216,8 +238,10 @@ class Sortings {
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aSnap = getter(localCache[aKey]) ?? "";
-    String bSnap = getter(localCache[bKey]) ?? "";
+    String aSnap =
+        (localCache[aKey] != null ? getter(localCache[aKey]) : null) ?? "";
+    String bSnap =
+        (localCache[bKey] != null ? getter(localCache[bKey]) : null) ?? "";
 
     // If both exist throw them in the front and sort them, else throw it to the back
     int ret = 0;
