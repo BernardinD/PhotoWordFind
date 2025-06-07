@@ -135,9 +135,9 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
           previousHandles: ObservableMap.of(
               (json[SubKeys.PreviousUsernames] as Map<String, dynamic>?)?.map(
                     (key, value) => MapEntry(
-                        key,
-                        ObservableList<String>.of(
-                            (value as List<dynamic>).cast<String>())),
+                      key, value != null
+                        ? ObservableList<String>.of((value as List<dynamic>).nonNulls.cast<String>())
+                        : ObservableList<String>()),
                   ) ??
                   <String, ObservableList<String>>{
                     SubKeys.SnapUsername: ObservableList<String>(),
@@ -217,12 +217,12 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
 
   void _setupAutoSave() {
     reaction((_) => toJson(),
-        (_) => _suppressAutoSave ? _saveToPreferences() : null);
+        (_) => !_suppressAutoSave ? _saveToPreferences() : null);
   }
 
   Future<void> _saveToPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    // await prefs.setString(identifier, jsonEncode(toJson()));
+    await prefs.setString(identifier, jsonEncode(toJson()));
   }
 
   static Future<ContactEntry?> loadFromPreferences(String identifier,
@@ -248,7 +248,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
 
     if (imagePath == null) {
       debugPrint("The save didn't work: $identifier");
-      // return null;
+      return null;
       List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb", "Delete"];
       String testFilePath;
       
@@ -259,7 +259,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
           imagePath = testFilePath;
           debugPrint(
               "Found image path: $imagePath for identifier: $identifier");
-          StorageUtils.writeJson(filePaths);
+          await StorageUtils.writeJson(filePaths);
           break;
         }
       }

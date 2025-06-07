@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/social_icons.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import 'package:PhotoWordFind/test_data.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -48,15 +48,63 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     'image3.jpg': 'ID: 003',
   };
 
+  // Add a setting to control which loading method to use
+  bool useJsonFileForLoading = true; // Set to true to load from JSON file
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    if (useJsonFileForLoading) {
+      _loadImagesFromJsonFile();
+    } else {
+      _loadImagesFromPreferences();
+    }
+  }
 
-    input_json.forEach((String key, dynamic value) {
-        String imagePath = "/storage/emulated/0/DCIM/Buzz buzz/$key.jpg";
-        // images.add(ContactEntry.fromJson(jsonDecode(value), key));
-        images.add(ContactEntry(identifier: key, imagePath: imagePath, dateFound: File(imagePath).lastModifiedSync(), json: jsonDecode(value)));
+  Future<void> _loadImagesFromPreferences() async {
+    // Read the image path map from the JSON file (simulating a separate storage location)
+    List<ContactEntry> loadedImages = [];
+    for (final identifier in StorageUtils.instance.getKeys()) {
+      // Retrieve the rest of the contact data from SharedPreferences
+      final jsonString = StorageUtils.instance.getString(identifier);
+      if (jsonString == null) continue;
+      final contactEntry = await ContactEntry.loadFromPreferences(identifier);
+      if (contactEntry != null) {
+        loadedImages.add(contactEntry);
+      }
+    }
+    setState(() {
+      images = loadedImages;
+    });
+  }
+
+  Future<void> _loadImagesFromJsonFile() async {
+    // Read the image path map from the JSON file
+    final Map<String, dynamic> fileMap = await StorageUtils.readJson();
+    List<ContactEntry> loadedImages = [];
+    for (final entry in fileMap.entries) {
+      final identifier = entry.key;
+      final value = entry.value;
+      // If the value is just a path string, create a minimal ContactEntry
+      if (value is String) {
+        loadedImages.add(ContactEntry(
+          identifier: identifier,
+          imagePath: value,
+          dateFound: File(value).existsSync() ? File(value).lastModifiedSync() : DateTime.now(),
+          json: {'imagePath': value},
+        ));
+      } else if (value is Map<String, dynamic>) {
+        // If the value is a full contact JSON, use fromJson
+        final imagePath = value['imagePath'] ?? '';
+        loadedImages.add(ContactEntry.fromJson(
+          identifier,
+          imagePath,
+          value,
+        ));
+      }
+    }
+    setState(() {
+      images = loadedImages;
     });
   }
 
@@ -76,7 +124,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       home: Scaffold(
         appBar: AppBar(title: Text('Image Gallery')),
         body: LayoutBuilder(builder: (context, constraints) {
-          double screenWidth = constraints.maxWidth;
           double screenHeight = constraints.maxHeight;
           return Column(
             children: [

@@ -94,6 +94,14 @@ class StorageUtils {
     }
   }
 
+  /// Reset image paths json
+  /// This will delete the current file and create a new one
+  /// Be careful with this as it will remove all saved image paths
+  static Future<void> resetImagePaths() async {
+    filePaths = {};
+    await writeJson(filePaths);
+  }
+
   static Future<SharedPreferences> _getStorageInstance(
       {required bool reload}) async {
     var ret = instance;

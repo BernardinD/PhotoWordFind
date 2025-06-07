@@ -29,28 +29,51 @@ import 'package:timezone/data/latest.dart' as tz;
 // import 'package:image_picker/image_picker.dart';
 
 void main() {
-  ChatGPTService.initialize();
-
   CatcherOptions debugOptions =
       CatcherOptions(PageReportMode(), [ConsoleHandler()]);
   CatcherOptions releaseOptions = CatcherOptions(PageReportMode(), [
     EmailManualHandler(["bdezius@gmail.com"],
         emailTitle: "Photo Word Find - Crashed", emailHeader: "Error message")
   ]);
-  
-    tz.initializeTimeZones();
 
   Catcher(
-    // rootWidget: ImageGalleryScreen(),
-    rootWidget: MyApp(title: 'Flutter Demo Home Page'),
+    rootWidget: MyRootWidget(),
     debugConfig: debugOptions,
     releaseConfig: releaseOptions,
     ensureInitialized: true,
   );
+}
 
+/// Handles all the inititalization of the app
+Future<void> initializeApp() async {
+  ChatGPTService.initialize();
 
-  // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
-  // runApp(MyApp('Flutter Demo Home Page'));
+  tz.initializeTimeZones();
+
+  await StorageUtils.init();
+
+  // await StorageUtils.resetImagePaths();
+}
+
+class MyRootWidget extends StatelessWidget {
+  const MyRootWidget({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: initializeApp(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          // Swap between UIs here for testing
+          return ImageGalleryScreen();
+          // return MyApp(title: 'Flutter Demo Home Page');
+        }
+        return MaterialApp(
+          home: Scaffold(body: Center(child: CircularProgressIndicator())),
+        );
+      },
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -245,7 +268,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         CloudUtils.firstSignIn()
             .then((bool signedIn) {
-              if(!signedIn){
+              if (!signedIn) {
                 throw Exception("Sign-in failed");
               }
             })
@@ -347,7 +370,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               if (gallery.images.isNotEmpty)
                 showGallery()
-                // ImageListScreen()
+              // ImageListScreen()
               else if (Operation.isRetryOp())
                 showRetry(),
             ],
