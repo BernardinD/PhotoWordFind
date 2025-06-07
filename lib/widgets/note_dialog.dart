@@ -3,9 +3,12 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:flutter/material.dart';
 
-Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? contact, {String? existingNotes}) {
+Future<String?> showNoteDialog(
+    BuildContext context, String key, ContactEntry? contact,
+    {String? existingNotes}) {
   final _formKey = GlobalKey<FormState>(); // Key for the form
-  TextEditingController noteController = TextEditingController(text: existingNotes);
+  TextEditingController noteController =
+      TextEditingController(text: existingNotes);
 
   // Get screen width and height to adjust the dialog size in split-screen mode
   var screenSize = MediaQuery.of(context).size;
@@ -27,8 +30,10 @@ Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? c
         ),
         content: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: screenSize.height * 0.6, // Dialog height will be 60% of screen height
-            maxWidth: screenSize.width * 0.9,   // Dialog width will be 90% of screen width
+            maxHeight: screenSize.height *
+                0.6, // Dialog height will be 60% of screen height
+            maxWidth: screenSize.width *
+                0.9, // Dialog width will be 90% of screen width
           ),
           child: SingleChildScrollView(
             child: Form(
@@ -40,12 +45,12 @@ Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? c
                     controller: noteController,
                     maxLines: 5,
                     style: TextStyle(
-                      fontSize: 14,  // Smaller input text size
+                      fontSize: 14, // Smaller input text size
                     ),
                     decoration: InputDecoration(
                       labelText: 'Enter your note',
                       labelStyle: TextStyle(
-                        fontSize: 14,  // Smaller label text size
+                        fontSize: 14, // Smaller label text size
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10.0),
@@ -53,9 +58,9 @@ Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? c
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Note cannot be empty';  // Validation message
+                        return 'Note cannot be empty'; // Validation message
                       }
-                      return null;  // Input is valid
+                      return null; // Input is valid
                     },
                   ),
                 ],
@@ -90,7 +95,7 @@ Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? c
                   if (!confirmed) return;
 
                   // Call the onSave function and pass back the note
-                  _onSave(key, note);
+                  _onSave(key, note, contact);
                   Navigator.of(context)
                       .pop(note); // Pass note back and dismiss dialog
                 });
@@ -109,7 +114,7 @@ Future<String?> showNoteDialog(BuildContext context, String key, ContactEntry? c
   );
 }
 
-
-void _onSave(String key, notes) {
-  StorageUtils.save(key, backup: true, notes: notes);
+void _onSave(String key, notes, ContactEntry? contact) {
+  // StorageUtils.save(key, backup: true, notes: notes);
+  contact?.notes = notes;
 }

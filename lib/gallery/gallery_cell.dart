@@ -32,7 +32,7 @@ class GalleryCell extends StatefulWidget {
       this.listPos,
       this.onPressedHandler,
       this.onLongPressedHandler,
-    this.contact,
+      this.contact,
       {required ValueKey<String> key})
       : super(key: key);
 
@@ -192,8 +192,8 @@ class _GalleryCellState extends State<GalleryCell> {
                             width: fabSize, // Adjust the width of the FAB
                             child: FloatingActionButton(
                               onPressed: () async {
-                                _notes = await showNoteDialog(
-                                        context, widget.storageKey, widget.contact,
+                                _notes = await showNoteDialog(context,
+                                        widget.storageKey, widget.contact,
                                         existingNotes: _notes) ??
                                     _notes;
                               },
@@ -237,7 +237,8 @@ class _GalleryCellState extends State<GalleryCell> {
                                           widget.storageKey,
                                           reload: false,
                                           asMap: true),
-                                      builder: (context, AsyncSnapshot<dynamic> snapshot) {
+                                      builder: (context,
+                                          AsyncSnapshot<dynamic> snapshot) {
                                         if (snapshot.connectionState ==
                                             ConnectionState.waiting)
                                           return SizedBox();
@@ -257,22 +258,25 @@ class _GalleryCellState extends State<GalleryCell> {
                                                   showRedoWindow,
                                                 ),
                                                 // Assumes that if map isn't null then it follows the formot STRICTLY
-                                                if(map != null) ...[
-                                                  if (widget.snapUsername.isNotEmpty)
+                                                if (map != null) ...[
+                                                  if (widget
+                                                      .snapUsername.isNotEmpty)
                                                     OurMenuItem(
                                                       "Open on snap",
                                                       () => openUserAppPage(
                                                           SocialType.Snapchat,
                                                           addOnSocial: false),
                                                     ),
-                                                  if (widget.instaUsername.isNotEmpty)
+                                                  if (widget
+                                                      .instaUsername.isNotEmpty)
                                                     OurMenuItem(
                                                       "Open on insta",
                                                       () => openUserAppPage(
                                                           SocialType.Instagram,
                                                           addOnSocial: false),
                                                     ),
-                                                  if (widget.discordUsername.isNotEmpty)
+                                                  if (widget.discordUsername
+                                                      .isNotEmpty)
                                                     OurMenuItem(
                                                       "Open on discord",
                                                       () => openUserAppPage(
@@ -291,7 +295,8 @@ class _GalleryCellState extends State<GalleryCell> {
                                                       () => unAddUser(
                                                           SocialType.Instagram),
                                                     ),
-                                                  if (map[SubKeys.AddedOnDiscord])
+                                                  if (map[
+                                                      SubKeys.AddedOnDiscord])
                                                     OurMenuItem(
                                                       "Unadd Discord",
                                                       () => unAddUser(
@@ -373,10 +378,11 @@ class _GalleryCellState extends State<GalleryCell> {
                                     ContextMenuController.removeAny();
                                     String snap =
                                         value.selection.textInside(value.text);
-                                    StorageUtils.save(widget.storageKey,
-                                        backup: true,
-                                        snap: snap,
-                                        overridingUsername: false);
+                                    // StorageUtils.save(widget.storageKey,
+                                    //     backup: true,
+                                    //     snap: snap,
+                                    //     overridingUsername: false);
+                                    widget.contact?.snapUsername = snap;
                                     MyApp.gallery.redoCell(
                                         widget.text,
                                         snap,
@@ -498,15 +504,18 @@ class _GalleryCellState extends State<GalleryCell> {
       case SocialType.Snapchat:
         await StorageUtils.save(widget.storageKey,
             backup: true, snapAdded: false, snapAddedDate: null);
+        widget.contact!.resetSnapchatAdd();
         break;
       case SocialType.Instagram:
         await StorageUtils.save(widget.storageKey,
             backup: true, instaAdded: false, instaAddedDate: null);
+        widget.contact!.resetInstagramAdd();
         break;
       case SocialType.Discord:
       default:
         await StorageUtils.save(widget.storageKey,
             backup: true, discordAdded: false, discordAddedDate: null);
+        widget.contact!.resetDiscordAdd();
         break;
     }
 
@@ -536,24 +545,26 @@ class _GalleryCellState extends State<GalleryCell> {
             "https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
         if (addOnSocial) {
           if (date != null) {
+            // saving = StorageUtils.save(key, backup: true, snapAddedDate: date);
+            widget.contact?.addSnapchat();
             _dates[social] ??=
-              Future.value(createTextWidget(snapchatDisplayDate(date)));
-            saving = StorageUtils.save(key,
-                backup: true, snapAddedDate: date);
+                createTextWidget(snapchatDisplayDate(widget.contact!.dateAddedOnSnap!));
           }
-          saving = saving.then((_) => StorageUtils.save(key, backup: true, snapAdded: true) );
+          saving = saving.then(
+              (_) => StorageUtils.save(key, backup: true, snapAdded: true));
         }
         break;
       case (SocialType.Instagram):
         _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
         if (addOnSocial) {
           if (date != null) {
+            // saving = StorageUtils.save(key, backup: true, instaAddedDate: date);
+            widget.contact?.addInstagram();
             _dates[social] ??=
-              Future.value(createTextWidget(instagramDisplayDate(date)));
-            saving = StorageUtils.save(key,
-                backup: true, instaAddedDate: date);
+                createTextWidget(instagramDisplayDate(widget.contact!.dateAddedOnInsta!));
           }
-          saving = saving.then((_) => StorageUtils.save(key, backup: true, instaAdded: true) );
+          saving = saving.then(
+              (_) => StorageUtils.save(key, backup: true, instaAdded: true));
         }
         break;
       case (SocialType.Discord):
@@ -563,15 +574,18 @@ class _GalleryCellState extends State<GalleryCell> {
         SocialIcon.discordIconButton?.openApp();
         if (true || addOnSocial) {
           if (date != null) {
+            // saving =
+            //     StorageUtils.save(key, backup: true, discordAddedDate: date);
+            widget.contact?.addDiscord();
             _dates[social] ??=
-              Future.value(createTextWidget(discordDisplayDate(date)));
-            saving = StorageUtils.save(key,
-                backup: true, discordAddedDate: date);
+                createTextWidget(discordDisplayDate(widget.contact!.dateAddedOnInsta!));
           }
-          saving = saving.then((_) => StorageUtils.save(key, backup: true, discordAdded: true) );
+          saving = saving.then(
+              (_) => StorageUtils.save(key, backup: true, discordAdded: true));
         }
         break;
     }
+    // TODO: Make sure there's some other mechinism to update the 
     saving.then((_) => Sortings.updateCache());
 
     debugPrint("site URI: $_site");

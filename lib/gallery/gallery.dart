@@ -25,7 +25,7 @@ class Gallery{
   // Getters
   List<PhotoViewGalleryPageOptions> get images {
     Sortings.updateCache();
-    sort();
+    // sort();
     return _images;
   }
   Set<String> get selected => _selected;

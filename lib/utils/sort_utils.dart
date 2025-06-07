@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
@@ -9,13 +10,15 @@ import 'package:flutter/foundation.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+final DateTime maxDateTime = DateTime(9999, 12, 31);
+
 Sorts _currentSortBy = Sorts.Date;
 Sorts? _currentGroupBy;
 Sorts get currentSortBy => _currentSortBy;
 Sorts? get currentGroupBy => _currentGroupBy;
 
 Future<SharedPreferences>? _localPrefs = SharedPreferences.getInstance();
-Map<String, Map<String, dynamic>?> localCache = {};
+Map<String, ContactEntry?> localCache = {};
 
 enum Sorts {
   SortByTitle,
@@ -59,7 +62,8 @@ class Sortings {
 
   static updateSortType(Sorts? newSort, {bool resetGroupBy = true}) {
     // Reverse recently selected sort
-    if (newSort != null && (_currentSortBy == newSort || _currentGroupBy == newSort)) {
+    if (newSort != null &&
+        (_currentSortBy == newSort || _currentGroupBy == newSort)) {
       if (sortBy.contains(newSort))
         _reverseSortBy = !_reverseSortBy;
       else
@@ -82,8 +86,7 @@ class Sortings {
         _reverseSortBy = false;
         _currentSortBy = newSort;
         // TODO: I believe this can be removed (test at later date)
-        if (resetGroupBy)
-          _currentGroupBy = null;
+        if (resetGroupBy) _currentGroupBy = null;
       }
     }
   }
@@ -96,15 +99,24 @@ class Sortings {
     SharedPreferences localPrefs = (await _localPrefs)!;
     localPrefs.reload();
 
+    var map = await StorageUtils.readJson();
     for (String key in localPrefs.getKeys()) {
-      String rawJson = localPrefs.getString(key)!;
-      Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson , enforceMapOutput: true)!;
+      // String rawJson = localPrefs.getString(key)!;
+      // Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson , enforceMapOutput: true)!;
 
-      if(!map.containsKey("discord") ?? false){
+      // if(!map.containsKey("discord") ?? false){
+      //   debugPrint("this key failed: $key");
+      // }
+
+      ContactEntry? entry = await ContactEntry.loadFromPreferences(key);
+
+      if (entry?.discordUsername is! String) {
         debugPrint("this key failed: $key");
       }
-      localCache[key] = map;
+
+      localCache[key] = entry;
     }
+
     // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
   }
 
@@ -130,8 +142,11 @@ class Sortings {
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
-    aDate = aFile.lastModifiedSync();
-    bDate = bFile.lastModifiedSync();
+    String aKey = getKeyOfFilename(aFile.path);
+    String bKey = getKeyOfFilename(bFile.path);
+
+    aDate = localCache[aKey]!.dateFound;
+    bDate = localCache[bKey]!.dateFound;
     return aDate.compareTo(bDate) * (_reverseSortBy ? -1 : 1);
   }
 
@@ -142,52 +157,42 @@ class Sortings {
     return aFile.path.compareTo(bFile.path) * (_reverseSortBy ? -1 : 1);
   }
 
-  static int _sortByDateAddedOnSocial(a, b, String subKey){
+  static int _sortByDateAddedOnSocial(
+      a, b, DateTime? Function(ContactEntry?) getter) {
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aDateStr = localCache[aKey]![subKey] ?? "";
-    String bDateStr = localCache[bKey]![subKey] ?? "";
+    DateTime aDate = getter(localCache[aKey]) ?? maxDateTime;
+    DateTime bDate = getter(localCache[bKey]) ?? maxDateTime;
 
     int ret;
-    if (aDateStr.isEmpty && bDateStr.isEmpty) {
-      ret = 0;
-    }
-    else if (aDateStr.isEmpty) {
-      ret = 1;
-    }
-    else if (bDateStr.isEmpty) {
-      ret = -1;
-    }
-    else {
-      DateTime aDate = DateTime.parse(aDateStr);
-      DateTime bDate = DateTime.parse(bDateStr);
-      ret =  aDate.compareTo(bDate);
-    }
+    ret = aDate.compareTo(bDate);
 
     return ret * (_reverseSortBy ? -1 : 1);
   }
 
-  static int _sortByDateAddedOnSnapchat(a, b){
-    return _sortByDateAddedOnSocial(a, b, SubKeys.SnapDate);
+  static int _sortByDateAddedOnSnapchat(a, b) {
+    return _sortByDateAddedOnSocial(
+        a, b, (ContactEntry? e) => e?.dateAddedOnSnap);
   }
 
-  static int _sortByDateAddedOnInstagram(a, b){
-    return _sortByDateAddedOnSocial(a, b, SubKeys.InstaDate);
+  static int _sortByDateAddedOnInstagram(a, b) {
+    return _sortByDateAddedOnSocial(
+        a, b, (ContactEntry? e) => e?.dateAddedOnInsta);
   }
 
-  static int _sortByAddedOnSocial(a, b, String subKey) {
+  static int _sortByAddedOnSocial(a, b, bool? Function(ContactEntry?) getter) {
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    bool aSnap = localCache[aKey]![subKey] ?? false;
-    bool bSnap = localCache[bKey]![subKey] ?? false;
+    bool aSnap = getter(localCache[aKey]) ?? false;
+    bool bSnap = getter(localCache[bKey]) ?? false;
 
     Function secondarySort = getSortBy();
     return (aSnap != bSnap)
@@ -196,25 +201,26 @@ class Sortings {
   }
 
   static int _sortByAddedOnSnapchat(a, b) {
-    return _sortByAddedOnSocial(a, b, SubKeys.AddedOnSnap);
+    return _sortByAddedOnSocial(a, b, (ContactEntry? e) => e?.addedOnSnap);
   }
 
   static int _sortByAddedOnInstagram(a, b) {
-    return _sortByAddedOnSocial(a, b, SubKeys.AddedOnInsta);
+    return _sortByAddedOnSocial(a, b, (ContactEntry? e) => e?.addedOnInsta);
   }
 
-  static int _sortBySocialUsername(a, b, String subKey) {
+  static int _sortBySocialUsername(
+      a, b, String? Function(ContactEntry?) getter) {
     File aFile = convertToStdDartFile(a);
     File bFile = convertToStdDartFile(b);
 
     String aKey = getKeyOfFilename(aFile.path);
     String bKey = getKeyOfFilename(bFile.path);
 
-    String aSnap = localCache[aKey]![subKey];
-    String bSnap = localCache[bKey]![subKey];
+    String aSnap = getter(localCache[aKey]) ?? "";
+    String bSnap = getter(localCache[bKey]) ?? "";
 
     // If both exist throw them in the front and sort them, else throw it to the back
-    int ret=0;
+    int ret = 0;
     if (aSnap.isEmpty && bSnap.isEmpty) {
       ret = 0;
     } else if (aSnap.isEmpty || aSnap.length < 2) {
@@ -229,15 +235,15 @@ class Sortings {
   }
 
   static int _sortBySnapUsername(a, b) {
-    return _sortBySocialUsername(a, b, SubKeys.SnapUsername);
+    return _sortBySocialUsername(a, b, (ContactEntry? e) => e?.snapUsername);
   }
 
   static int _sortByInstaUsername(a, b) {
-    return _sortBySocialUsername(a, b, SubKeys.InstaUsername);
+    return _sortBySocialUsername(a, b, (ContactEntry? e) => e?.instaUsername);
   }
 
   static int _sortByDiscordUsername(a, b) {
-    return _sortBySocialUsername(a, b, SubKeys.DiscordUsername);
+    return _sortBySocialUsername(a, b, (ContactEntry? e) => e?.discordUsername);
   }
 
   static Function getSorting() {
@@ -253,11 +259,26 @@ class Sortings {
     switch (_currentGroupBy) {
       case Sorts.AddedOnSnap:
         return _sortByAddedOnSnapchat;
+      // return sortUser();
       case Sorts.AddedOnInsta:
         return _sortByAddedOnInstagram;
+      // return sortUser();
       default:
         return _sortByAddedOnSnapchat;
+      // return sortUser();
     }
+  }
+
+  static Function sortUser(Function getField) {
+    return ((ContactEntry a, ContactEntry b) {
+      Function secondarySort = getSortBy();
+      compareBool(getField(a), getField(b)) ??
+          secondarySort(a.imagePath, b.imagePath);
+    });
+  }
+
+  static int? compareBool(bool a, bool b) {
+    return (a != b) ? (a ? -1 : 1) * (_reverseGroupBy ? -1 : 1) : null;
   }
 
   static Function getSortBy() {

@@ -86,10 +86,11 @@ final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
 class ContactEntry extends _ContactEntry with _$ContactEntry {
   ContactEntry(
       {required this.identifier,
-      required this.imagePath,
+      required String imagePath,
       required this.dateFound,
       required Map<String, dynamic> json})
       : super(
+          imagePath: imagePath,
           ocr: json[SubKeys.OCR],
           name: (json[SubKeys.Name] as String?)?.isNotEmpty ?? false
               ? json[SubKeys.Name]
@@ -126,7 +127,6 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
     _setupAutoSave();
   }
   final String identifier;
-  final String imagePath;
   final DateTime dateFound;
 
   factory ContactEntry.fromJson(
@@ -166,6 +166,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
 
   Map<String, dynamic> toJson() {
     return {
+      'imagePath': imagePath,
       SubKeys.OCR: ocr,
       SubKeys.SnapUsername: snapUsername,
       SubKeys.InstaUsername: instaUsername,
@@ -203,30 +204,49 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
     // await prefs.setString(identifier, jsonEncode(toJson()));
   }
 
-  static Future<ContactEntry?> loadFromPreferences(String identifier, {bool reload = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    if(reload) await prefs.reload();
-    
-    final jsonString = prefs.getString(identifier);
+  static Future<ContactEntry?> loadFromPreferences(String identifier,
+      {bool reload = false}) async {
+    // if (_localPrefs == null) {
+    //   await _localPrefs;
+    // }
+
+    // SharedPreferences localPrefs = (await _localPrefs)!;
+
+    // if(reload) await localPrefs.reload();
+
+    final jsonString = StorageUtils.instance.getString(identifier);
     if (jsonString == null) return null;
 
     final Map<String, dynamic> json = jsonDecode(jsonString);
 
-    List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb"];
-    String? imagePath = null;
-    dirs.forEach((_dir) {
-      if (imagePath != null) {
-        return;
+    Map<String, String> filePaths =
+        (await StorageUtils.readJson()).cast<String, String>();
+
+    String? imagePath =
+        StorageUtils.filePaths[identifier] ?? filePaths[identifier];
+
+    if (imagePath == null) {
+      print("The save didn't work: $identifier");
+      return null;
+      List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb"];
+      dirs.forEach((_dir) {
+        if (imagePath != null) {
+          return;
+        }
+
+        imagePath = "/storage/emulated/0/DCIM/$_dir/$identifier.jpg";
+        if (File(imagePath!).existsSync()) {
+          return;
+        }
+        imagePath = null;
+      });
+      if (imagePath == null) {
+        return null;
       }
 
-      imagePath = "/storage/emulated/0/DCIM/$_dir/$identifier.jpg";
-      if (File(imagePath!).existsSync()) {
-        return;
-      }
-      imagePath = null;
-    });
-    if (imagePath == null) {
-      return null;
+      filePaths[identifier] = imagePath!;
+
+      await StorageUtils.writeJson(filePaths);
     }
 
     return ContactEntry.fromJson(identifier, imagePath!, json);
@@ -250,6 +270,8 @@ abstract class _ContactEntry with Store {
   /// in place of image overlaying.
   @observable
   String? extractedText;
+
+  String imagePath;
 
   /// The ocr scanned from images BEFORE switching over to chatGPT approach.
   final String? ocr;
@@ -345,7 +367,6 @@ abstract class _ContactEntry with Store {
     dateAddedOnSnap = DateTime.now();
     _suppressAutoSave = true;
 
-
     addedOnSnap = true;
   }
 
@@ -355,7 +376,6 @@ abstract class _ContactEntry with Store {
     _suppressAutoSave = false;
     dateAddedOnInsta = DateTime.now();
     _suppressAutoSave = true;
-
 
     addedOnInsta = true;
   }
@@ -367,7 +387,6 @@ abstract class _ContactEntry with Store {
     dateAddedOnDiscord = DateTime.now();
     _suppressAutoSave = true;
 
-
     addedOnDiscord = true;
   }
 
@@ -377,7 +396,6 @@ abstract class _ContactEntry with Store {
     _suppressAutoSave = false;
     dateAddedOnSnap = DateTime.now();
     _suppressAutoSave = true;
-
 
     addedOnSnap = false;
   }
@@ -389,7 +407,6 @@ abstract class _ContactEntry with Store {
     dateAddedOnInsta = DateTime.now();
     _suppressAutoSave = true;
 
-
     addedOnInsta = false;
   }
 
@@ -400,7 +417,6 @@ abstract class _ContactEntry with Store {
     dateAddedOnDiscord = DateTime.now();
     _suppressAutoSave = true;
 
-
     addedOnDiscord = false;
   }
 
@@ -408,6 +424,7 @@ abstract class _ContactEntry with Store {
     required this.name,
     required this.age,
     required this.ocr,
+    required this.imagePath,
 
     /// If this exists it will be accounted for from the beginning and shouldn't need to be updated
     // this.extractedText,

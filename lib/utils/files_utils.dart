@@ -124,7 +124,8 @@ Future ocrParallel(List filesList, Size size,
   int startingStorageSize = prefs.getKeys().length;
 
   await Sortings.updateCache();
-  filesList.sort(Sortings.getSorting() as int Function(dynamic, dynamic)?);
+  filesList.sort(Sortings.getSorting() as int Function(
+      dynamic, dynamic)?); //  TODO: determine if this sort is useful.
   for (filesIdx = 0; filesIdx < filesList.length; filesIdx++) {
     // Prepare data to be sent to thread
     var srcFile = filesList[filesIdx];
@@ -139,8 +140,7 @@ Future ocrParallel(List filesList, Size size,
     debugPrint(
         "srcFilePath [${srcFile.path}] :: isolate name $isoName :: rawJson -> $rawJson");
 
-    Future<ContactEntry?> job =
-        createOCRJob(srcFile, message, replace != null);
+    Future<ContactEntry?> job = createOCRJob(srcFile, message, replace != null);
     // Subtracting the completed number by 1 in order to control the auto complete of the progress dialog
     Future processResult = job.then((result) => onEachOcrResult(result, srcFile,
         query, replace, timeElasped, filesList.length, ++completed - 1));
@@ -202,7 +202,7 @@ Future<ContactEntry?> createOCRJob(
     // // ✅ Step 1: Fix old location format if it contains the typo `"utf-offset"`
     // if (originalValues!["location"] is Map) {
     //   Map<String, dynamic> location = originalValues["location"];
-      
+
     //   if (location.containsKey("utf-offset")) {
     //     location["utc-offset"] = location.remove("utf-offset"); // ✅ Rename key
     //   }
@@ -222,7 +222,7 @@ Future<ContactEntry?> createOCRJob(
 
     // // ✅ Step 3: Add new "tag" field
     // originalValues["tag"] = "Buzz buzz";
-      
+
     // await StorageUtils.save(key, asMap: originalValues, backup: false);
 
     debugPrint(
@@ -233,10 +233,10 @@ Future<ContactEntry?> createOCRJob(
       result = ChatGPTService.processImage(imageFile: File(srcFile.path))
           .then((onValue) async {
         debugPrint(json.encode(onValue));
-        originalValues = originalValues ?? {};
+        originalValues = originalValues ?? ContactEntry.fromJson(key, srcFile.path, {});
 
         // Avoid overriding sensitive info
-        if (originalValues?[SubKeys.Location] != null &&
+        if (originalValues!.location != null &&
             onValue?[SubKeys.Location] != null) {
           onValue?.remove(SubKeys.Location);
         }
@@ -244,18 +244,20 @@ Future<ContactEntry?> createOCRJob(
         // Validate timezone identifier
         if (onValue?[SubKeys.Location] is Map) {
           try {
-            tz.getLocation(onValue?[SubKeys.Location]["timezone"]); // Replace with real mapping logic
+            tz.getLocation(onValue?[SubKeys.Location]
+                ["timezone"]); // Replace with real mapping logic
           } catch (e) {
-            print("❌ Failed to validate time zone: ${onValue?[SubKeys.Location]["timezone"]}");
-            throw("❌ Message: $e");
+            print(
+                "❌ Failed to validate time zone: ${onValue?[SubKeys.Location]["timezone"]}");
+            throw ("❌ Message: $e");
           }
         }
 
-        if (originalValues?[SubKeys.Sections] != null &&
+        if (originalValues!.sections != null &&
             onValue?[SubKeys.Sections] != null) {
           List<Map<String, String>> originalSections =
-              (originalValues?[SubKeys.Sections] as List)
-                  .map((item) => Map<String, String>.from(item as Map))
+              originalValues!.sections
+                  !.map((item) => Map<String, String>.from(item as Map))
                   .toList();
           List<Map<String, String>> newSections =
               (onValue?[SubKeys.Sections] as List)
@@ -271,19 +273,19 @@ Future<ContactEntry?> createOCRJob(
           onValue?[SubKeys.Sections].addAll(originalSections);
         }
 
-        originalValues!.addAll(onValue ?? {});
-        await StorageUtils.save(key, asMap: originalValues, backup: replacing);
+        originalValues!.mergeFromJson(onValue ?? {}, true);
+        // await StorageUtils.save(key, asMap: originalValues, backup: replacing);
 
         // Reload storage for this thread
         await StorageUtils.get("", reload: true);
-        return originalValues != null ? ContactEntry.fromJson(key, srcFile.path, originalValues!) : originalValues;
+        return originalValues;
       });
     } else {
       Future<Map<String, dynamic>?> Function(Map<String, dynamic>) funct =
           replacing ? ocrThread : createThread;
       result = funct(rawJson);
-      if(result != null){
-        ContactEntry.fromJson(key, srcFile.path, originalValues!);
+      if (result != null) {
+        ContactEntry.fromJson(key, srcFile.path, result);
       }
     }
   }
@@ -300,7 +302,8 @@ void increaseProgressBar(int completed, int pathsLength) {
 }
 
 Map<String, dynamic> postProcessOCR(String ocr) {
-  Map<String, dynamic> map = StorageUtils.convertValueToMap(ocr, enforceMapOutput: true)!;
+  Map<String, dynamic> map =
+      StorageUtils.convertValueToMap(ocr, enforceMapOutput: true)!;
   String snap = suggestionSnapName(ocr) ?? "";
   String insta = suggestionInstaName(ocr) ?? "";
   String discord = suggestionDiscordName(ocr) ?? "";
@@ -321,7 +324,8 @@ Map<String, dynamic> postProcessOCR(String ocr) {
 }
 
 @pragma('vm:entry-point')
-Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async {
+Future<Map<String, dynamic>?> ocrThread(
+    Map<String, dynamic> receivedData) async {
   String filePath = receivedData["f"];
   ui.Size size = ui.Size(
       receivedData['width'].toDouble(), receivedData['height'].toDouble());
@@ -338,7 +342,8 @@ Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async
     debugPrint(
         "Save OCR result of key:[$key] >> ${result[SubKeys.OCR].replaceAll("\n", " ")}");
 
-    await StorageUtils.save(key, asMap: result, backup: replacing);
+    // await StorageUtils.save(key, asMap: result, backup: replacing);
+    ContactEntry.fromJson(key, filePath, result, save: true);
 
     // Reload storage for this thread
     await StorageUtils.get("", reload: true);
@@ -391,8 +396,14 @@ Future onEachOcrResult(
     // If query word has been found
     if (replace == null)
       MyApp.gallery.addNewCell(
-          cellBody, snapUsername, srcFile, new File(srcFile.path), result,
-          instaUsername: instaUsername, discordUsername: discordUsername,);
+        cellBody,
+        snapUsername,
+        srcFile,
+        new File(srcFile.path),
+        result,
+        instaUsername: instaUsername,
+        discordUsername: discordUsername,
+      );
     else {
       var pair = replace.entries.first;
       int idx = pair.key;

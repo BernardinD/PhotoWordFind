@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
+import 'package:collection/collection.dart';
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 import 'package:geocoding/geocoding.dart' as geo;
@@ -49,8 +52,50 @@ class SubKeys {
 }
 
 class StorageUtils {
-  static Future<SharedPreferences> _getStorageInstance({required bool reload}) async {
-    var ret = await SharedPreferences.getInstance();
+
+  /// Currently testing out using these. haven't determined if I will keep them
+  /// to use instead of/with _getStorageInstance.
+
+  static SharedPreferences get instance => _prefs;
+
+  static late Map<String, String> filePaths;
+  static late SharedPreferences _prefs;
+
+  static Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
+    filePaths = (await readJson()).cast<String, String>();
+  }
+
+  
+  /// Gets the local file where JSON data will be stored.
+  static Future<File> get _localFile async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/test_saving_paths.json');
+  }
+
+
+  /// Writes the JSON data to a file.
+  static Future<File> writeJson(Map<String, dynamic> json) async {
+    final file = await _localFile;
+    String jsonString = jsonEncode(json);
+    return file.writeAsString(jsonString);
+  }
+
+  /// Reads the JSON data from the file.
+  static Future<Map<String, dynamic>> readJson() async {
+    try {
+      final file = await _localFile;
+      String jsonString = await file.readAsString();
+      return jsonDecode(jsonString);
+    } catch (e) {
+      // If encountering an error, return an empty map.
+      return {};
+    }
+  }
+
+  static Future<SharedPreferences> _getStorageInstance(
+      {required bool reload}) async {
+    var ret = instance;
     if (reload) ret.reload();
 
     return ret;
@@ -74,25 +119,39 @@ class StorageUtils {
       _map = {};
     }
     Map<String, dynamic> map = {
-      SubKeys.OCR:             _map[SubKeys.OCR] ?? value,
-      SubKeys.SnapUsername:    _map[SubKeys.SnapUsername],
-      SubKeys.InstaUsername:   _map[SubKeys.InstaUsername],
+      SubKeys.OCR: _map[SubKeys.OCR] ?? value,
+      SubKeys.SnapUsername: _map[SubKeys.SnapUsername],
+      SubKeys.InstaUsername: _map[SubKeys.InstaUsername],
       SubKeys.DiscordUsername: _map[SubKeys.DiscordUsername],
-      SubKeys.AddedOnSnap:     _map[SubKeys.AddedOnSnap] ?? false,
-      SubKeys.AddedOnInsta:    _map[SubKeys.AddedOnInsta] ?? false,
-      SubKeys.AddedOnDiscord:  _map[SubKeys.AddedOnDiscord] ?? false,
-      SubKeys.SnapDate:        _map[SubKeys.SnapDate]    != null && _map[SubKeys.SnapDate].isNotEmpty    ? DateTime.parse(_map[SubKeys.SnapDate]) : null,
-      SubKeys.InstaDate:       _map[SubKeys.InstaDate]   != null && _map[SubKeys.InstaDate].isNotEmpty   ? DateTime.parse(_map[SubKeys.InstaDate  ]) : null,
-      SubKeys.DiscordDate:     _map[SubKeys.DiscordDate] != null && _map[SubKeys.DiscordDate].isNotEmpty ? DateTime.parse(_map[SubKeys.DiscordDate  ]) : null,
-      SubKeys.PreviousUsernames:     _map[SubKeys.PreviousUsernames] ?? <String, List<String>>{
-        SubKeys.SnapUsername: <String>[],
-        SubKeys.InstaUsername: <String>[],
+      SubKeys.AddedOnSnap: _map[SubKeys.AddedOnSnap] ?? false,
+      SubKeys.AddedOnInsta: _map[SubKeys.AddedOnInsta] ?? false,
+      SubKeys.AddedOnDiscord: _map[SubKeys.AddedOnDiscord] ?? false,
+      SubKeys.SnapDate:
+          _map[SubKeys.SnapDate] != null && _map[SubKeys.SnapDate].isNotEmpty
+              ? DateTime.parse(_map[SubKeys.SnapDate])
+              : null,
+      SubKeys.InstaDate:
+          _map[SubKeys.InstaDate] != null && _map[SubKeys.InstaDate].isNotEmpty
+              ? DateTime.parse(_map[SubKeys.InstaDate])
+              : null,
+      SubKeys.DiscordDate: _map[SubKeys.DiscordDate] != null &&
+              _map[SubKeys.DiscordDate].isNotEmpty
+          ? DateTime.parse(_map[SubKeys.DiscordDate])
+          : null,
+      SubKeys.PreviousUsernames: _map[SubKeys.PreviousUsernames] ??
+          <String, List<String>>{
+            SubKeys.SnapUsername: <String>[],
+            SubKeys.InstaUsername: <String>[],
           },
       SubKeys.Notes: _map[SubKeys.Notes],
       // New values from chat GPT
       SubKeys.SocialMediaHandles: _map[SubKeys.SocialMediaHandles],
-      SubKeys.Sections: ((_map[SubKeys.Sections] as List?)?.isNotEmpty ?? false) ? _map[SubKeys.Sections] : null,
-      SubKeys.Name: (_map[SubKeys.Name] as String?)?.isNotEmpty ?? false ? _map[SubKeys.Name] : null,
+      SubKeys.Sections: ((_map[SubKeys.Sections] as List?)?.isNotEmpty ?? false)
+          ? _map[SubKeys.Sections]
+          : null,
+      SubKeys.Name: (_map[SubKeys.Name] as String?)?.isNotEmpty ?? false
+          ? _map[SubKeys.Name]
+          : null,
       SubKeys.Age: (_map[SubKeys.Age] is int) ? _map[SubKeys.Age] : null,
       SubKeys.Location: _map[SubKeys.Location],
     };
@@ -182,9 +241,12 @@ class StorageUtils {
     // ...
 
     if (overridingUsername != null && overridingUsername) {
-      final List<String?>? previousSnapUsernames  = map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
-      final List<String?>? previousInstaUsernames = map[SubKeys.PreviousUsernames][SubKeys.InstaUsername].cast<String>();
-      String? currentSnap = map[SubKeys.SnapUsername], currentInsta = map[SubKeys.InstaUsername];
+      final List<String?>? previousSnapUsernames =
+          map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
+      final List<String?>? previousInstaUsernames =
+          map[SubKeys.PreviousUsernames][SubKeys.InstaUsername].cast<String>();
+      String? currentSnap = map[SubKeys.SnapUsername],
+          currentInsta = map[SubKeys.InstaUsername];
 
       if (snap != null && !previousSnapUsernames!.contains(currentSnap)) {
         previousSnapUsernames.add(currentSnap);
@@ -193,18 +255,24 @@ class StorageUtils {
         previousInstaUsernames.add(currentInsta);
       }
     }
-    if (asMap              != null) map.addAll(asMap);
-    if (ocrResult          != null) map[SubKeys.OCR]             = ocrResult;
-    if (snap               != null) map[SubKeys.SocialMediaHandles][SubKeys.SnapUsername]    = snap;
-    if (insta              != null) map[SubKeys.SocialMediaHandles][SubKeys.InstaUsername]   = insta;
-    if (discord            != null) map[SubKeys.SocialMediaHandles][SubKeys.DiscordUsername] = discord;
-    if (snapAdded          != null) map[SubKeys.AddedOnSnap]     = snapAdded;
-    if (instaAdded         != null) map[SubKeys.AddedOnInsta]    = instaAdded;
-    if (discordAdded       != null) map[SubKeys.AddedOnDiscord]  = discordAdded;
-    if (snapAddedDate      != null) map[SubKeys.SnapDate]        = snapAddedDate.toIso8601String();
-    if (instaAddedDate     != null) map[SubKeys.InstaDate]       = instaAddedDate.toIso8601String();
-    if (discordAddedDate   != null) map[SubKeys.DiscordDate]     = discordAddedDate.toIso8601String();
-    if (notes              != null) map[SubKeys.Notes]                 = notes;
+    if (asMap != null) map.addAll(asMap);
+    if (ocrResult != null) map[SubKeys.OCR] = ocrResult;
+    if (snap != null)
+      map[SubKeys.SocialMediaHandles][SubKeys.SnapUsername] = snap;
+    if (insta != null)
+      map[SubKeys.SocialMediaHandles][SubKeys.InstaUsername] = insta;
+    if (discord != null)
+      map[SubKeys.SocialMediaHandles][SubKeys.DiscordUsername] = discord;
+    if (snapAdded != null) map[SubKeys.AddedOnSnap] = snapAdded;
+    if (instaAdded != null) map[SubKeys.AddedOnInsta] = instaAdded;
+    if (discordAdded != null) map[SubKeys.AddedOnDiscord] = discordAdded;
+    if (snapAddedDate != null)
+      map[SubKeys.SnapDate] = snapAddedDate.toIso8601String();
+    if (instaAddedDate != null)
+      map[SubKeys.InstaDate] = instaAddedDate.toIso8601String();
+    if (discordAddedDate != null)
+      map[SubKeys.DiscordDate] = discordAddedDate.toIso8601String();
+    if (notes != null) map[SubKeys.Notes] = notes;
 
     String rawJson = jsonEncode(map);
     (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
@@ -230,21 +298,38 @@ class StorageUtils {
       bool notes = false,
       bool asMap = false}) async {
     ContactEntry? entry = await ContactEntry.loadFromPreferences(key);
+    SharedPreferences prefs = (await _getStorageInstance(reload: reload));
+    String? rawJson = prefs.getString(key);
+
+    Map<String, dynamic>? map = convertValueToMap(rawJson);
 
     if (entry == null) return null;
 
-    if      (asMap)        { return entry.toJson(); }
-    else if (snap)         { return entry.snapUsername; }
-    else if (insta)        { return entry.instaUsername; }
-    else if (discord)      { return entry.discordUsername; }
-    else if (snapAdded)    { return entry.addedOnSnap; }
-    else if (instaAdded)   { return entry.addedOnInsta; }
-    else if (discordAdded) { return entry.addedOnDiscord; }
-    else if (snapDate)     { return entry.dateAddedOnSnap; }
-    else if (instaDate)    { return entry.dateAddedOnInsta; }
-    else if (discordDate)  { return entry.dateAddedOnDiscord; }
-    else if (notes)        { return entry.notes; }
-    else                   { return entry.extractedText; }
+    if (asMap) {
+      return map;
+    } else if (snap) {
+      return entry.snapUsername;
+    } else if (insta) {
+      return entry.instaUsername;
+    } else if (discord) {
+      return entry.discordUsername;
+    } else if (snapAdded) {
+      return entry.addedOnSnap;
+    } else if (instaAdded) {
+      return entry.addedOnInsta;
+    } else if (discordAdded) {
+      return entry.addedOnDiscord;
+    } else if (snapDate) {
+      return entry.dateAddedOnSnap;
+    } else if (instaDate) {
+      return entry.dateAddedOnInsta;
+    } else if (discordDate) {
+      return entry.dateAddedOnDiscord;
+    } else if (notes) {
+      return entry.notes;
+    } else {
+      return entry.extractedText;
+    }
   }
 
   static Future merge(Map<String, String> cloud) async {
@@ -252,9 +337,25 @@ class StorageUtils {
 
     List<Exception> mismatches = [];
     for (String key in cloud.keys) {
-      String? localValue = (await get(key, reload: false)) as String?;
+      String? localValueStr = (await get(key, reload: false)) as String?;
+
+      // ContactEntry? contact = await ContactEntry.loadFromPreferences(key);
+      // var contactAsMap = contact?.toJson();
+      // Map? localValue = (await get(key, reload: false, asMap: true)) as Map?;
+
+      // if (DeepCollectionEquality.unordered().equals(localValue, contactAsMap)) {
+      // } else {
+      //   debugPrint('''$key was not equal.
+      //   contact: $contactAsMap
+        
+      //   control: $localValue
+        
+      //   raw: $localValueStr
+      //   ''');
+      // }
+
       // Assuming that if it isn't saved locally then it must be just an OCR before the format change
-      if (localValue == null) {
+      if (localValueStr == null) {
         var returned = convertValueToMap(cloud[key], enforceMapOutput: true);
         save(key, asMap: returned, backup: false);
         debugPrint("Saving...");
@@ -262,10 +363,9 @@ class StorageUtils {
         // Print whether cloud value and Storage values match
         // debugPrint("String ($key) matches: ${(value == cloud[key])}");
 
-        if (localValue != cloud[key] && isJSON(localValue)) {
-          mismatches.add(Exception(
-              '''Cloud and local copies don't match: [$key]
-               local: $localValue
+        if (localValueStr != cloud[key] && isJSON(localValueStr)) {
+          mismatches.add(Exception('''Cloud and local copies don't match: [$key]
+               local: $localValueStr
                cloud: ${cloud[key]}'''));
         }
       }

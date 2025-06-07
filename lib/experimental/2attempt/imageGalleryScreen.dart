@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:PhotoWordFind/test_data.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -14,12 +19,20 @@ class ImageGalleryScreen extends StatefulWidget {
 class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   String searchQuery = '';
   String selectedSortOption = 'Name'; // Default value from the list
-  List<String> sortOptions = ['Name', 'Date', 'Size']; // Add your sort options here
-  String selectedDirectory = 'All'; // Assuming 'All' is one of the filter options
-  List<String> directories = ['All', 'Directory1', 'Directory2']; // Filter options
-  List<String> images = ['image1.jpg', 'image2.jpg', 'image3.jpg'];
+  List<String> sortOptions = [
+    'Name',
+    'Date',
+    'Size'
+  ]; // Add your sort options here
+  String selectedDirectory =
+      'All'; // Assuming 'All' is one of the filter options
+  List<String> directories = [
+    'All',
+    'Directory1',
+    'Directory2'
+  ]; // Filter options
+  List<ContactEntry> images = [];
   List<String> selectedImages = [];
-
 
   // State variable to track the selected sort order
   bool isAscending = true; // Default sorting order
@@ -36,6 +49,18 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   };
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    input_json.forEach((String key, dynamic value) {
+        String imagePath = "/storage/emulated/0/DCIM/Buzz buzz/$key.jpg";
+        // images.add(ContactEntry.fromJson(jsonDecode(value), key));
+        images.add(ContactEntry(identifier: key, imagePath: imagePath, dateFound: File(imagePath).lastModifiedSync(), json: jsonDecode(value)));
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       builder: (context, child) {
@@ -50,39 +75,37 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       },
       home: Scaffold(
         appBar: AppBar(title: Text('Image Gallery')),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            double screenWidth = constraints.maxWidth;
-            double screenHeight = constraints.maxHeight;
-            return Column(
-              children: [
-                _buildTopBar(),
-                _buildSortingFilteringBar(),
-                Expanded(
-                  child: ImageGallery(
-                      images: images,
-                      selectedImages: selectedImages,
-                      extractedTexts: extractedTexts,
-                      identifiers: identifiers,
-                      onImageSelected: (String imagePath) {
-                        setState(() {
-                          if (selectedImages.contains(imagePath)) {
-                            selectedImages.remove(imagePath);
-                          } else {
-                            selectedImages.add(imagePath);
-                          }
-                        });
-                      },
-                      onMenuOptionSelected: (String imagePath, String option) {
-                        // Handle image option
-                      },
-                      galleryHeight: screenHeight,  // Pass height dynamically
-                    ),
+        body: LayoutBuilder(builder: (context, constraints) {
+          double screenWidth = constraints.maxWidth;
+          double screenHeight = constraints.maxHeight;
+          return Column(
+            children: [
+              _buildTopBar(),
+              _buildSortingFilteringBar(),
+              Expanded(
+                child: ImageGallery(
+                  images: images,
+                  selectedImages: selectedImages,
+                  extractedTexts: extractedTexts,
+                  identifiers: identifiers,
+                  onImageSelected: (String imagePath) {
+                    setState(() {
+                      if (selectedImages.contains(imagePath)) {
+                        selectedImages.remove(imagePath);
+                      } else {
+                        selectedImages.add(imagePath);
+                      }
+                    });
+                  },
+                  onMenuOptionSelected: (String imagePath, String option) {
+                    // Handle image option
+                  },
+                  galleryHeight: screenHeight, // Pass height dynamically
                 ),
-              ],
-            );
-          }
-        ),
+              ),
+            ],
+          );
+        }),
         floatingActionButton: selectedImages.isNotEmpty
             ? FloatingActionButton(
                 onPressed: () {
@@ -152,7 +175,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -164,13 +186,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               value: selectedDirectory,
               underline: SizedBox(),
               isExpanded: true,
-              items: directories.map((directory) => DropdownMenuItem<String>(
-                value: directory,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
-                  child: Text(directory),
-                ),
-              )).toList(),
+              items: directories
+                  .map((directory) => DropdownMenuItem<String>(
+                        value: directory,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          child: Text(directory),
+                        ),
+                      ))
+                  .toList(),
               onChanged: (value) {
                 setState(() {
                   selectedDirectory = value!;
@@ -193,7 +217,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
               ),
               onChanged: (value) {
                 setState(() {
@@ -207,7 +232,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       ),
     );
   }
-
 
   Widget _buildSortingFilteringBar() {
     return Card(
@@ -253,7 +277,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                     });
                   },
                   underline: SizedBox(), // Removes the underline
-                  icon: Icon(Icons.arrow_drop_down, color: Colors.blueAccent), // Custom dropdown icon
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: Colors.blueAccent), // Custom dropdown icon
                   style: TextStyle(color: Colors.black), // Dropdown text style
                   dropdownColor: Colors.white, // Dropdown background color
                 ),
@@ -319,7 +344,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                     });
                   },
                   underline: SizedBox(), // Removes the underline
-                  icon: Icon(Icons.arrow_drop_down, color: Colors.blueAccent), // Custom dropdown icon
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: Colors.blueAccent), // Custom dropdown icon
                   style: TextStyle(color: Colors.black), // Dropdown text style
                   dropdownColor: Colors.white, // Dropdown background color
                 ),
@@ -330,7 +356,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       ),
     );
   }
-
 
   Widget _buildOrderIcon({
     required IconData icon,
@@ -360,7 +385,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
 // Updated ImageGallery Widget
 class ImageGallery extends StatelessWidget {
-  final List<String> images;
+  final List<ContactEntry> images;
   final List<String> selectedImages;
   final Map<String, String> extractedTexts;
   final Map<String, String> identifiers;
@@ -381,7 +406,7 @@ class ImageGallery extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: galleryHeight,  // Ensure it adapts to screen changes
+      height: galleryHeight, // Ensure it adapts to screen changes
       child: ScrollbarTheme(
         data: ScrollbarThemeData(
           thumbColor: WidgetStateProperty.all(Colors.blueAccent),
@@ -394,7 +419,7 @@ class ImageGallery extends StatelessWidget {
           thumbVisibility: true,
           interactive: true,
           thickness: 10,
-          controller: _pageController,  // Use the same controller here
+          controller: _pageController, // Use the same controller here
           child: PageView.builder(
             controller: _pageController,
             itemCount: images.length,
@@ -402,7 +427,7 @@ class ImageGallery extends StatelessWidget {
               return ImageTile(
                 imagePath: images[index].imagePath,
                 isSelected: selectedImages.contains(images[index].identifier),
-                extractedText: images[index].extractedText,
+                extractedText: images[index].extractedText ?? "",
                 identifier: images[index].identifier,
                 onSelected: onImageSelected,
                 onMenuOptionSelected: onMenuOptionSelected,
@@ -414,7 +439,6 @@ class ImageGallery extends StatelessWidget {
     );
   }
 }
-
 
 // Updated ImageTile Widget with Selection
 class ImageTile extends StatelessWidget {

@@ -8,6 +8,7 @@ import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/experimental/1attempt/test_new_gallery.dart';
@@ -40,8 +41,8 @@ void main() {
     tz.initializeTimeZones();
 
   Catcher(
-    // rootWidget: ImageGalleryScreen(),
-    rootWidget: MyApp(title: 'Flutter Demo Home Page'),
+    rootWidget: ImageGalleryScreen(),
+    // rootWidget: MyApp(title: 'Flutter Demo Home Page'),
     debugConfig: debugOptions,
     releaseConfig: releaseOptions,
     ensureInitialized: true,
@@ -66,7 +67,10 @@ class MyApp extends StatelessWidget {
   MyApp({required this.title});
 
   /// Initalizes SharedPreferences [_pref] object and gives default values
+  /// No clue where this came from ☝🏾. will have to check.
   Future init(BuildContext context) async {
+    await StorageUtils.init();
+
     if (_pr == null) {
       _pr = new ProgressDialog(context: context);
     }
