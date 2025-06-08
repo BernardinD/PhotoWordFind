@@ -1,3 +1,4 @@
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
@@ -94,14 +95,14 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  Future getUserName(String key) async{
+  Future<String?> getUserName(ContactEntry? entry) async{
     switch (this) {
       case SocialType.Snapchat:
-        return StorageUtils.get(key, reload: false, snap:true);
+        return entry?.snapUsername;
       case SocialType.Instagram:
-      return StorageUtils.get(key, reload: false, insta:true);
+        return entry?.instaUsername;
       case SocialType.Discord:
-        return StorageUtils.get(key, reload: false, discord:true);
+        return entry?.discordUsername;
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
       default:
@@ -109,16 +110,16 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  saveUsername(String key, String value, {required bool overriding}) async {
+  saveUsername(ContactEntry entry, String value, {required bool overriding}) async {
     switch (this) {
       case SocialType.Snapchat:
-        StorageUtils.save(key, backup: true, snap:value, overridingUsername: overriding);
+        entry.snapUsername = value;
         break;
       case SocialType.Instagram:
-        StorageUtils.save(key, backup: true, insta:value, overridingUsername: overriding);
+        entry.instaUsername = value;
         break;
       case SocialType.Discord:
-        StorageUtils.save(key, backup: true, discord:value, overridingUsername: overriding);
+        entry.discordUsername = value;
         break;
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
@@ -127,18 +128,19 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  isAdded(String key) async {
+  Future<bool> isAdded(ContactEntry? entry) async {
+    if (entry == null) return false;
     switch (this) {
       case SocialType.Snapchat:
-        return StorageUtils.get(key, reload: false, snapAdded:true);
+        return entry.addedOnSnap;
       case SocialType.Instagram:
-        return StorageUtils.get(key, reload: false, instaAdded:true);
+        return entry.addedOnInsta;
       case SocialType.Discord:
-        return StorageUtils.get(key, reload: false, discordAdded:true);
+        return entry.addedOnDiscord;
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
       default:
-        return null;
+        return false;
     }
   }
 

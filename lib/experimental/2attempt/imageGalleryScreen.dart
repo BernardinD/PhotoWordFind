@@ -49,7 +49,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   };
 
   // Add a setting to control which loading method to use
-  bool useJsonFileForLoading = true; // Set to true to load from JSON file
+  bool useJsonFileForLoading = false; // Set to true to load from JSON file
 
   @override
   void initState() {
@@ -64,11 +64,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   Future<void> _loadImagesFromPreferences() async {
     // Read the image path map from the JSON file (simulating a separate storage location)
     List<ContactEntry> loadedImages = [];
-    for (final identifier in StorageUtils.instance.getKeys()) {
-      // Retrieve the rest of the contact data from SharedPreferences
-      final jsonString = StorageUtils.instance.getString(identifier);
-      if (jsonString == null) continue;
-      final contactEntry = await ContactEntry.loadFromPreferences(identifier);
+    
+    // TODO: revisit this logicand whether it can be simplified
+    // specifically, whether there's a way to remove the redundancy of creating a map
+    // and then using the results of that map to essentially create a second map with `get()`
+    for (final entry in (await StorageUtils.toMap()).entries) {
+      final identifier = entry.key;
+      final contactEntry = await StorageUtils.get(identifier);
       if (contactEntry != null) {
         loadedImages.add(contactEntry);
       }
@@ -90,7 +92,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         loadedImages.add(ContactEntry(
           identifier: identifier,
           imagePath: value,
-          dateFound: File(value).existsSync() ? File(value).lastModifiedSync() : DateTime.now(),
+          dateFound: File(value).existsSync()
+              ? File(value).lastModifiedSync()
+              : DateTime.now(),
           json: {'imagePath': value},
         ));
       } else if (value is Map<String, dynamic>) {
@@ -511,101 +515,101 @@ class ImageTile extends StatelessWidget {
       onLongPress: () {
         onSelected(imagePath);
       },
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Container(
-            margin: EdgeInsets.symmetric(horizontal: 10),
-            width: constraints.maxWidth * 0.80,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(color: Colors.blueAccent, width: 3)
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  offset: Offset(0, 4),
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image Display
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                  child: Container(
-                    constraints: BoxConstraints(maxHeight: constraints.maxHeight * 0.70),
-                    child: Stack(
-                      children: [
-                        Flexible(
-                          // height: 250,
-                          child: PhotoView(
-                            imageProvider: FileImage(File(imagePath)),
-                            backgroundDecoration: BoxDecoration(color: Colors.white),
-                            minScale: PhotoViewComputedScale.contained,
-                            maxScale: PhotoViewComputedScale.covered * 2.5,
+      child: LayoutBuilder(builder: (context, constraints) {
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: 10),
+          width: constraints.maxWidth * 0.80,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(color: Colors.blueAccent, width: 3)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                offset: Offset(0, 4),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Display
+              ClipRRect(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                child: Container(
+                  constraints:
+                      BoxConstraints(maxHeight: constraints.maxHeight * 0.70),
+                  child: Stack(
+                    children: [
+                      Flexible(
+                        // height: 250,
+                        child: PhotoView(
+                          imageProvider: FileImage(File(imagePath)),
+                          backgroundDecoration:
+                              BoxDecoration(color: Colors.white),
+                          minScale: PhotoViewComputedScale.contained,
+                          maxScale: PhotoViewComputedScale.covered * 2.5,
+                        ),
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Icon(
+                            Icons.check_circle,
+                            color: Colors.blueAccent,
+                            size: 30,
                           ),
                         ),
-                        if (isSelected)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Icon(
-                              Icons.check_circle,
-                              color: Colors.blueAccent,
-                              size: 30,
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
-          
-                // Extracted Text Field
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    extractedText,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                    ),
+              ),
+
+              // Extracted Text Field
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  extractedText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
                   ),
                 ),
-          
-                // Identifier Label
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    identifier,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
-                    ),
+              ),
+
+              // Identifier Label
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  identifier,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
                   ),
                 ),
-          
-                // Popup Menu Icon
-                Align(
-                  alignment: Alignment.bottomRight,
-                  child: IconButton(
-                    icon: Icon(Icons.more_vert),
-                    onPressed: () {
-                      _showPopupMenu(context, imagePath);
-                    },
-                  ),
+              ),
+
+              // Popup Menu Icon
+              Align(
+                alignment: Alignment.bottomRight,
+                child: IconButton(
+                  icon: Icon(Icons.more_vert),
+                  onPressed: () {
+                    _showPopupMenu(context, imagePath);
+                  },
                 ),
-              ],
-            ),
-          );
-        }
-      ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 

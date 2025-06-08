@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 final DateTime maxDateTime = DateTime(9999, 12, 31);
 
@@ -16,7 +16,6 @@ Sorts? _currentGroupBy;
 Sorts get currentSortBy => _currentSortBy;
 Sorts? get currentGroupBy => _currentGroupBy;
 
-Future<SharedPreferences>? _localPrefs = SharedPreferences.getInstance();
 Map<String, ContactEntry?> localCache = {};
 
 enum Sorts {
@@ -91,29 +90,21 @@ class Sortings {
   }
 
   static Future updateCache() async {
-    if (_localPrefs == null) {
-      await _localPrefs;
-    }
-
-    SharedPreferences localPrefs = (await _localPrefs)!;
-    localPrefs.reload();
-
-    return;
-    for (String key in localPrefs.getKeys()) {
+    // Use StorageUtils.toMap() to get all keys
+    Map<String, String?> allEntries = await StorageUtils.toMap();
+    for (String key in allEntries.keys) {
       ContactEntry? entry;
       try {
-        entry = await ContactEntry.loadFromPreferences(key);
+        entry = await StorageUtils.get(key);
       } catch (e) {
         debugPrint("Failed to load ContactEntry for $key: $e");
         entry = null;
       }
-
       if (entry == null) {
         debugPrint("Entry is null for key: $key");
         localCache[key] = null;
         continue;
       }
-
       // Check if the file exists
       if (!File(entry.imagePath).existsSync()) {
         debugPrint(
@@ -121,7 +112,6 @@ class Sortings {
         localCache[key] = null;
         continue;
       }
-
       localCache[key] = entry;
     }
     // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])

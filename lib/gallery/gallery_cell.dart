@@ -88,10 +88,7 @@ class _GalleryCellState extends State<GalleryCell> {
     _dates[null] = createTextWidget(
         "Profile Found on: \n ${dateFormat.format(widget.contact!.dateFound)}");
 
-    StorageUtils.get(widget.storageKey, reload: false, notes: true)
-        .then((value) {
-      _notes = value;
-    });
+    _notes = widget.contact?.notes;
   }
 
   createTextWidget(String text) => Text(
@@ -123,28 +120,22 @@ class _GalleryCellState extends State<GalleryCell> {
                        * Date
                         */
                     child: Builder(builder: (context) {
-                      return Builder(
-                          builder:
-                              (contextt) {
-                              List<Text?> displayDates =
-                                  _dates.values.toList();
-                              displayDates
-                                  .removeWhere((element) => element == null);
+                      return Builder(builder: (contextt) {
+                        List<Text?> displayDates = _dates.values.toList();
+                        displayDates.removeWhere((element) => element == null);
 
-                              return GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _displayDatesCounter++;
-                                      _displayDatesCounter %=
-                                          displayDates.length;
-                                    });
-                                  },
-                                  child: IndexedStack(
-                                    index: _displayDatesCounter,
-                                    children:
-                                        displayDates.map((e) => e!).toList(),
-                                  ));
-                          });
+                        return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _displayDatesCounter++;
+                                _displayDatesCounter %= displayDates.length;
+                              });
+                            },
+                            child: IndexedStack(
+                              index: _displayDatesCounter,
+                              children: displayDates.map((e) => e!).toList(),
+                            ));
+                      });
                     }),
                   ),
                 ),
@@ -233,10 +224,8 @@ class _GalleryCellState extends State<GalleryCell> {
                                 child: Container(
                                   color: Theme.of(context).primaryColor,
                                   child: FutureBuilder(
-                                      future: StorageUtils.get(
-                                          widget.storageKey,
-                                          reload: false,
-                                          asMap: true),
+                                      future:
+                                          StorageUtils.get(widget.storageKey),
                                       builder: (context,
                                           AsyncSnapshot<dynamic> snapshot) {
                                         if (snapshot.connectionState ==
@@ -244,7 +233,8 @@ class _GalleryCellState extends State<GalleryCell> {
                                           return SizedBox();
                                         if (snapshot.hasData &&
                                             !snapshot.hasError) {
-                                          Map? map = snapshot.data as Map?;
+                                          ContactEntry? map =
+                                              snapshot.data as ContactEntry?;
                                           return FittedBox(
                                             fit: BoxFit.fitHeight,
                                             child: PopupMenuButton<int>(
@@ -283,20 +273,19 @@ class _GalleryCellState extends State<GalleryCell> {
                                                           SocialType.Discord,
                                                           addOnSocial: false),
                                                     ),
-                                                  if (map[SubKeys.AddedOnSnap])
+                                                  if (map.addedOnSnap)
                                                     OurMenuItem(
                                                       "Unadd Snap",
                                                       () => unAddUser(
                                                           SocialType.Snapchat),
                                                     ),
-                                                  if (map[SubKeys.AddedOnInsta])
+                                                  if (map.addedOnInsta)
                                                     OurMenuItem(
                                                       "Unadd Insta",
                                                       () => unAddUser(
                                                           SocialType.Instagram),
                                                     ),
-                                                  if (map[
-                                                      SubKeys.AddedOnDiscord])
+                                                  if (map.addedOnDiscord)
                                                     OurMenuItem(
                                                       "Unadd Discord",
                                                       () => unAddUser(
@@ -341,11 +330,13 @@ class _GalleryCellState extends State<GalleryCell> {
                         },
                         children: [
                           getSocialRow(
-                              ((widget.contact?.snapUsername ?? "").isNotEmpty &&
+                              ((widget.contact?.snapUsername ?? "")
+                                      .isNotEmpty &&
                                   SocialIcon.snapchatIconButton != null),
                               SocialType.Snapchat),
                           getSocialRow(
-                              ((widget.contact?.instaUsername ?? "").isNotEmpty &&
+                              ((widget.contact?.instaUsername ?? "")
+                                      .isNotEmpty &&
                                   SocialIcon.instagramIconButton != null),
                               SocialType.Instagram),
                         ],
@@ -502,19 +493,13 @@ class _GalleryCellState extends State<GalleryCell> {
     Toasts.showToast(true, (_) => "Marked as unadded");
     switch (social) {
       case SocialType.Snapchat:
-        await StorageUtils.save(widget.storageKey,
-            backup: true, snapAdded: false, snapAddedDate: null);
         widget.contact!.resetSnapchatAdd();
         break;
       case SocialType.Instagram:
-        await StorageUtils.save(widget.storageKey,
-            backup: true, instaAdded: false, instaAddedDate: null);
         widget.contact!.resetInstagramAdd();
         break;
       case SocialType.Discord:
       default:
-        await StorageUtils.save(widget.storageKey,
-            backup: true, discordAdded: false, discordAddedDate: null);
         widget.contact!.resetDiscordAdd();
         break;
     }
@@ -547,11 +532,9 @@ class _GalleryCellState extends State<GalleryCell> {
           if (date != null) {
             // saving = StorageUtils.save(key, backup: true, snapAddedDate: date);
             widget.contact?.addSnapchat();
-            _dates[social] ??=
-                createTextWidget(snapchatDisplayDate(widget.contact!.dateAddedOnSnap!));
+            _dates[social] ??= createTextWidget(
+                snapchatDisplayDate(widget.contact!.dateAddedOnSnap!));
           }
-          saving = saving.then(
-              (_) => StorageUtils.save(key, backup: true, snapAdded: true));
         }
         break;
       case (SocialType.Instagram):
@@ -560,11 +543,9 @@ class _GalleryCellState extends State<GalleryCell> {
           if (date != null) {
             // saving = StorageUtils.save(key, backup: true, instaAddedDate: date);
             widget.contact?.addInstagram();
-            _dates[social] ??=
-                createTextWidget(instagramDisplayDate(widget.contact!.dateAddedOnInsta!));
+            _dates[social] ??= createTextWidget(
+                instagramDisplayDate(widget.contact!.dateAddedOnInsta!));
           }
-          saving = saving.then(
-              (_) => StorageUtils.save(key, backup: true, instaAdded: true));
         }
         break;
       case (SocialType.Discord):
@@ -577,15 +558,13 @@ class _GalleryCellState extends State<GalleryCell> {
             // saving =
             //     StorageUtils.save(key, backup: true, discordAddedDate: date);
             widget.contact?.addDiscord();
-            _dates[social] ??=
-                createTextWidget(discordDisplayDate(widget.contact!.dateAddedOnInsta!));
+            _dates[social] ??= createTextWidget(
+                discordDisplayDate(widget.contact!.dateAddedOnInsta!));
           }
-          saving = saving.then(
-              (_) => StorageUtils.save(key, backup: true, discordAdded: true));
         }
         break;
     }
-    // TODO: Make sure there's some other mechinism to update the 
+    // TODO: Make sure there's some other mechinism to update the
     saving.then((_) => Sortings.updateCache());
 
     debugPrint("site URI: $_site");
@@ -619,7 +598,7 @@ class _GalleryCellState extends State<GalleryCell> {
             ),
           )),
           FutureBuilder(
-            future: social.isAdded(widget.storageKey),
+            future: social.isAdded(widget.contact),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return TableCell(
@@ -735,7 +714,7 @@ class _GalleryCellState extends State<GalleryCell> {
         TableCell(child: social.icon!),
         TableCell(
           child: StreamBuilder(
-            stream: social.getUserName(widget.storageKey).asStream(),
+            stream: social.getUserName(widget.contact).asStream(),
             builder: (BuildContext context, AsyncSnapshot snapshot) {
               if (snapshot.connectionState == ConnectionState.done &&
                   !snapshot.hasError) {
@@ -762,7 +741,7 @@ class _GalleryCellState extends State<GalleryCell> {
 
             if (newValue != null) {
               _controller.text = newValue;
-              await social.saveUsername(widget.storageKey, newValue,
+              await social.saveUsername(widget.contact!, newValue,
                   overriding: true);
               String snap = widget.snapUsername,
                   insta = widget.instaUsername,

@@ -13,10 +13,7 @@ import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:geocoding/geocoding.dart' as geo;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
 
 Future<Map<String, dynamic>> extractProfileData(String filePath,
     {bool crop = true, ui.Size? size}) async {
@@ -119,9 +116,7 @@ Future ocrParallel(List filesList, Size size,
   timeElasped.start();
 
   // Make sure latest thread cached updates exist in main thread
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.reload();
-  int startingStorageSize = prefs.getKeys().length;
+  int startingStorageSize = StorageUtils.getSize();
 
   await Sortings.updateCache();
   filesList.sort(Sortings.getSorting() as int Function(
@@ -149,7 +144,6 @@ Future ocrParallel(List filesList, Size size,
 
   try {
     final joinIsolates = await Future.wait(isolates);
-    await prefs.reload();
     debugPrint("Joined [ ${joinIsolates.length} ] isolates");
   } on Exception catch (e) {
     debugPrint("At least one of the operations failed. \n$e");
@@ -158,8 +152,8 @@ Future ocrParallel(List filesList, Size size,
 
   MyApp.updateFrame(() => null);
 
-  final int finalStorageSize = prefs.getKeys().length;
   // Only backup when getting new data
+  int finalStorageSize = StorageUtils.getSize();
   if (startingStorageSize < finalStorageSize || replace != null)
     await StorageUtils.syncLocalAndCloud();
 
@@ -195,7 +189,7 @@ Future<ContactEntry?> createOCRJob(
   rawJson["replacing"] = replacing;
   // Map<String, dynamic>? originalValues =
   //     await StorageUtils.get(key, asMap: true, reload: true);
-  ContactEntry? originalValues = await ContactEntry.loadFromPreferences(key, reload: true);
+  ContactEntry? originalValues = await StorageUtils.get(key);
 
   // Check if this file's' OCR has been cached
   if (originalValues is ContactEntry && !replacing) {
@@ -276,8 +270,6 @@ Future<ContactEntry?> createOCRJob(
         originalValues!.mergeFromJson(onValue ?? {}, true);
         // await StorageUtils.save(key, asMap: originalValues, backup: replacing);
 
-        // Reload storage for this thread
-        await StorageUtils.get("", reload: true);
         return originalValues;
       });
     } else {
@@ -343,9 +335,6 @@ Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async
 
     // await StorageUtils.save(key, asMap: result, backup: replacing);
     ContactEntry.fromJson(key, filePath, result, save: true);
-
-    // Reload storage for this thread
-    await StorageUtils.get("", reload: true);
 
     // Send back result to main thread
     debugPrint("Sending OCR result...");

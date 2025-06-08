@@ -1,9 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:mobx/mobx.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:PhotoWordFind/models/location.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 
@@ -150,6 +147,10 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
   final String identifier;
   final DateTime dateFound;
 
+  /// Factory constructor to create a ContactEntry from JSON data.
+  /// But note, this version is meant for the initial migration from the shared preferences implementation,
+  /// so eventually the input parameter `[imagePath]` will be removed, since it should
+  /// be in the stored json data.
   factory ContactEntry.fromJson(
       String storageKey, String imagePath, Map<String, dynamic> json,
       {bool save = false}) {
@@ -164,8 +165,27 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
     return instance;
   }
 
+  /// Factory constructor to create a ContactEntry from JSON data.
+  /// This version of the factory constructor is meant to be used with the
+  /// new implementation of the ContactEntry, which already stores the image path
+  /// the Json data 
+  factory ContactEntry.fromJson2(
+      String storageKey, Map<String, dynamic> json,
+      {bool save = false}) {
+    final imageFilePath = json['imagePath'] as String;
+    var instance = ContactEntry(
+        identifier: storageKey,
+        imagePath: imageFilePath,
+        dateFound: File(imageFilePath).lastModifiedSync(),
+        json: json);
+
+    instance.mergeFromJson(json, save);
+
+    return instance;
+  }
+
   void mergeFromJson(Map<String, dynamic> json_, bool save) {
-    _suppressAutoSave = false;
+    _suppressAutoSave = true;
 
     json_.forEach((key, value) {
       final updater = fieldUpdaters[key];
@@ -179,7 +199,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
     discordUsername =
         socialMediaHandles?[SubKeys.DiscordUsername] ?? discordUsername;
 
-    _suppressAutoSave = true;
+    _suppressAutoSave = false;
     if (save) {
       _saveToPreferences();
     }
@@ -221,56 +241,9 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
   }
 
   Future<void> _saveToPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(identifier, jsonEncode(toJson()));
+    await StorageUtils.save(this, backup: false);
   }
 
-  static Future<ContactEntry?> loadFromPreferences(String identifier,
-      {bool reload = false}) async {
-    // if (_localPrefs == null) {
-    //   await _localPrefs;
-    // }
-
-    // SharedPreferences localPrefs = (await _localPrefs)!;
-
-    // if(reload) await localPrefs.reload();
-
-    final jsonString = StorageUtils.instance.getString(identifier);
-    if (jsonString == null) return null;
-
-    final Map<String, dynamic> json = jsonDecode(jsonString);
-
-    Map<String, String> filePaths =
-        (await StorageUtils.readJson()).cast<String, String>();
-
-    String? imagePath =
-        StorageUtils.filePaths[identifier] ?? filePaths[identifier];
-
-    if (imagePath == null) {
-      debugPrint("The save didn't work: $identifier");
-      return null;
-      List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb", "Delete"];
-      String testFilePath;
-      
-      for (final _dir in dirs) {
-        testFilePath = "/storage/emulated/0/DCIM/$_dir/$identifier.jpg";
-        if (File(testFilePath).existsSync()) {
-          filePaths[identifier] = testFilePath;
-          imagePath = testFilePath;
-          debugPrint(
-              "Found image path: $imagePath for identifier: $identifier");
-          await StorageUtils.writeJson(filePaths);
-          break;
-        }
-      }
-      if (imagePath == null) {
-        debugPrint("No image found for identifier: $identifier");
-        return null;
-      }
-    }
-
-    return ContactEntry.fromJson(identifier, imagePath, json);
-  }
 }
 
 /// This class represents the data parsed from each image and has an update tracking
@@ -324,9 +297,9 @@ abstract class _ContactEntry with Store {
   bool addedOnDiscord;
 
   @observable
-  @JsonKey(
-      fromJson: fromJsonObservableMapOfLists,
-      toJson: toJsonObservableMapOfLists)
+  // @JsonKey(
+  //     fromJson: fromJsonObservableMapOfLists,
+  //     toJson: toJsonObservableMapOfLists)
   ObservableMap<String, ObservableList<String>>? previousHandles;
 
   /// Stored text of user notes and reminders for this person
@@ -414,7 +387,7 @@ abstract class _ContactEntry with Store {
   resetSnapchatAdd() {
     // Avoid repeated calls for each field
     _suppressAutoSave = false;
-    dateAddedOnSnap = DateTime.now();
+    dateAddedOnSnap = null;
     _suppressAutoSave = true;
 
     addedOnSnap = false;
@@ -424,7 +397,7 @@ abstract class _ContactEntry with Store {
   resetInstagramAdd() {
     // Avoid repeated calls for each field
     _suppressAutoSave = false;
-    dateAddedOnInsta = DateTime.now();
+    dateAddedOnInsta = null;
     _suppressAutoSave = true;
 
     addedOnInsta = false;
@@ -434,7 +407,7 @@ abstract class _ContactEntry with Store {
   resetDiscordAdd() {
     // Avoid repeated calls for each field
     _suppressAutoSave = false;
-    dateAddedOnDiscord = DateTime.now();
+    dateAddedOnDiscord = null;
     _suppressAutoSave = true;
 
     addedOnDiscord = false;

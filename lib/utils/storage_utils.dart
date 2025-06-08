@@ -5,16 +5,14 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Only needed for migrateSharedPrefsToHive
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 import 'package:geocoding/geocoding.dart' as geo;
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
 
 class SubKeys {
   // ignore: non_constant_identifier_names
@@ -54,27 +52,19 @@ class SubKeys {
 }
 
 class StorageUtils {
-
-  /// Currently testing out using these. haven't determined if I will keep them
-  /// to use instead of/with _getStorageInstance.
-
-  static SharedPreferences get instance => _prefs;
-
-  static late Map<String, String> filePaths;
-  static late SharedPreferences _prefs;
+  static Map<String, String> filePaths = {};
+  static bool enableLegacyImagePathSearch = false;
 
   static Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
     filePaths = (await readJson()).cast<String, String>();
+    await initHive();
   }
 
-  
   /// Gets the local file where JSON data will be stored.
   static Future<File> get _localFile async {
     final directory = await getApplicationDocumentsDirectory();
     return File('${directory.path}/test_saving_paths.json');
   }
-
 
   /// Writes the JSON data to a file.
   static Future<File> writeJson(Map<String, dynamic> json) async {
@@ -83,33 +73,31 @@ class StorageUtils {
     return file.writeAsString(jsonString);
   }
 
-  /// Reads the JSON data from the file.
+  /// Reads the JSON data from the file, using the in-memory cache if available.
   static Future<Map<String, dynamic>> readJson() async {
+    // If filePaths is already loaded, return it directly
+    if (filePaths.isNotEmpty) {
+      return filePaths;
+    }
     try {
       final file = await _localFile;
       String jsonString = await file.readAsString();
-      return jsonDecode(jsonString);
+      filePaths = jsonDecode(jsonString).cast<String, String>();
+      return filePaths;
     } catch (e) {
-      // If encountering an error, return an empty map.
+      // If encountering an error, return an empty map and reset filePaths
       debugPrint("Error reading JSON file: $e");
+      filePaths = {};
       return {};
     }
   }
 
-  /// Reset image paths json
+  /// Reset image paths json from the new UI design.
   /// This will delete the current file and create a new one
   /// Be careful with this as it will remove all saved image paths
   static Future<void> resetImagePaths() async {
     filePaths = {};
     await writeJson(filePaths);
-  }
-
-  static Future<SharedPreferences> _getStorageInstance(
-      {required bool reload}) async {
-    var ret = instance;
-    if (reload) ret.reload();
-
-    return ret;
   }
 
   static Map<String, dynamic>? convertValueToMap(String? value,
@@ -170,8 +158,6 @@ class StorageUtils {
   }
 
   static Future syncLocalAndCloud() async {
-    await _getStorageInstance(reload: true);
-
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
     if (await CloudUtils.isSignedin()) {
@@ -179,114 +165,20 @@ class StorageUtils {
     }
   }
 
-  /// Save a value of a key to internal store with the option to save to Google
-  /// Drive as well.
-  /// [overridingUsername] is a signal of whether to archive the current username
-  static Future save(String storageKey,
-      {String? ocrResult,
-      required bool backup,
-      bool reload = false,
-      bool? overridingUsername,
-      String? snap,
-      String? insta,
-      String? discord,
-      bool? snapAdded,
-      bool? instaAdded,
-      bool? discordAdded,
-      DateTime? snapAddedDate,
-      DateTime? instaAddedDate,
-      DateTime? discordAddedDate,
-      String? notes,
-      Map<String, dynamic>? asMap}) async {
-    if ((snap != null || insta != null || discord != null) &&
-        overridingUsername == null) {
-      throw Exception("Must declare if username is being overwritten");
-    } else if (overridingUsername != null &&
-        overridingUsername &&
-        snap == null &&
-        insta == null &&
-        discord == null) {
-      throw Exception("Missing username to overwrite");
-    }
-    Map<String, dynamic>? map =
-        (await get(storageKey, reload: false, asMap: true))
-            as Map<String, dynamic>?;
-
-    map ??= convertValueToMap("", enforceMapOutput: true)!;
-
-    // Code used to convert locations
-    // if (map[SubKeys.Location] != null && !(map[SubKeys.Location] is Map)) {
-    //   // Get coordinates from location string
-    //   double? lat = null, long = null;
-    //   try {
-    //     if ((map[SubKeys.Location] as String?)!.isNotEmpty) {
-    //       List<geo.Location> locations = await geo
-    //           .locationFromAddress(map[SubKeys.Location])
-    //           .timeout(Duration(seconds: 5));
-    //       if (locations.isEmpty) throw "Could not determine a location";
-
-    //       var loc = locations.first;
-    //       lat = loc.latitude;
-    //       long = loc.longitude;
-    //     }
-    //   } on geo.NoResultFoundException catch (e) {
-    //   } finally {
-    //     debugPrint(
-    //         "Failed location determination from file: $storageKey: ${map[SubKeys.Location]}");
-    //   }
-    //   map[SubKeys.Location] = {
-    //     'name': map[SubKeys.Location],
-    //     'lat': lat,
-    //     'long': long,
-    //   };
-    // }
-    // if (map[SubKeys.Location] != null && map[SubKeys.Location] is Map) {
-    //   Map<String, dynamic> location =
-    //       map[SubKeys.Location] as Map<String, dynamic>;
-    //   if (location['name'] != null && (location['name'] as String).isEmpty) {
-    //     location['name'] = null;
-    //   }
-    // }
-
-    // Todo: If Map is sent in concat with current saved values
-    // ...
-
-    if (overridingUsername != null && overridingUsername) {
-      final List<String?>? previousSnapUsernames =
-          map[SubKeys.PreviousUsernames][SubKeys.SnapUsername].cast<String>();
-      final List<String?>? previousInstaUsernames =
-          map[SubKeys.PreviousUsernames][SubKeys.InstaUsername].cast<String>();
-      String? currentSnap = map[SubKeys.SnapUsername],
-          currentInsta = map[SubKeys.InstaUsername];
-
-      if (snap != null && !previousSnapUsernames!.contains(currentSnap)) {
-        previousSnapUsernames.add(currentSnap);
-      }
-      if (insta != null && !previousInstaUsernames!.contains(currentInsta)) {
-        previousInstaUsernames.add(currentInsta);
-      }
-    }
-    if (asMap != null) map.addAll(asMap);
-    if (ocrResult != null) map[SubKeys.OCR] = ocrResult;
-    if (snap != null)
-      map[SubKeys.SocialMediaHandles][SubKeys.SnapUsername] = snap;
-    if (insta != null)
-      map[SubKeys.SocialMediaHandles][SubKeys.InstaUsername] = insta;
-    if (discord != null)
-      map[SubKeys.SocialMediaHandles][SubKeys.DiscordUsername] = discord;
-    if (snapAdded != null) map[SubKeys.AddedOnSnap] = snapAdded;
-    if (instaAdded != null) map[SubKeys.AddedOnInsta] = instaAdded;
-    if (discordAdded != null) map[SubKeys.AddedOnDiscord] = discordAdded;
-    if (snapAddedDate != null)
-      map[SubKeys.SnapDate] = snapAddedDate.toIso8601String();
-    if (instaAddedDate != null)
-      map[SubKeys.InstaDate] = instaAddedDate.toIso8601String();
-    if (discordAddedDate != null)
-      map[SubKeys.DiscordDate] = discordAddedDate.toIso8601String();
-    if (notes != null) map[SubKeys.Notes] = notes;
+  /// Save a value of a key to Hive with the option to save to Google Drive as well.
+  /// Note: I still need to determine if this function is still needed and
+  /// being used. I expect that with the new saving function of auto saving
+  /// with the Contact Entry this save function is no longer needed.
+  static Future save(
+    ContactEntry entry, {
+    required bool backup,
+    bool reload = false,
+  }) async {
+    Map<String, dynamic>? map = entry.toJson();
 
     String rawJson = jsonEncode(map);
-    (await _getStorageInstance(reload: reload)).setString(storageKey, rawJson);
+    final box = Hive.box('contacts');
+    await box.put(entry.identifier, rawJson);
 
     // Save to cloud
     // TODO: Put this inside a timer that saves a few seconds after a save call
@@ -295,89 +187,88 @@ class StorageUtils {
     }
   }
 
-  static Future get(String key,
-      {required bool reload,
-      bool snap = false,
-      bool insta = false,
-      bool discord = false,
-      bool snapAdded = false,
-      bool instaAdded = false,
-      bool discordAdded = false,
-      bool snapDate = false,
-      bool instaDate = false,
-      bool discordDate = false,
-      bool notes = false,
-      bool asMap = false}) async {
-    ContactEntry? entry = await ContactEntry.loadFromPreferences(key);
-    SharedPreferences prefs = (await _getStorageInstance(reload: reload));
-    String? rawJson = prefs.getString(key);
+  /// TODO: Revisit this and its use of Async, which restricts us to
+  /// using a future as a return type. I'm hoping we can remove this restriction in the future,
+  /// after investigating what can be simplified and/or initialized at the beginning
+  static Future<ContactEntry?> get(String key) async {
+    final box = Hive.box('contacts');
+    String? rawJson = box.get(key);
+    Map<String, dynamic>? map;
 
-    Map<String, dynamic>? map = convertValueToMap(rawJson);
-
-    if (entry == null) return null;
-
-    if (asMap) {
-      return map;
-    } else if (snap) {
-      return entry.snapUsername;
-    } else if (insta) {
-      return entry.instaUsername;
-    } else if (discord) {
-      return entry.discordUsername;
-    } else if (snapAdded) {
-      return entry.addedOnSnap;
-    } else if (instaAdded) {
-      return entry.addedOnInsta;
-    } else if (discordAdded) {
-      return entry.addedOnDiscord;
-    } else if (snapDate) {
-      return entry.dateAddedOnSnap;
-    } else if (instaDate) {
-      return entry.dateAddedOnInsta;
-    } else if (discordDate) {
-      return entry.dateAddedOnDiscord;
-    } else if (notes) {
-      return entry.notes;
-    } else {
-      return entry.extractedText;
+    // Decoding the map using new format and old format conversion
+    try {
+      if (rawJson == null) {
+        throw ("Raw JSON is null for key: $key, will use old conversion format"
+            "to create a boilplate empty map");
+      }
+      // If conversion fails, try decoding directly
+      map = json.decode(rawJson);
+    } catch (e) {
+      debugPrint("Error converting value to map for key $key: $e");
+      map = convertValueToMap(rawJson);
+      debugPrint("Used old conversion format for key: $key");
     }
+    // If map is null from old conversion format, return null
+    if (map == null) return null;
+
+    ContactEntry entry;
+    if (map.containsKey('imagePath') && map['imagePath'] != null) {
+      entry = ContactEntry.fromJson2(key, map);
+    } else {
+      // Always check filePaths cache first
+      String? imagePath = filePaths[key];
+      if (imagePath == null) {
+        if (enableLegacyImagePathSearch) {
+          // Only do the expensive directory scan if the flag is enabled
+          List<String> dirs = [
+            "Buzz buzz",
+            "Honey",
+            "Strings",
+            "Stale",
+            "Comb",
+            "Delete"
+          ];
+          String testFilePath;
+          for (final dir in dirs) {
+            testFilePath = "/storage/emulated/0/DCIM/$dir/$key.jpg";
+            if (File(testFilePath).existsSync()) {
+              filePaths[key] = testFilePath;
+              imagePath = testFilePath;
+              debugPrint("Found image path: $imagePath for identifier: $key");
+              await StorageUtils.writeJson(filePaths);
+              break;
+            }
+          }
+        }
+        if (imagePath == null) {
+          debugPrint("No image found for identifier: $key");
+          return null;
+        }
+      }
+      entry = ContactEntry.fromJson(key, imagePath, map);
+    }
+
+    return entry;
   }
 
   static Future merge(Map<String, String> cloud) async {
     debugPrint("Entering merge()...");
+    final box = Hive.box('contacts');
+    // await box.clear();
+    await migrateSharedPrefsToHive();
 
     List<Exception> mismatches = [];
     for (String key in cloud.keys) {
-      String? localValueStr = (await get(key, reload: false)) as String?;
-
-      // ContactEntry? contact = await ContactEntry.loadFromPreferences(key);
-      // var contactAsMap = contact?.toJson();
-      // Map? localValue = (await get(key, reload: false, asMap: true)) as Map?;
-
-      // if (DeepCollectionEquality.unordered().equals(localValue, contactAsMap)) {
-      // } else {
-      //   debugPrint('''$key was not equal.
-      //   contact: $contactAsMap
-        
-      //   control: $localValue
-        
-      //   raw: $localValueStr
-      //   ''');
-      // }
-
-      // Assuming that if it isn't saved locally then it must be just an OCR before the format change
+      String? localValueStr = box.get(key);
       if (localValueStr == null) {
         var returned = convertValueToMap(cloud[key], enforceMapOutput: true);
-        save(key, asMap: returned, backup: false);
+        final entry = ContactEntry.fromJson2(key, returned!);
+        await save(entry, backup: false);
         debugPrint("Saving...");
       } else {
-        // Print whether cloud value and Storage values match
-        // debugPrint("String ($key) matches: ${(value == cloud[key])}");
-
         if (localValueStr != cloud[key] && isJSON(localValueStr)) {
-          mismatches.add(Exception('''Cloud and local copies don't match: [$key]
-               local: $localValueStr
-               cloud: ${cloud[key]}'''));
+          mismatches.add(Exception(
+              '''Cloud and local copies don't match: [$key]\n               local: $localValueStr\n               cloud: ${cloud[key]}'''));
         }
       }
     }
@@ -388,14 +279,18 @@ class StorageUtils {
   }
 
   static Future<Map<String, String?>> toMap() async {
-    var store = await _getStorageInstance(reload: true);
-    Map<String, String?> ret = Map();
-
-    for (String key in store.getKeys()) {
-      ret[key] = store.getString(key);
+    final box = Hive.box('contacts');
+    Map<String, String?> ret = {};
+    for (var key in box.keys.whereType<String>()) {
+      ret[key] = box.get(key);
     }
-
     return ret;
+  }
+
+  /// Get size of Contacts box
+  static int getSize() {
+    final box = Hive.box('contacts');
+    return box.length;
   }
 
   /// Takes in a map of contact values and updates the location to {name, lat, long} equivalent if
@@ -416,8 +311,8 @@ class StorageUtils {
           lat = loc.latitude;
           long = loc.longitude;
         }
-      } on geo.NoResultFoundException catch (e) {
-        debugPrint("Inputted an invalid location: ${map[SubKeys.Location]}");
+      } on geo.NoResultFoundException {
+        debugPrint("Inputted an invalid location: \\${map[SubKeys.Location]}");
       }
       map[SubKeys.Location] = {
         'name': map[SubKeys.Location],
@@ -438,12 +333,18 @@ class StorageUtils {
   /// Migrate all SharedPreferences contact entries to Hive
   static Future<void> migrateSharedPrefsToHive() async {
     final box = Hive.box('contacts');
-    final prefs = _prefs;
+    final prefs = await SharedPreferences.getInstance();
     for (String key in prefs.getKeys()) {
       final value = prefs.getString(key);
       if (value != null) {
         // Store as String for now; can parse to Map if needed
         await box.put(key, value);
+
+        // Use this to retrieve the image path if needed
+        final entry = await StorageUtils.get(key);
+        if (entry != null) {
+          StorageUtils.save(entry, backup: false);
+        }
       }
     }
     // Validation: compare key counts in both stores
@@ -451,7 +352,8 @@ class StorageUtils {
     if (migratedKeys.length == prefs.getKeys().length) {
       debugPrint('Migration to Hive complete. Key counts match.');
     } else {
-      debugPrint('Migration: mismatch in key counts. SharedPrefs: \\${prefs.getKeys().length}, Hive: \\${migratedKeys.length}');
+      debugPrint(
+          'Migration: mismatch in key counts. SharedPrefs: \\${prefs.getKeys().length}, Hive: \\${migratedKeys.length}');
     }
   }
 }

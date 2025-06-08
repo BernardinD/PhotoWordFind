@@ -91,11 +91,9 @@ class MyApp extends StatelessWidget {
 
   /// Initalizes SharedPreferences [_pref] object and gives default values
   /// No clue where this came from ☝🏾. will have to check.
-  Future init(BuildContext context) async {
-    await StorageUtils.init();
-
+  static Future<void> init(BuildContext context) async {
     if (_pr == null) {
-      _pr = new ProgressDialog(context: context);
+      _pr = ProgressDialog(context: context);
     }
   }
 
@@ -148,7 +146,6 @@ class MyApp extends StatelessWidget {
         ),
         navigatorKey: Catcher.navigatorKey,
         home: Builder(builder: (context) {
-          init(context);
           return MyHomePage(title: title);
         }),
       ),
@@ -253,6 +250,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void initState() {
     super.initState();
+
+    // Ensure ProgressDialog is initialized with context
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await MyApp.init(context);
+    });
 
     MyApp.updateFrame = setState;
 
