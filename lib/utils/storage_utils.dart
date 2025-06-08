@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:collection/collection.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
@@ -425,5 +427,31 @@ class StorageUtils {
     }
 
     return map[SubKeys.Location];
+  }
+
+  /// Initialize Hive and open the contacts box
+  static Future<void> initHive() async {
+    await Hive.initFlutter();
+    await Hive.openBox('contacts');
+  }
+
+  /// Migrate all SharedPreferences contact entries to Hive
+  static Future<void> migrateSharedPrefsToHive() async {
+    final box = Hive.box('contacts');
+    final prefs = _prefs;
+    for (String key in prefs.getKeys()) {
+      final value = prefs.getString(key);
+      if (value != null) {
+        // Store as String for now; can parse to Map if needed
+        await box.put(key, value);
+      }
+    }
+    // Validation: compare key counts in both stores
+    final migratedKeys = box.keys.whereType<String>();
+    if (migratedKeys.length == prefs.getKeys().length) {
+      debugPrint('Migration to Hive complete. Key counts match.');
+    } else {
+      debugPrint('Migration: mismatch in key counts. SharedPrefs: \\${prefs.getKeys().length}, Hive: \\${migratedKeys.length}');
+    }
   }
 }
