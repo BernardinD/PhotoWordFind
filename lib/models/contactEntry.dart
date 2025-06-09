@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mobx/mobx.dart';
 import 'package:PhotoWordFind/models/location.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:path/path.dart' as path;
 
 part 'contactEntry.g.dart';
 
@@ -96,6 +97,7 @@ final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
           ? ObservableMap.of((value as Map<String, dynamic>)
               .map((key, value) => MapEntry(key, value as String?)))
           : null,
+  SubKeys.State: (model, value) => model.state = value as String?,
 };
 
 class ContactEntry extends _ContactEntry with _$ContactEntry {
@@ -107,6 +109,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       : super(
           imagePath: imagePath,
           ocr: json[SubKeys.OCR],
+          state: json[SubKeys.State] ?? path.basename(path.dirname(imagePath)),
           name: (json[SubKeys.Name] as String?)?.isNotEmpty ?? false
               ? json[SubKeys.Name]
               : null,
@@ -229,6 +232,7 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       SubKeys.Sections: sections?.isNotEmpty ?? false
           ? sections!.toList().map(Map.from).toList()
           : null,
+      SubKeys.State: state,
       SubKeys.Name: name,
       SubKeys.Age: age,
       SubKeys.Location: location?.toJson(),
@@ -295,6 +299,9 @@ abstract class _ContactEntry with Store {
 
   @observable
   bool addedOnDiscord;
+
+  @observable
+  String? state;
 
   @observable
   // @JsonKey(
@@ -418,6 +425,7 @@ abstract class _ContactEntry with Store {
     required this.age,
     required this.ocr,
     required this.imagePath,
+    this.state,
 
     /// If this exists it will be accounted for from the beginning and shouldn't need to be updated
     // this.extractedText,

@@ -26,9 +26,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     'Date',
     'Size'
   ]; // Add your sort options here
-  String selectedDirectory =
-      'All'; // Assuming 'All' is one of the filter options
-  List<String> directories = ['All'];
+  String selectedState = 'All';
+  List<String> states = ['All'];
   List<ContactEntry> images = [];
   List<ContactEntry> allImages = [];
   List<String> selectedImages = [];
@@ -75,7 +74,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       }
     }
     allImages = loadedImages;
-    _updateDirectories(allImages);
+    _updateStates(allImages);
     _applyFiltersAndSort();
   }
 
@@ -107,7 +106,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       }
     }
     allImages = loadedImages;
-    _updateDirectories(allImages);
+    _updateStates(allImages);
     _applyFiltersAndSort();
   }
 
@@ -233,10 +232,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           // Directory Dropdown
           Expanded(
             child: DropdownButton<String>(
-              value: selectedDirectory,
+              value: selectedState,
               underline: SizedBox(),
               isExpanded: true,
-              items: directories
+              items: states
                   .map((directory) => DropdownMenuItem<String>(
                         value: directory,
                         child: Padding(
@@ -246,7 +245,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                       ))
                   .toList(),
               onChanged: (value) {
-                selectedDirectory = value!;
+                selectedState = value!;
                 _filterImages();
               },
               style: TextStyle(color: Colors.black),
@@ -366,9 +365,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   ],
                 ),
                 child: DropdownButton<String>(
-                  value: selectedDirectory,
+                  value: selectedState,
                   isExpanded: true,
-                  items: directories
+                  items: states
                       .map((directory) => DropdownMenuItem<String>(
                             value: directory,
                             child: Padding(
@@ -379,7 +378,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                       .toList(),
                   onChanged: (value) {
                     setState(() {
-                      selectedDirectory = value!;
+                      selectedState = value!;
                       _applyFiltersAndSort();
                     });
                   },
@@ -422,23 +421,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     _applyFiltersAndSort();
   }
 
-  void _updateDirectories(List<ContactEntry> imgs) {
-    final dirs = <String>{};
+  void _updateStates(List<ContactEntry> imgs) {
+    final tags = <String>{};
     for (final img in imgs) {
-      dirs.add(path.dirname(img.imagePath));
+      if (img.state != null) tags.add(img.state!);
     }
-    final sorted = dirs.toList()..sort();
+    final sorted = tags.toList()..sort();
     setState(() {
-      directories = ['All', ...sorted];
+      states = ['All', ...sorted];
     });
   }
 
   void _applyFiltersAndSort() {
     List<ContactEntry> filtered =
         SearchService.searchEntries(allImages, searchQuery).where((img) {
-      final dir = path.dirname(img.imagePath);
-      final matchesDir = selectedDirectory == 'All' || dir == selectedDirectory;
-      return matchesDir;
+      final tag = img.state ?? path.basename(path.dirname(img.imagePath));
+      final matchesState = selectedState == 'All' || tag == selectedState;
+      return matchesState;
     }).toList();
 
     int compare(ContactEntry a, ContactEntry b) {
