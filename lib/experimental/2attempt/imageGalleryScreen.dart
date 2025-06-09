@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:PhotoWordFind/services/search_service.dart';
+import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -26,12 +28,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   ]; // Add your sort options here
   String selectedDirectory =
       'All'; // Assuming 'All' is one of the filter options
-  List<String> directories = [
-    'All',
-    'Directory1',
-    'Directory2'
-  ]; // Filter options
+  List<String> directories = ['All'];
   List<ContactEntry> images = [];
+  List<ContactEntry> allImages = [];
   List<String> selectedImages = [];
 
   // State variable to track the selected sort order
@@ -64,7 +63,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   Future<void> _loadImagesFromPreferences() async {
     // Read the image path map from the JSON file (simulating a separate storage location)
     List<ContactEntry> loadedImages = [];
-    
+
     // TODO: revisit this logicand whether it can be simplified
     // specifically, whether there's a way to remove the redundancy of creating a map
     // and then using the results of that map to essentially create a second map with `get()`
@@ -75,9 +74,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         loadedImages.add(contactEntry);
       }
     }
-    setState(() {
-      images = loadedImages;
-    });
+    allImages = loadedImages;
+    _updateDirectories(allImages);
+    _applyFiltersAndSort();
   }
 
   Future<void> _loadImagesFromJsonFile() async {
@@ -107,9 +106,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         ));
       }
     }
-    setState(() {
-      images = loadedImages;
-    });
+    allImages = loadedImages;
+    _updateDirectories(allImages);
+    _applyFiltersAndSort();
   }
 
   @override
@@ -247,10 +246,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                       ))
                   .toList(),
               onChanged: (value) {
-                setState(() {
-                  selectedDirectory = value!;
-                  _filterImages();
-                });
+                selectedDirectory = value!;
+                _filterImages();
               },
               style: TextStyle(color: Colors.black),
               dropdownColor: Colors.white,
@@ -272,10 +269,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                     EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
               ),
               onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                  _filterImages();
-                });
+                searchQuery = value;
+                _filterImages();
               },
             ),
           ),
@@ -322,10 +317,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                           ))
                       .toList(),
                   onChanged: (value) {
-                    setState(() {
-                      selectedSortOption = value!;
-                      // Call sorting function if needed
-                    });
+                    selectedSortOption = value!;
+                    _applyFiltersAndSort();
                   },
                   underline: SizedBox(), // Removes the underline
                   icon: Icon(Icons.arrow_drop_down,
@@ -343,20 +336,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   icon: Icons.arrow_upward,
                   isActive: isAscending,
                   onPressed: () {
-                    setState(() {
-                      isAscending = true; // Set to ascending
-                      // Call sorting function if needed
-                    });
+                    isAscending = true;
+                    _applyFiltersAndSort();
                   },
                 ),
                 _buildOrderIcon(
                   icon: Icons.arrow_downward,
                   isActive: !isAscending,
                   onPressed: () {
-                    setState(() {
-                      isAscending = false; // Set to descending
-                      // Call sorting function if needed
-                    });
+                    isAscending = false;
+                    _applyFiltersAndSort();
                   },
                 ),
               ],
@@ -391,7 +380,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   onChanged: (value) {
                     setState(() {
                       selectedDirectory = value!;
-                      // Call filter function if needed
+                      _applyFiltersAndSort();
                     });
                   },
                   underline: SizedBox(), // Removes the underline
@@ -430,7 +419,52 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   }
 
   void _filterImages() {
-    // Implement filter logic here
+    _applyFiltersAndSort();
+  }
+
+  void _updateDirectories(List<ContactEntry> imgs) {
+    final dirs = <String>{};
+    for (final img in imgs) {
+      dirs.add(path.dirname(img.imagePath));
+    }
+    final sorted = dirs.toList()..sort();
+    setState(() {
+      directories = ['All', ...sorted];
+    });
+  }
+
+  void _applyFiltersAndSort() {
+    List<ContactEntry> filtered =
+        SearchService.searchEntries(allImages, searchQuery).where((img) {
+      final dir = path.dirname(img.imagePath);
+      final matchesDir = selectedDirectory == 'All' || dir == selectedDirectory;
+      return matchesDir;
+    }).toList();
+
+    int compare(ContactEntry a, ContactEntry b) {
+      int result;
+      switch (selectedSortOption) {
+        case 'Date':
+          result = a.dateFound.compareTo(b.dateFound);
+          break;
+        case 'Size':
+          result = File(a.imagePath)
+              .lengthSync()
+              .compareTo(File(b.imagePath).lengthSync());
+          break;
+        case 'Name':
+        default:
+          result =
+              path.basename(a.imagePath).compareTo(path.basename(b.imagePath));
+      }
+      return isAscending ? result : -result;
+    }
+
+    filtered.sort(compare);
+
+    setState(() {
+      images = filtered;
+    });
   }
 }
 
@@ -509,6 +543,12 @@ class ImageTile extends StatelessWidget {
     required this.onMenuOptionSelected,
   });
 
+  String get _truncatedText {
+    const maxChars = 120;
+    if (extractedText.length <= maxChars) return extractedText;
+    return '${extractedText.substring(0, maxChars)}...';
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -573,7 +613,7 @@ class ImageTile extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
-                  extractedText,
+                  _truncatedText,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
