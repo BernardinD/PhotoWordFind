@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Only needed for migrateSharedPrefsToHive
+import 'package:path/path.dart' as path;
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
@@ -41,6 +42,8 @@ class SubKeys {
   static String get SocialMediaHandles => "social_media_handles";
   // ignore: non_constant_identifier_names
   static String get Sections => "sections";
+  // ignore: non_constant_identifier_names
+  static String get State => "state";
   // ignore: non_constant_identifier_names
   static String get Name => "name";
   // ignore: non_constant_identifier_names
@@ -246,6 +249,11 @@ class StorageUtils {
         }
       }
       entry = ContactEntry.fromJson(key, imagePath, map);
+    }
+
+    if (entry.state == null || entry.state!.isEmpty) {
+      entry.state = path.basename(path.dirname(entry.imagePath));
+      await save(entry, backup: false);
     }
 
     return entry;
