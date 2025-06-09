@@ -116,5 +116,8 @@ Future<String?> showNoteDialog(
 
 void _onSave(String key, notes, ContactEntry? contact) {
   // StorageUtils.save(key, backup: true, notes: notes);
+  // TODO: Review this call stack. With the new ContactEntry model, 
+  // saving will happen automatically when the contact is updated
+  // with the return value
   contact?.notes = notes;
 }

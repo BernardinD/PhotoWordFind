@@ -118,7 +118,6 @@ Future ocrParallel(List filesList, Size size,
   // Make sure latest thread cached updates exist in main thread
   int startingStorageSize = StorageUtils.getSize();
 
-  await Sortings.updateCache();
   filesList.sort(Sortings.getSorting() as int Function(
       dynamic, dynamic)?); //  TODO: determine if this sort is useful.
   for (filesIdx = 0; filesIdx < filesList.length; filesIdx++) {
