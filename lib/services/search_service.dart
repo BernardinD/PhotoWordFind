@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as path;
 
 import '../models/contactEntry.dart';
+import 'chat_gpt_service.dart';
 
 class SearchService {
   /// Returns a list of entries that match the [query].
@@ -45,5 +48,23 @@ class SearchService {
       final searchTarget = buffer.toString().toLowerCase();
       return searchTarget.contains(q);
     }).toList();
+  }
+
+  /// Ensures entries have OCR/extracted text before searching. Any entry
+  /// missing both `extractedText` and `ocr` will be processed via
+  /// [ChatGPTService.processImage]. The returned list is filtered using
+  /// [searchEntries].
+  static Future<List<ContactEntry>> searchEntriesWithOcr(
+      List<ContactEntry> entries, String query) async {
+    for (final entry in entries) {
+      if (query.isNotEmpty && entry.extractedText == null && entry.ocr == null) {
+        final result =
+            await ChatGPTService.processImage(imageFile: File(entry.imagePath));
+        if (result != null) {
+          entry.mergeFromJson(result, true);
+        }
+      }
+    }
+    return searchEntries(entries, query);
   }
 }
