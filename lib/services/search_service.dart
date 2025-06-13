@@ -57,7 +57,9 @@ class SearchService {
   static Future<List<ContactEntry>> searchEntriesWithOcr(
       List<ContactEntry> entries, String query) async {
     for (final entry in entries) {
-      if (query.isNotEmpty && entry.extractedText == null && entry.ocr == null) {
+      if (query.isNotEmpty &&
+          entry.extractedText == null &&
+          entry.ocr == null) {
         final result =
             await ChatGPTService.processImage(imageFile: File(entry.imagePath));
         if (result != null) {

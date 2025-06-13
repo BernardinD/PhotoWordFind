@@ -6,9 +6,10 @@ The experimental gallery uses a new `SearchService` which builds a search string
 
 ## Features
 - Sorting by name, date or file size
-- Filtering by stored state tag
+- Filtering by stored state tag (migrated from the image's original folder name)
 - Searching filenames, usernames and extracted text
 - Long-press selection of entries with a contextual action menu
+- Tap an image tile to view it full size and read all extracted text
 
 ### Todos
 - [ ] Add photos to gallery in batches (requires async functionality)

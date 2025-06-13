@@ -35,7 +35,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   // State variable to track the selected sort order
   bool isAscending = true; // Default sorting order
 
-
   // Add a setting to control which loading method to use
   bool useJsonFileForLoading = false; // Set to true to load from JSON file
 
@@ -187,7 +186,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -313,47 +311,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 ),
               ],
             ),
-            SizedBox(width: 10), // Spacer
-            // Optional Filter Dropdown
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      offset: Offset(0, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: DropdownButton<String>(
-                  value: selectedState,
-                  isExpanded: true,
-                  items: states
-                      .map((directory) => DropdownMenuItem<String>(
-                            value: directory,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Text(directory),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (value) async {
-                    setState(() {
-                      selectedState = value!;
-                    });
-                    await _applyFiltersAndSort();
-                  },
-                  underline: SizedBox(), // Removes the underline
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: Colors.blueAccent), // Custom dropdown icon
-                  style: TextStyle(color: Colors.black), // Dropdown text style
-                  dropdownColor: Colors.white, // Dropdown background color
-                ),
-              ),
-            ),
+            // Filter dropdown now lives in the top bar to reduce clutter
           ],
         ),
       ),
@@ -512,6 +470,7 @@ class ImageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTap: () => _showDetailsDialog(context),
       onLongPress: () {
         onSelected(imagePath);
       },
@@ -624,8 +583,8 @@ class ImageTile extends StatelessWidget {
               leading: Icon(Icons.info),
               title: Text('View Details'),
               onTap: () {
-                onMenuOptionSelected(imagePath, 'details');
                 Navigator.pop(context);
+                _showDetailsDialog(context);
               },
             ),
             ListTile(
@@ -647,6 +606,38 @@ class ImageTile extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _showDetailsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              constraints: BoxConstraints(maxHeight: 300),
+              child: PhotoView(
+                imageProvider: FileImage(File(imagePath)),
+                backgroundDecoration: BoxDecoration(color: Colors.white),
+                minScale: PhotoViewComputedScale.contained,
+                maxScale: PhotoViewComputedScale.covered * 2.5,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Text(
+                extractedText.isNotEmpty ? extractedText : 'No text found',
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
