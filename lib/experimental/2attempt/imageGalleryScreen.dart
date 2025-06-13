@@ -152,7 +152,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text('Image \${images.isEmpty ? 0 : currentIndex + 1} of \${images.length}'),
+              Text('Image ${images.isEmpty ? 0 : currentIndex + 1} of ${images.length}'),
             ],
           );
         }),
@@ -257,7 +257,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Showing \${images.length} of \${allImages.length} images',
+            'Showing ${images.length} of ${allImages.length} images',
             textAlign: TextAlign.center,
           ),
         ],
@@ -498,7 +498,7 @@ class ImageGallery extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '\${currentIndex + 1} / \${images.length}',
+                  '${currentIndex + 1} / ${images.length}',
                   style: TextStyle(color: Colors.white),
                 ),
               ),
