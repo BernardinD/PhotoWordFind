@@ -7,9 +7,11 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -152,7 +154,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text('Image ${images.isEmpty ? 0 : currentIndex + 1} of ${images.length}'),
+              Text(
+                  'Image ${images.isEmpty ? 0 : currentIndex + 1} of ${images.length}'),
             ],
           );
         }),
@@ -208,52 +211,53 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         children: [
           Row(
             children: [
-          // Directory Dropdown
-          Expanded(
-            child: DropdownButton<String>(
-              value: selectedState,
-              underline: SizedBox(),
-              isExpanded: true,
-              items: states
-                  .map((directory) => DropdownMenuItem<String>(
-                        value: directory,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12.0),
-                          child: Text(directory),
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (value) async {
-                selectedState = value!;
-                await _saveLastSelectedState(selectedState);
-                await _filterImages();
-              },
-              style: TextStyle(color: Colors.black),
-              dropdownColor: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 8), // Spacer
-          // Search Text Field
-          Expanded(
-            flex: 2,
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+              // Directory Dropdown
+              Expanded(
+                child: DropdownButton<String>(
+                  value: selectedState,
+                  underline: SizedBox(),
+                  isExpanded: true,
+                  items: states
+                      .map((directory) => DropdownMenuItem<String>(
+                            value: directory,
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12.0),
+                              child: Text(directory),
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (value) async {
+                    selectedState = value!;
+                    await _saveLastSelectedState(selectedState);
+                    await _filterImages();
+                  },
+                  style: TextStyle(color: Colors.black),
+                  dropdownColor: Colors.white,
                 ),
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
               ),
-              onChanged: (value) async {
-                searchQuery = value;
-                await _filterImages();
-              },
-            ),
-          ),
-        ],
+              const SizedBox(width: 8), // Spacer
+              // Search Text Field
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search...',
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
+                  ),
+                  onChanged: (value) async {
+                    searchQuery = value;
+                    await _filterImages();
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -474,15 +478,17 @@ class ImageGallery extends StatelessWidget {
                 itemCount: images.length,
                 onPageChanged: onPageChanged,
                 itemBuilder: (context, index) {
-              return ImageTile(
-                imagePath: images[index].imagePath,
-                isSelected: selectedImages.contains(images[index].identifier),
-                extractedText: images[index].extractedText ?? "",
-                identifier: images[index].identifier,
-                onSelected: onImageSelected,
-                onMenuOptionSelected: onMenuOptionSelected,
-              );
-            },
+                  return ImageTile(
+                    imagePath: images[index].imagePath,
+                    isSelected:
+                        selectedImages.contains(images[index].identifier),
+                    extractedText: images[index].extractedText ?? "",
+                    identifier: images[index].identifier,
+                    onSelected: onImageSelected,
+                    onMenuOptionSelected: onMenuOptionSelected,
+                    contact: images[index],
+                  );
+                },
               ),
             ),
           ),
@@ -518,6 +524,7 @@ class ImageTile extends StatelessWidget {
   final String identifier;
   final Function(String) onSelected;
   final Function(String, String) onMenuOptionSelected;
+  final ContactEntry contact;
 
   ImageTile({
     required this.imagePath,
@@ -526,6 +533,7 @@ class ImageTile extends StatelessWidget {
     required this.identifier,
     required this.onSelected,
     required this.onMenuOptionSelected,
+    required this.contact,
   });
 
   String get _truncatedText {
@@ -622,6 +630,39 @@ class ImageTile extends StatelessWidget {
                 ),
               ),
 
+              if ((contact.snapUsername?.isNotEmpty ?? false) ||
+                  (contact.instaUsername?.isNotEmpty ?? false) ||
+                  (contact.discordUsername?.isNotEmpty ?? false))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      if (contact.snapUsername?.isNotEmpty ?? false)
+                        IconButton(
+                          iconSize: 30,
+                          onPressed: () => _openSocial(
+                              SocialType.Snapchat, contact.snapUsername!),
+                          icon: SocialIcon.snapchatIconButton!.socialIcon,
+                        ),
+                      if (contact.instaUsername?.isNotEmpty ?? false)
+                        IconButton(
+                          iconSize: 30,
+                          onPressed: () => _openSocial(
+                              SocialType.Instagram, contact.instaUsername!),
+                          icon: SocialIcon.instagramIconButton!.socialIcon,
+                        ),
+                      if (contact.discordUsername?.isNotEmpty ?? false)
+                        IconButton(
+                          iconSize: 30,
+                          onPressed: () => _openSocial(
+                              SocialType.Discord, contact.discordUsername!),
+                          icon: SocialIcon.discordIconButton!.socialIcon,
+                        ),
+                    ],
+                  ),
+                ),
+
               // Popup Menu Icon
               Align(
                 alignment: Alignment.bottomRight,
@@ -706,5 +747,27 @@ class ImageTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _openSocial(SocialType social, String username) async {
+    Uri url;
+    switch (social) {
+      case SocialType.Snapchat:
+        url =
+            Uri.parse('https://www.snapchat.com/add/${username.toLowerCase()}');
+        break;
+      case SocialType.Instagram:
+        url = Uri.parse('https://www.instagram.com/$username');
+        break;
+      case SocialType.Discord:
+        Clipboard.setData(ClipboardData(text: username));
+        SocialIcon.discordIconButton?.openApp();
+        return;
+      default:
+        return;
+    }
+    if (!url.hasEmptyPath) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
   }
 }
