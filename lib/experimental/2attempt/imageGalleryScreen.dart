@@ -208,67 +208,81 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   }
 
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              // Directory Dropdown
-              Expanded(
-                child: DropdownButton<String>(
-                  value: selectedState,
-                  underline: SizedBox(),
-                  isExpanded: true,
-                  items: states
-                      .map((directory) => DropdownMenuItem<String>(
-                            value: directory,
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12.0),
-                              child: Text(directory),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (value) async {
-                    selectedState = value!;
-                    await _saveLastSelectedState(selectedState);
-                    await _filterImages();
-                  },
-                  style: TextStyle(color: Colors.black),
-                  dropdownColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8), // Spacer
-              // Search Text Field
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search...',
-                    filled: true,
-                    border: OutlineInputBorder(
+    return Card(
+      margin: const EdgeInsets.all(12.0),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                // Directory Dropdown
+                Expanded(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
                     ),
-                    contentPadding:
-                        EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
+                    child: DropdownButton<String>(
+                      value: selectedState,
+                      underline: const SizedBox(),
+                      isExpanded: true,
+                      items: states
+                          .map((directory) => DropdownMenuItem<String>(
+                                value: directory,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                  child: Text(directory),
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (value) async {
+                        selectedState = value!;
+                        await _saveLastSelectedState(selectedState);
+                        await _filterImages();
+                      },
+                      style: const TextStyle(color: Colors.black),
+                      dropdownColor: Colors.white,
+                    ),
                   ),
-                  onChanged: (value) async {
-                    searchQuery = value;
-                    await _filterImages();
-                  },
                 ),
+                const SizedBox(width: 8),
+                // Search Text Field
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
+                    ),
+                    onChanged: (value) async {
+                      searchQuery = value;
+                      await _filterImages();
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'Showing \${images.length} of \${allImages.length} images',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Showing ${images.length} of ${allImages.length} images',
-            textAlign: TextAlign.center,
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
