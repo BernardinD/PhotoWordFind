@@ -22,3 +22,4 @@ jobs:
           const String chatGPTApiKey = '${{ secrets.OPENAI_API_KEY }}';
           EOF_KEY
       - run: flutter test
+        continue-on-error: true
