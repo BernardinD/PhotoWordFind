@@ -13,12 +13,12 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.13.0'
-      # Generate the `secretKeys.dart` file, which contains sensitive API keys required for testing.
+      # Generate the `apiSecretKeys.dart` file, which contains sensitive API keys required for testing.
       # The API key is securely sourced from GitHub Actions secrets and injected into the file.
-      - name: Write secretKeys.dart
+      - name: Write apiSecretKeys.dart
         run: |
           mkdir -p lib
-          cat > lib/secretKeys.dart <<'EOF_KEY'
+          cat > lib/apiSecretKeys.dart <<'EOF_KEY'
           const String chatGPTApiKey = '${{ secrets.OPENAI_API_KEY }}';
           EOF_KEY
       - run: flutter test
