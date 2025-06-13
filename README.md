@@ -1,17 +1,19 @@
 # PhotoWordFind
 Flutter app for finding pictures that contain a searched word in a group of photos
 
+## Search
+The experimental gallery uses a new `SearchService` which builds a search string from each entry's filename, identifier, usernames, social media handles, and extracted text (from either `extractedText` or older `ocr` fields). Typing in the search box filters the gallery using this service.
 
-Todos: 
+## Features
+- Sorting by name, date or file size
+- Filtering by stored state tag
+- Searching filenames, usernames and extracted text
+- Long-press selection of entries with a contextual action menu
 
-- [ ] Add photos to gallery in batches (requries async functionality)
-
+### Todos
+- [ ] Add photos to gallery in batches (requires async functionality)
 - [x] Minimize code into services approach
-
-- [x] Give selection text background color and highligh color
-
-- [ ] Change Snap detection to checking all text on one line 
-
+- [x] Give selection text background color and highlight color
+- [ ] Change Snap detection to checking all text on one line
 - [x] Create GalleryCell object
-
 - [x] Save original image used in GalleryCell object inside the object so that it can be used when `redoing` and the image doesn't get reloaded/re-adjusted

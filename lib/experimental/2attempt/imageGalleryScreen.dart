@@ -35,16 +35,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   // State variable to track the selected sort order
   bool isAscending = true; // Default sorting order
 
-  Map<String, String> extractedTexts = {
-    'image1.jpg': 'Sample text for image 1',
-    'image2.jpg': 'Sample text for image 2',
-    'image3.jpg': 'Sample text for image 3',
-  };
-  Map<String, String> identifiers = {
-    'image1.jpg': 'ID: 001',
-    'image2.jpg': 'ID: 002',
-    'image3.jpg': 'ID: 003',
-  };
 
   // Add a setting to control which loading method to use
   bool useJsonFileForLoading = false; // Set to true to load from JSON file
@@ -135,8 +125,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 child: ImageGallery(
                   images: images,
                   selectedImages: selectedImages,
-                  extractedTexts: extractedTexts,
-                  identifiers: identifiers,
                   onImageSelected: (String imagePath) {
                     setState(() {
                       if (selectedImages.contains(imagePath)) {
@@ -149,7 +137,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   onMenuOptionSelected: (String imagePath, String option) {
                     // Handle image option
                   },
-                  galleryHeight: screenHeight, // Pass height dynamically
+                  galleryHeight: screenHeight,
                 ),
               ),
             ],
@@ -199,30 +187,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-  Widget _buildImageTile(String imagePath) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (selectedImages.contains(imagePath)) {
-            selectedImages.remove(imagePath);
-          } else {
-            selectedImages.add(imagePath);
-          }
-        });
-      },
-      child: Stack(
-        children: [
-          Image.asset(imagePath, fit: BoxFit.cover),
-          if (selectedImages.contains(imagePath))
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Icon(Icons.check_circle, color: Colors.blue),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTopBar() {
     return Padding(
@@ -471,8 +435,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 class ImageGallery extends StatelessWidget {
   final List<ContactEntry> images;
   final List<String> selectedImages;
-  final Map<String, String> extractedTexts;
-  final Map<String, String> identifiers;
   final Function(String) onImageSelected;
   final Function(String, String) onMenuOptionSelected;
   final double galleryHeight; // New dynamic height parameter
@@ -480,8 +442,6 @@ class ImageGallery extends StatelessWidget {
   ImageGallery({
     required this.images,
     required this.selectedImages,
-    required this.extractedTexts,
-    required this.identifiers,
     required this.onImageSelected,
     required this.onMenuOptionSelected,
     required this.galleryHeight,
