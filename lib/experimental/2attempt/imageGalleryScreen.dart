@@ -65,7 +65,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     }
     allImages = loadedImages;
     _updateStates(allImages);
-    _applyFiltersAndSort();
+    await _applyFiltersAndSort();
   }
 
   Future<void> _loadImagesFromJsonFile() async {
@@ -97,7 +97,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     }
     allImages = loadedImages;
     _updateStates(allImages);
-    _applyFiltersAndSort();
+    await _applyFiltersAndSort();
   }
 
   @override
@@ -208,9 +208,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                         ),
                       ))
                   .toList(),
-              onChanged: (value) {
+              onChanged: (value) async {
                 selectedState = value!;
-                _filterImages();
+                await _filterImages();
               },
               style: TextStyle(color: Colors.black),
               dropdownColor: Colors.white,
@@ -231,9 +231,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 contentPadding:
                     EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
               ),
-              onChanged: (value) {
+              onChanged: (value) async {
                 searchQuery = value;
-                _filterImages();
+                await _filterImages();
               },
             ),
           ),
@@ -279,9 +279,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                             ),
                           ))
                       .toList(),
-                  onChanged: (value) {
+                  onChanged: (value) async {
                     selectedSortOption = value!;
-                    _applyFiltersAndSort();
+                    await _applyFiltersAndSort();
                   },
                   underline: SizedBox(), // Removes the underline
                   icon: Icon(Icons.arrow_drop_down,
@@ -298,17 +298,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 _buildOrderIcon(
                   icon: Icons.arrow_upward,
                   isActive: isAscending,
-                  onPressed: () {
+                  onPressed: () async {
                     isAscending = true;
-                    _applyFiltersAndSort();
+                    await _applyFiltersAndSort();
                   },
                 ),
                 _buildOrderIcon(
                   icon: Icons.arrow_downward,
                   isActive: !isAscending,
-                  onPressed: () {
+                  onPressed: () async {
                     isAscending = false;
-                    _applyFiltersAndSort();
+                    await _applyFiltersAndSort();
                   },
                 ),
               ],
@@ -340,11 +340,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                             ),
                           ))
                       .toList(),
-                  onChanged: (value) {
+                  onChanged: (value) async {
                     setState(() {
                       selectedState = value!;
-                      _applyFiltersAndSort();
                     });
+                    await _applyFiltersAndSort();
                   },
                   underline: SizedBox(), // Removes the underline
                   icon: Icon(Icons.arrow_drop_down,
@@ -381,8 +381,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-  void _filterImages() {
-    _applyFiltersAndSort();
+  Future<void> _filterImages() async {
+    await _applyFiltersAndSort();
   }
 
   void _updateStates(List<ContactEntry> imgs) {
@@ -396,9 +396,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     });
   }
 
-  void _applyFiltersAndSort() {
+  Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
-        SearchService.searchEntries(allImages, searchQuery).where((img) {
+        (await SearchService.searchEntriesWithOcr(allImages, searchQuery))
+            .where((img) {
       final tag = img.state ?? path.basename(path.dirname(img.imagePath));
       final matchesState = selectedState == 'All' || tag == selectedState;
       return matchesState;
