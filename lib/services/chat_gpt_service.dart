@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:PhotoWordFind/apiSecretKeys.dart';
+import 'package:PhotoWordFind/secretKeys.dart';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:collection';
