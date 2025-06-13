@@ -10,6 +10,8 @@ The experimental gallery uses a new `SearchService` which builds a search string
 - Searching filenames, usernames and extracted text
 - Long-press selection of entries with a contextual action menu
 - Tap an image tile to view it full size and read all extracted text
+- The gallery remembers your last selected state filter across sessions
+- A counter shows which image is currently visible out of the filtered list
 
 ### Todos
 - [ ] Add photos to gallery in batches (requires async functionality)
@@ -18,3 +20,6 @@ The experimental gallery uses a new `SearchService` which builds a search string
 - [ ] Change Snap detection to checking all text on one line
 - [x] Create GalleryCell object
 - [x] Save original image used in GalleryCell object inside the object so that it can be used when `redoing` and the image doesn't get reloaded/re-adjusted
+
+## Find Operation
+The legacy interface includes a **Find** command which scans a directory of images using OCR. The logic lives in `lib/utils/operations_utils.dart` and processes each file through `ocrParallel`, adding results to the gallery once text extraction is finished. The new interface does not yet trigger this operation directly.

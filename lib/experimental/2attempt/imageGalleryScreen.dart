@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -31,6 +32,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   List<ContactEntry> images = [];
   List<ContactEntry> allImages = [];
   List<String> selectedImages = [];
+
+  int currentIndex = 0;
+  static const String _lastStateKey = 'last_selected_state';
 
   // State variable to track the selected sort order
   bool isAscending = true; // Default sorting order
@@ -64,6 +68,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     }
     allImages = loadedImages;
     _updateStates(allImages);
+    await _restoreLastSelectedState();
     await _applyFiltersAndSort();
   }
 
@@ -96,6 +101,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     }
     allImages = loadedImages;
     _updateStates(allImages);
+    await _restoreLastSelectedState();
     await _applyFiltersAndSort();
   }
 
@@ -137,8 +143,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                     // Handle image option
                   },
                   galleryHeight: screenHeight,
+                  onPageChanged: (idx) {
+                    setState(() {
+                      currentIndex = idx;
+                    });
+                  },
+                  currentIndex: currentIndex,
                 ),
               ),
+              const SizedBox(height: 8),
+              Text('Image \${images.isEmpty ? 0 : currentIndex + 1} of \${images.length}'),
             ],
           );
         }),
@@ -189,8 +203,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
           // Directory Dropdown
           Expanded(
             child: DropdownButton<String>(
@@ -208,6 +225,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   .toList(),
               onChanged: (value) async {
                 selectedState = value!;
+                await _saveLastSelectedState(selectedState);
                 await _filterImages();
               },
               style: TextStyle(color: Colors.black),
@@ -234,6 +252,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 await _filterImages();
               },
             ),
+          ),
+        ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Showing \${images.length} of \${allImages.length} images',
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -354,6 +379,19 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     });
   }
 
+  Future<void> _restoreLastSelectedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final last = prefs.getString(_lastStateKey);
+    if (last != null && states.contains(last)) {
+      selectedState = last;
+    }
+  }
+
+  Future<void> _saveLastSelectedState(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastStateKey, value);
+  }
+
   Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
         (await SearchService.searchEntriesWithOcr(allImages, searchQuery))
@@ -386,7 +424,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
     setState(() {
       images = filtered;
+      currentIndex = 0;
     });
+    _pageController.jumpToPage(0);
   }
 }
 
@@ -397,6 +437,8 @@ class ImageGallery extends StatelessWidget {
   final Function(String) onImageSelected;
   final Function(String, String) onMenuOptionSelected;
   final double galleryHeight; // New dynamic height parameter
+  final ValueChanged<int> onPageChanged;
+  final int currentIndex;
 
   ImageGallery({
     required this.images,
@@ -404,29 +446,34 @@ class ImageGallery extends StatelessWidget {
     required this.onImageSelected,
     required this.onMenuOptionSelected,
     required this.galleryHeight,
+    required this.onPageChanged,
+    required this.currentIndex,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: galleryHeight, // Ensure it adapts to screen changes
-      child: ScrollbarTheme(
-        data: ScrollbarThemeData(
-          thumbColor: WidgetStateProperty.all(Colors.blueAccent),
-          thickness: WidgetStateProperty.all(8.0),
-          radius: Radius.circular(8),
-          trackColor: WidgetStateProperty.all(Colors.grey.withOpacity(0.3)),
-          trackBorderColor: WidgetStateProperty.all(Colors.transparent),
-        ),
-        child: Scrollbar(
-          thumbVisibility: true,
-          interactive: true,
-          thickness: 10,
-          controller: _pageController, // Use the same controller here
-          child: PageView.builder(
-            controller: _pageController,
-            itemCount: images.length,
-            itemBuilder: (context, index) {
+      height: galleryHeight,
+      child: Stack(
+        children: [
+          ScrollbarTheme(
+            data: ScrollbarThemeData(
+              thumbColor: WidgetStateProperty.all(Colors.blueAccent),
+              thickness: WidgetStateProperty.all(8.0),
+              radius: Radius.circular(8),
+              trackColor: WidgetStateProperty.all(Colors.grey.withOpacity(0.3)),
+              trackBorderColor: WidgetStateProperty.all(Colors.transparent),
+            ),
+            child: Scrollbar(
+              thumbVisibility: true,
+              interactive: true,
+              thickness: 10,
+              controller: _pageController, // Use the same controller here
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: images.length,
+                onPageChanged: onPageChanged,
+                itemBuilder: (context, index) {
               return ImageTile(
                 imagePath: images[index].imagePath,
                 isSelected: selectedImages.contains(images[index].identifier),
@@ -436,8 +483,28 @@ class ImageGallery extends StatelessWidget {
                 onMenuOptionSelected: onMenuOptionSelected,
               );
             },
+              ),
+            ),
           ),
-        ),
+          Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '\${currentIndex + 1} / \${images.length}',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
