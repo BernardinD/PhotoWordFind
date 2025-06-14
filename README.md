@@ -11,7 +11,7 @@ The experimental gallery uses a new `SearchService` which builds a search string
 - Long-press selection of entries with a contextual action menu
 - Tap an image tile to view it full size and read all extracted text
 - The gallery remembers your last selected state filter across sessions
-- Redesigned control bar layout keeps search at the top with filtering and sorting controls wrapping below so it scales smoothly when the screen height changes
+- Responsive top bar groups search, filter, sort, and order controls in a single card that scales with screen height
 
 ### Todos
 - [ ] Add photos to gallery in batches (requires async functionality)

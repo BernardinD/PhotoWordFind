@@ -126,18 +126,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         appBar: AppBar(title: Text('Image Gallery')),
         body: LayoutBuilder(builder: (context, constraints) {
           final screenHeight = constraints.maxHeight;
-          // Calculate the height of the top bar ahead of time so the
-          // gallery can take the remaining space without overflowing.
-          // The top controls shrink when space is limited and expand slightly
-          // on larger displays. This prevents the gallery from overlapping the
-          // controls in split-screen or when the keyboard appears.
-          final barHeight = (screenHeight * 0.2).clamp(80.0, 160.0);
-          final galleryHeight =
-              screenHeight - barHeight - 24; // account for margins
 
           return Column(
             children: [
-              _buildTopBar(barHeight),
+              _buildTopBar(screenHeight),
               Expanded(
                 child: ImageGallery(
                   images: images,
@@ -155,7 +147,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   onMenuOptionSelected: (String imagePath, String option) {
                     // Handle image option
                   },
-                  galleryHeight: galleryHeight,
                   onPageChanged: (idx) {
                     setState(() {
                       currentIndex = idx;
@@ -212,7 +203,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-  Widget _buildTopBar(double barHeight) {
+  Widget _buildTopBar(double screenHeight) {
+    final barHeight = (screenHeight * 0.2).clamp(80.0, 160.0);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final searchField = TextField(
@@ -295,38 +288,52 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           ],
         );
 
-        final double halfWidth = constraints.maxWidth / 2 - 12;
+        final isNarrow = constraints.maxWidth < 500;
 
-        return Card(
-          margin: const EdgeInsets.all(12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            height: barHeight,
-            padding: const EdgeInsets.all(12),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                SizedBox(
-                  width: constraints.maxWidth > 400
-                      ? halfWidth
-                      : constraints.maxWidth - 24,
-                  child: searchField,
-                ),
-                SizedBox(
-                  width: 160,
-                  child: stateDropdown,
-                ),
-                SizedBox(
-                  width: 140,
-                  child: sortDropdown,
-                ),
-                orderButtons,
-              ],
+        return SizedBox(
+          height: barHeight,
+          child: Card(
+            margin: const EdgeInsets.all(12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: isNarrow
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        searchField,
+                        const SizedBox(height: 12),
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            SizedBox(
+                              width: constraints.maxWidth / 2 - 18,
+                              child: stateDropdown,
+                            ),
+                            SizedBox(
+                              width: constraints.maxWidth / 2 - 18,
+                              child: sortDropdown,
+                            ),
+                            orderButtons,
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: searchField),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 160, child: stateDropdown),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 140, child: sortDropdown),
+                        const SizedBox(width: 12),
+                        orderButtons,
+                      ],
+                    ),
             ),
           ),
         );
@@ -427,7 +434,6 @@ class ImageGallery extends StatelessWidget {
   final List<String> selectedImages;
   final Function(String) onImageSelected;
   final Function(String, String) onMenuOptionSelected;
-  final double galleryHeight; // New dynamic height parameter
   final ValueChanged<int> onPageChanged;
   final int currentIndex;
   final String sortOption;
@@ -437,7 +443,6 @@ class ImageGallery extends StatelessWidget {
     required this.selectedImages,
     required this.onImageSelected,
     required this.onMenuOptionSelected,
-    required this.galleryHeight,
     required this.onPageChanged,
     required this.currentIndex,
     required this.sortOption,
@@ -445,8 +450,7 @@ class ImageGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: galleryHeight,
+    return SizedBox.expand(
       child: Stack(
         children: [
           ScrollbarTheme(
