@@ -596,41 +596,43 @@ class ImageTile extends StatelessWidget {
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: ConstrainedBox(
-                    constraints:
-                        BoxConstraints(maxWidth: constraints.maxWidth - 50),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 2, horizontal: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _displayLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConstrainedBox(
+                        constraints:
+                            BoxConstraints(maxWidth: constraints.maxWidth - 50),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 2, horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _displayLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () => onSelected(identifier),
-                    child: Icon(
-                      isSelected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: isSelected ? Colors.blueAccent : Colors.white70,
-                      size: 28,
-                    ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => onSelected(identifier),
+                        child: Icon(
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isSelected ? Colors.blueAccent : Colors.grey,
+                          size: 28,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Positioned(
