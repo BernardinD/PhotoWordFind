@@ -129,7 +129,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           return Column(
             children: [
               _buildTopBar(screenHeight),
-              _buildSortingFilteringBar(),
               Expanded(
                 child: ImageGallery(
                   images: images,
@@ -207,8 +206,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   Widget _buildTopBar(double screenHeight) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 500;
-        final barHeight = (screenHeight * 0.15).clamp(80.0, 160.0);
+        final isNarrow = constraints.maxWidth < 600;
+        final barHeight = (screenHeight * 0.2).clamp(120.0, 200.0);
 
         final dropdownWidget = Container(
           decoration: BoxDecoration(
@@ -256,16 +255,71 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           },
         );
 
+        final sortDropdown = Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: DropdownButton<String>(
+            value: selectedSortOption,
+            underline: const SizedBox(),
+            isExpanded: true,
+            items: sortOptions
+                .map((option) => DropdownMenuItem<String>(
+                      value: option,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0),
+                        child: Text(option),
+                      ),
+                    ))
+                .toList(),
+            onChanged: (value) async {
+              selectedSortOption = value!;
+              await _applyFiltersAndSort();
+            },
+          ),
+        );
+
+        final orderRow = Row(
+          children: [
+            _buildOrderIcon(
+              icon: Icons.arrow_upward,
+              isActive: isAscending,
+              onPressed: () async {
+                isAscending = true;
+                await _applyFiltersAndSort();
+              },
+            ),
+            _buildOrderIcon(
+              icon: Icons.arrow_downward,
+              isActive: !isAscending,
+              onPressed: () async {
+                isAscending = false;
+                await _applyFiltersAndSort();
+              },
+            ),
+          ],
+        );
+
         final children = isNarrow
             ? <Widget>[
                 dropdownWidget,
                 const SizedBox(height: 12),
                 searchWidget,
+                const SizedBox(height: 12),
+                sortDropdown,
+                const SizedBox(height: 8),
+                orderRow,
               ]
             : <Widget>[
                 Expanded(child: dropdownWidget),
                 const SizedBox(width: 12),
                 Expanded(flex: 2, child: searchWidget),
+                const SizedBox(width: 12),
+                Expanded(child: sortDropdown),
+                const SizedBox(width: 8),
+                orderRow,
               ];
 
         return Container(
@@ -290,89 +344,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: children,
                 )
-              : Row(children: children),
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: children,
+                ),
         );
       },
     );
   }
 
-  Widget _buildSortingFilteringBar() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Sort Option Dropdown
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      offset: Offset(0, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: DropdownButton<String>(
-                  value: selectedSortOption,
-                  isExpanded: true,
-                  items: sortOptions
-                      .map((option) => DropdownMenuItem<String>(
-                            value: option,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Text(option),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (value) async {
-                    selectedSortOption = value!;
-                    await _applyFiltersAndSort();
-                  },
-                  underline: SizedBox(), // Removes the underline
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: Colors.blueAccent), // Custom dropdown icon
-                  style: TextStyle(color: Colors.black), // Dropdown text style
-                  dropdownColor: Colors.white, // Dropdown background color
-                ),
-              ),
-            ),
-            SizedBox(width: 10), // Spacer
-            // Icon Buttons for Sort Order
-            Row(
-              children: [
-                _buildOrderIcon(
-                  icon: Icons.arrow_upward,
-                  isActive: isAscending,
-                  onPressed: () async {
-                    isAscending = true;
-                    await _applyFiltersAndSort();
-                  },
-                ),
-                _buildOrderIcon(
-                  icon: Icons.arrow_downward,
-                  isActive: !isAscending,
-                  onPressed: () async {
-                    isAscending = false;
-                    await _applyFiltersAndSort();
-                  },
-                ),
-              ],
-            ),
-            // Filter dropdown now lives in the top bar to reduce clutter
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildOrderIcon({
     required IconData icon,
