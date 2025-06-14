@@ -632,47 +632,54 @@ class ImageTile extends StatelessWidget {
                 ),
               ),
 
-              if ((contact.snapUsername?.isNotEmpty ?? false) ||
-                  (contact.instaUsername?.isNotEmpty ?? false) ||
-                  (contact.discordUsername?.isNotEmpty ?? false))
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      if (contact.snapUsername?.isNotEmpty ?? false)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        if (contact.snapUsername?.isNotEmpty ?? false)
+                          IconButton(
+                            iconSize: 28,
+                            onPressed: () => _openSocial(
+                                SocialType.Snapchat, contact.snapUsername!),
+                            icon: SocialIcon.snapchatIconButton!.socialIcon,
+                          ),
+                        if (contact.instaUsername?.isNotEmpty ?? false)
+                          IconButton(
+                            iconSize: 28,
+                            onPressed: () => _openSocial(
+                                SocialType.Instagram, contact.instaUsername!),
+                            icon: SocialIcon.instagramIconButton!.socialIcon,
+                          ),
+                        if (contact.discordUsername?.isNotEmpty ?? false)
+                          IconButton(
+                            iconSize: 28,
+                            onPressed: () => _openSocial(
+                                SocialType.Discord, contact.discordUsername!),
+                            icon: SocialIcon.discordIconButton!.socialIcon,
+                          ),
+                      ],
+                    ),
+                    Row(
+                      children: [
                         IconButton(
-                          iconSize: 30,
-                          onPressed: () => _openSocial(
-                              SocialType.Snapchat, contact.snapUsername!),
-                          icon: SocialIcon.snapchatIconButton!.socialIcon,
+                          icon: Icon(Icons.note_alt_outlined),
+                          onPressed: () async {
+                            await showNoteDialog(context, contact.identifier,
+                                contact,
+                                existingNotes: contact.notes);
+                          },
                         ),
-                      if (contact.instaUsername?.isNotEmpty ?? false)
                         IconButton(
-                          iconSize: 30,
-                          onPressed: () => _openSocial(
-                              SocialType.Instagram, contact.instaUsername!),
-                          icon: SocialIcon.instagramIconButton!.socialIcon,
+                          icon: Icon(Icons.more_vert),
+                          onPressed: () => _showPopupMenu(context, imagePath),
                         ),
-                      if (contact.discordUsername?.isNotEmpty ?? false)
-                        IconButton(
-                          iconSize: 30,
-                          onPressed: () => _openSocial(
-                              SocialType.Discord, contact.discordUsername!),
-                          icon: SocialIcon.discordIconButton!.socialIcon,
-                        ),
-                    ],
-                  ),
-                ),
-
-              // Popup Menu Icon
-              Align(
-                alignment: Alignment.bottomRight,
-                child: IconButton(
-                  icon: Icon(Icons.more_vert),
-                  onPressed: () {
-                    _showPopupMenu(context, imagePath);
-                  },
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
