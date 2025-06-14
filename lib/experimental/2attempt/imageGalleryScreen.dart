@@ -611,7 +611,8 @@ class ImageTile extends StatelessWidget {
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    height: 56,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
@@ -619,81 +620,60 @@ class ImageTile extends StatelessWidget {
                         colors: [Colors.transparent, Colors.black54],
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          _truncatedText,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white),
+                        Expanded(
+                          child: Text(
+                            _truncatedText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                if (contact.snapUsername?.isNotEmpty ?? false)
-                                  IconButton(
-                                    iconSize: 24,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => _openSocial(
-                                        SocialType.Snapchat,
-                                        contact.snapUsername!),
-                                    icon: SocialIcon
-                                        .snapchatIconButton!.socialIcon,
-                                  ),
-                                if (contact.instaUsername?.isNotEmpty ?? false)
-                                  IconButton(
-                                    iconSize: 24,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => _openSocial(
-                                        SocialType.Instagram,
-                                        contact.instaUsername!),
-                                    icon: SocialIcon
-                                        .instagramIconButton!.socialIcon,
-                                  ),
-                                if (contact.discordUsername?.isNotEmpty ??
-                                    false)
-                                  IconButton(
-                                    iconSize: 24,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => _openSocial(
-                                        SocialType.Discord,
-                                        contact.discordUsername!),
-                                    icon: SocialIcon
-                                        .discordIconButton!.socialIcon,
-                                  ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  iconSize: 24,
-                                  color: Colors.white,
-                                  padding: EdgeInsets.zero,
-                                  icon: const Icon(Icons.note_alt_outlined),
-                                  onPressed: () async {
-                                    await showNoteDialog(
-                                        context, contact.identifier, contact,
-                                        existingNotes: contact.notes);
-                                  },
-                                ),
-                                IconButton(
-                                  iconSize: 24,
-                                  color: Colors.white,
-                                  padding: EdgeInsets.zero,
-                                  icon: const Icon(Icons.more_vert),
-                                  onPressed: () =>
-                                      _showPopupMenu(context, imagePath),
-                                ),
-                              ],
-                            ),
-                          ],
+                        if (contact.snapUsername?.isNotEmpty ?? false)
+                          IconButton(
+                            iconSize: 22,
+                            color: Colors.white,
+                            padding: EdgeInsets.zero,
+                            onPressed: () => _openSocial(
+                                SocialType.Snapchat, contact.snapUsername!),
+                            icon: SocialIcon.snapchatIconButton!.socialIcon,
+                          ),
+                        if (contact.instaUsername?.isNotEmpty ?? false)
+                          IconButton(
+                            iconSize: 22,
+                            color: Colors.white,
+                            padding: EdgeInsets.zero,
+                            onPressed: () => _openSocial(
+                                SocialType.Instagram, contact.instaUsername!),
+                            icon: SocialIcon.instagramIconButton!.socialIcon,
+                          ),
+                        if (contact.discordUsername?.isNotEmpty ?? false)
+                          IconButton(
+                            iconSize: 22,
+                            color: Colors.white,
+                            padding: EdgeInsets.zero,
+                            onPressed: () => _openSocial(
+                                SocialType.Discord, contact.discordUsername!),
+                            icon: SocialIcon.discordIconButton!.socialIcon,
+                          ),
+                        IconButton(
+                          iconSize: 22,
+                          color: Colors.white,
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.note_alt_outlined),
+                          onPressed: () async {
+                            await showNoteDialog(
+                                context, contact.identifier, contact,
+                                existingNotes: contact.notes);
+                          },
+                        ),
+                        IconButton(
+                          iconSize: 22,
+                          color: Colors.white,
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.more_vert),
+                          onPressed: () => _showPopupMenu(context, imagePath),
                         ),
                       ],
                     ),
