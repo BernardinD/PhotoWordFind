@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
@@ -211,74 +210,72 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 500;
-        final dropdown = Expanded(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButton<String>(
-              value: selectedState,
-              underline: const SizedBox(),
-              isExpanded: true,
-              items: states
-                  .map((directory) => DropdownMenuItem<String>(
-                        value: directory,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12.0),
-                          child: Text(directory),
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (value) async {
-                selectedState = value!;
-                await _saveLastSelectedState(selectedState);
-                await _filterImages();
-              },
-              style: const TextStyle(color: Colors.black),
-              dropdownColor: Colors.white,
-            ),
+
+        final dropdownWidget = DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-        final searchField = Expanded(
-          flex: 2,
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search...',
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.grey[200],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
-            ),
+          child: DropdownButton<String>(
+            value: selectedState,
+            underline: const SizedBox(),
+            isExpanded: true,
+            items: states
+                .map((directory) => DropdownMenuItem<String>(
+                      value: directory,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0),
+                        child: Text(directory),
+                      ),
+                    ))
+                .toList(),
             onChanged: (value) async {
-              searchQuery = value;
+              selectedState = value!;
+              await _saveLastSelectedState(selectedState);
               await _filterImages();
             },
+            style: const TextStyle(color: Colors.black),
+            dropdownColor: Colors.white,
           ),
+        );
+
+        final searchWidget = TextField(
+          decoration: InputDecoration(
+            hintText: 'Search...',
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            fillColor: Colors.grey[200],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
+          ),
+          onChanged: (value) async {
+            searchQuery = value;
+            await _filterImages();
+          },
         );
 
         final children = isNarrow
             ? <Widget>[
-                dropdown,
+                dropdownWidget,
                 const SizedBox(height: 8),
-                searchField,
+                searchWidget,
               ]
             : <Widget>[
-                dropdown,
+                Expanded(child: dropdownWidget),
                 const SizedBox(width: 8),
-                searchField,
+                Expanded(flex: 2, child: searchWidget),
               ];
 
         return Card(
           margin: const EdgeInsets.all(12.0),
           elevation: 4,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
             child: isNarrow
