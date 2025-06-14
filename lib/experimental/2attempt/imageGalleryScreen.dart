@@ -128,7 +128,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           double screenHeight = constraints.maxHeight;
           return Column(
             children: [
-              _buildTopBar(),
+              _buildTopBar(screenHeight),
               _buildSortingFilteringBar(),
               Expanded(
                 child: ImageGallery(
@@ -206,10 +206,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(double screenHeight) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 500;
+        final barHeight = (screenHeight * 0.14).clamp(80.0, 160.0);
 
         final dropdownWidget = DecoratedBox(
           decoration: BoxDecoration(
@@ -270,20 +271,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 Expanded(flex: 2, child: searchWidget),
               ];
 
-        return Card(
-          margin: const EdgeInsets.all(12.0),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: isNarrow
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
-                  )
-                : Row(children: children),
+        return SizedBox(
+          height: barHeight,
+          child: Card(
+            margin: const EdgeInsets.all(12.0),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: isNarrow
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children,
+                    )
+                  : Row(children: children),
+            ),
           ),
         );
       },
