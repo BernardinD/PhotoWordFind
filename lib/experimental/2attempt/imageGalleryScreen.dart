@@ -215,41 +215,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   Widget _buildTopBar(double barHeight) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 600;
-
-        final dropdownWidget = Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: DropdownButton<String>(
-            value: selectedState,
-            underline: const SizedBox(),
-            isExpanded: true,
-            items: states
-                .map((directory) => DropdownMenuItem<String>(
-                      value: directory,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                        child: Text(directory),
-                      ),
-                    ))
-                .toList(),
-            onChanged: (value) async {
-              selectedState = value!;
-              await _saveLastSelectedState(selectedState);
-              await _filterImages();
-            },
-          ),
-        );
-
-        final searchWidget = TextField(
+        final searchField = TextField(
           decoration: InputDecoration(
             hintText: 'Search...',
             prefixIcon: const Icon(Icons.search),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.9),
+            fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -263,33 +234,47 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           },
         );
 
-        final sortDropdown = Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: DropdownButton<String>(
-            value: selectedSortOption,
-            underline: const SizedBox(),
-            isExpanded: true,
-            items: sortOptions
-                .map((option) => DropdownMenuItem<String>(
-                      value: option,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                        child: Text(option),
-                      ),
-                    ))
-                .toList(),
-            onChanged: (value) async {
-              selectedSortOption = value!;
-              await _applyFiltersAndSort();
-            },
-          ),
+        final stateDropdown = DropdownButton<String>(
+          value: selectedState,
+          underline: const SizedBox(),
+          isExpanded: true,
+          items: states
+              .map((directory) => DropdownMenuItem<String>(
+                    value: directory,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: Text(directory),
+                    ),
+                  ))
+              .toList(),
+          onChanged: (value) async {
+            selectedState = value!;
+            await _saveLastSelectedState(selectedState);
+            await _filterImages();
+          },
         );
 
-        final orderRow = Row(
+        final sortDropdown = DropdownButton<String>(
+          value: selectedSortOption,
+          underline: const SizedBox(),
+          isExpanded: true,
+          items: sortOptions
+              .map((option) => DropdownMenuItem<String>(
+                    value: option,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: Text(option),
+                    ),
+                  ))
+              .toList(),
+          onChanged: (value) async {
+            selectedSortOption = value!;
+            await _applyFiltersAndSort();
+          },
+        );
+
+        final orderButtons = Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             _buildOrderIcon(
               icon: Icons.arrow_upward,
@@ -310,55 +295,40 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           ],
         );
 
-        final children = isNarrow
-            ? <Widget>[
-                dropdownWidget,
-                const SizedBox(height: 12),
-                searchWidget,
-                const SizedBox(height: 12),
-                sortDropdown,
-                const SizedBox(height: 8),
-                orderRow,
-              ]
-            : <Widget>[
-                Expanded(child: dropdownWidget),
-                const SizedBox(width: 12),
-                Expanded(flex: 2, child: searchWidget),
-                const SizedBox(width: 12),
-                Expanded(child: sortDropdown),
-                const SizedBox(width: 8),
-                orderRow,
-              ];
+        final double halfWidth = constraints.maxWidth / 2 - 12;
 
-        return Container(
-          height: barHeight,
-          margin: const EdgeInsets.all(12.0),
-          padding: const EdgeInsets.all(12.0),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blue.shade600,
-                Colors.blue.shade300,
+        return Card(
+          margin: const EdgeInsets.all(12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            height: barHeight,
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: constraints.maxWidth > 400
+                      ? halfWidth
+                      : constraints.maxWidth - 24,
+                  child: searchField,
+                ),
+                SizedBox(
+                  width: 160,
+                  child: stateDropdown,
+                ),
+                SizedBox(
+                  width: 140,
+                  child: sortDropdown,
+                ),
+                orderButtons,
               ],
             ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                offset: Offset(0, 4),
-                blurRadius: 8,
-              )
-            ],
           ),
-          child: isNarrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: children,
-                ),
         );
       },
     );
