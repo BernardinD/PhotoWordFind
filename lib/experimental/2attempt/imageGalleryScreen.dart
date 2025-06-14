@@ -156,9 +156,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   currentIndex: currentIndex,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                  'Image ${images.isEmpty ? 0 : currentIndex + 1} of ${images.length}'),
+              // Removed legacy image count text to reduce clutter
             ],
           );
         }),
@@ -210,13 +208,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 500;
-        final barHeight = (screenHeight * 0.14).clamp(80.0, 160.0);
+        final barHeight = (screenHeight * 0.15).clamp(80.0, 160.0);
 
-        final dropdownWidget = DecoratedBox(
+        final dropdownWidget = Container(
           decoration: BoxDecoration(
-            color: Colors.grey[200],
+            color: Colors.white.withOpacity(0.9),
             borderRadius: BorderRadius.circular(12),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
           child: DropdownButton<String>(
             value: selectedState,
             underline: const SizedBox(),
@@ -235,8 +234,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               await _saveLastSelectedState(selectedState);
               await _filterImages();
             },
-            style: const TextStyle(color: Colors.black),
-            dropdownColor: Colors.white,
           ),
         );
 
@@ -245,7 +242,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
             hintText: 'Search...',
             prefixIcon: const Icon(Icons.search),
             filled: true,
-            fillColor: Colors.grey[200],
+            fillColor: Colors.white.withOpacity(0.9),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -262,33 +259,38 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         final children = isNarrow
             ? <Widget>[
                 dropdownWidget,
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 searchWidget,
               ]
             : <Widget>[
                 Expanded(child: dropdownWidget),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(flex: 2, child: searchWidget),
               ];
 
-        return SizedBox(
+        return Container(
           height: barHeight,
-          child: Card(
-            margin: const EdgeInsets.all(12.0),
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          margin: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blueGrey.shade700, Colors.blueGrey.shade400],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: isNarrow
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: children,
-                    )
-                  : Row(children: children),
-            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                offset: Offset(0, 4),
+                blurRadius: 8,
+              )
+            ],
           ),
+          child: isNarrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                )
+              : Row(children: children),
         );
       },
     );
