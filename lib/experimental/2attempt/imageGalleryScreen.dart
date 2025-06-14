@@ -7,11 +7,13 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:PhotoWordFind/widgets/note_dialog.dart';
+import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -695,6 +697,72 @@ class ImageTile extends StatelessWidget {
                 _showDetailsDialog(context);
               },
             ),
+            if (contact.snapUsername?.isNotEmpty ?? false)
+              ListTile(
+                leading: Icon(Icons.chat_bubble),
+                title: Text('Open on Snap'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openSocial(SocialType.Snapchat, contact.snapUsername!);
+                },
+              ),
+            if (contact.instaUsername?.isNotEmpty ?? false)
+              ListTile(
+                leading: Icon(Icons.camera_alt),
+                title: Text('Open on Insta'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openSocial(SocialType.Instagram, contact.instaUsername!);
+                },
+              ),
+            if (contact.discordUsername?.isNotEmpty ?? false)
+              ListTile(
+                leading: Icon(Icons.discord),
+                title: Text('Open on Discord'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openSocial(SocialType.Discord, contact.discordUsername!);
+                },
+              ),
+            if (contact.addedOnSnap)
+              ListTile(
+                leading: Icon(Icons.refresh),
+                title: Text('Mark Snap Unadded'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  bool res = await _confirm(context);
+                  if (res) contact.resetSnapchatAdd();
+                },
+              ),
+            if (contact.addedOnInsta)
+              ListTile(
+                leading: Icon(Icons.refresh),
+                title: Text('Mark Insta Unadded'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  bool res = await _confirm(context);
+                  if (res) contact.resetInstagramAdd();
+                },
+              ),
+            if (contact.addedOnDiscord)
+              ListTile(
+                leading: Icon(Icons.refresh),
+                title: Text('Mark Discord Unadded'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  bool res = await _confirm(context);
+                  if (res) contact.resetDiscordAdd();
+                },
+              ),
+            ListTile(
+              leading: Icon(Icons.note_alt_outlined),
+              title: Text('Edit Notes'),
+              onTap: () async {
+                Navigator.pop(context);
+                await showNoteDialog(context, contact.identifier, contact,
+                    existingNotes: contact.notes);
+              },
+            ),
             ListTile(
               leading: Icon(Icons.move_to_inbox),
               title: Text('Move'),
@@ -747,6 +815,14 @@ class ImageTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<bool> _confirm(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => ConfirmationDialog(message: 'Are you sure?'),
+    );
+    return result ?? false;
   }
 
   void _openSocial(SocialType social, String username) async {
