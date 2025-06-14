@@ -125,10 +125,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       home: Scaffold(
         appBar: AppBar(title: Text('Image Gallery')),
         body: LayoutBuilder(builder: (context, constraints) {
-          double screenHeight = constraints.maxHeight;
+          final screenHeight = constraints.maxHeight;
+          // Calculate the height of the top bar ahead of time so the
+          // gallery can take the remaining space without overflowing.
+          final barHeight = (screenHeight * 0.2).clamp(120.0, 200.0);
+          final galleryHeight = screenHeight - barHeight - 24; // account for margins
+
           return Column(
             children: [
-              _buildTopBar(screenHeight),
+              _buildTopBar(barHeight),
               Expanded(
                 child: ImageGallery(
                   images: images,
@@ -146,7 +151,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   onMenuOptionSelected: (String imagePath, String option) {
                     // Handle image option
                   },
-                  galleryHeight: screenHeight,
+                  galleryHeight: galleryHeight,
                   onPageChanged: (idx) {
                     setState(() {
                       currentIndex = idx;
@@ -203,11 +208,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-  Widget _buildTopBar(double screenHeight) {
+  Widget _buildTopBar(double barHeight) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
-        final barHeight = (screenHeight * 0.2).clamp(120.0, 200.0);
 
         final dropdownWidget = Container(
           decoration: BoxDecoration(
