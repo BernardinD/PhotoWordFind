@@ -599,13 +599,20 @@ class ImageTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isSelected)
-                  const Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Icon(Icons.check_circle,
-                        color: Colors.blueAccent, size: 28),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => onSelected(imagePath),
+                    child: Icon(
+                      isSelected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: isSelected ? Colors.blueAccent : Colors.white70,
+                      size: 28,
+                    ),
                   ),
+                ),
                 Positioned(
                   left: 0,
                   right: 0,
@@ -635,6 +642,8 @@ class ImageTile extends StatelessWidget {
                             iconSize: 22,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
+                            constraints:
+                                const BoxConstraints.tightFor(width: 36, height: 36),
                             onPressed: () => _openSocial(
                                 SocialType.Snapchat, contact.snapUsername!),
                             icon: SocialIcon.snapchatIconButton!.socialIcon,
@@ -644,6 +653,8 @@ class ImageTile extends StatelessWidget {
                             iconSize: 22,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
+                            constraints:
+                                const BoxConstraints.tightFor(width: 36, height: 36),
                             onPressed: () => _openSocial(
                                 SocialType.Instagram, contact.instaUsername!),
                             icon: SocialIcon.instagramIconButton!.socialIcon,
@@ -653,6 +664,8 @@ class ImageTile extends StatelessWidget {
                             iconSize: 22,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
+                            constraints:
+                                const BoxConstraints.tightFor(width: 36, height: 36),
                             onPressed: () => _openSocial(
                                 SocialType.Discord, contact.discordUsername!),
                             icon: SocialIcon.discordIconButton!.socialIcon,
@@ -661,6 +674,8 @@ class ImageTile extends StatelessWidget {
                           iconSize: 22,
                           color: Colors.white,
                           padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints.tightFor(width: 36, height: 36),
                           icon: const Icon(Icons.note_alt_outlined),
                           onPressed: () async {
                             await showNoteDialog(
@@ -672,6 +687,8 @@ class ImageTile extends StatelessWidget {
                           iconSize: 22,
                           color: Colors.white,
                           padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints.tightFor(width: 36, height: 36),
                           icon: const Icon(Icons.more_vert),
                           onPressed: () => _showPopupMenu(context, imagePath),
                         ),
@@ -690,7 +707,7 @@ class ImageTile extends StatelessWidget {
   void _showPopupMenu(BuildContext context, String imagePath) {
     showModalBottomSheet(
       context: context,
-      builder: (context) {
+      builder: (sheetContext) {
         return ListView(
           shrinkWrap: true,
           children: [
@@ -698,7 +715,7 @@ class ImageTile extends StatelessWidget {
               leading: Icon(Icons.info),
               title: Text('View Details'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 _showDetailsDialog(context);
               },
             ),
@@ -707,7 +724,7 @@ class ImageTile extends StatelessWidget {
                 leading: Icon(Icons.chat_bubble),
                 title: Text('Open on Snap'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   _openSocial(SocialType.Snapchat, contact.snapUsername!);
                 },
               ),
@@ -716,7 +733,7 @@ class ImageTile extends StatelessWidget {
                 leading: Icon(Icons.camera_alt),
                 title: Text('Open on Insta'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   _openSocial(SocialType.Instagram, contact.instaUsername!);
                 },
               ),
@@ -725,7 +742,7 @@ class ImageTile extends StatelessWidget {
                 leading: Icon(Icons.discord),
                 title: Text('Open on Discord'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   _openSocial(SocialType.Discord, contact.discordUsername!);
                 },
               ),
@@ -734,7 +751,7 @@ class ImageTile extends StatelessWidget {
                 leading: Icon(Icons.refresh),
                 title: Text('Mark Snap Unadded'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   bool res = await _confirm(context);
                   if (res) contact.resetSnapchatAdd();
                 },
@@ -744,7 +761,7 @@ class ImageTile extends StatelessWidget {
                 leading: Icon(Icons.refresh),
                 title: Text('Mark Insta Unadded'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   bool res = await _confirm(context);
                   if (res) contact.resetInstagramAdd();
                 },
@@ -754,7 +771,7 @@ class ImageTile extends StatelessWidget {
                 leading: Icon(Icons.refresh),
                 title: Text('Mark Discord Unadded'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.pop(sheetContext);
                   bool res = await _confirm(context);
                   if (res) contact.resetDiscordAdd();
                 },
@@ -763,7 +780,7 @@ class ImageTile extends StatelessWidget {
               leading: Icon(Icons.note_alt_outlined),
               title: Text('Edit Notes'),
               onTap: () async {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 await showNoteDialog(context, contact.identifier, contact,
                     existingNotes: contact.notes);
               },
@@ -773,15 +790,7 @@ class ImageTile extends StatelessWidget {
               title: Text('Move'),
               onTap: () {
                 onMenuOptionSelected(imagePath, 'move');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.delete),
-              title: Text('Delete'),
-              onTap: () {
-                onMenuOptionSelected(imagePath, 'delete');
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
               },
             ),
           ],
