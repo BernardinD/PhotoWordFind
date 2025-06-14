@@ -548,141 +548,159 @@ class ImageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _showDetailsDialog(context),
-      onLongPress: () {
-        onSelected(imagePath);
-      },
+      onLongPress: () => onSelected(imagePath),
       child: LayoutBuilder(builder: (context, constraints) {
         return Container(
-          margin: EdgeInsets.symmetric(horizontal: 10),
-          width: constraints.maxWidth * 0.80,
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          width: constraints.maxWidth * 0.8,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: isSelected
                 ? Border.all(color: Colors.blueAccent, width: 3)
                 : null,
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
+                blurRadius: 6,
                 offset: Offset(0, 4),
-                blurRadius: 4,
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image Display
-              ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                child: Container(
-                  constraints:
-                      BoxConstraints(maxHeight: constraints.maxHeight * 0.70),
-                  child: Stack(
-                    children: [
-                      Flexible(
-                        // height: 250,
-                        child: PhotoView(
-                          imageProvider: FileImage(File(imagePath)),
-                          backgroundDecoration:
-                              BoxDecoration(color: Colors.white),
-                          minScale: PhotoViewComputedScale.contained,
-                          maxScale: PhotoViewComputedScale.covered * 2.5,
-                        ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: PhotoView(
+                    imageProvider: FileImage(File(imagePath)),
+                    backgroundDecoration:
+                        const BoxDecoration(color: Colors.white),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 2.5,
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      identifier,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
-                      if (isSelected)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Icon(
-                            Icons.check_circle,
-                            color: Colors.blueAccent,
-                            size: 30,
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-
-              // Extracted Text Field
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  _truncatedText,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
+                if (isSelected)
+                  const Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Icon(Icons.check_circle,
+                        color: Colors.blueAccent, size: 28),
                   ),
-                ),
-              ),
-
-              // Identifier Label
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                  identifier,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black54],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (contact.snapUsername?.isNotEmpty ?? false)
-                          IconButton(
-                            iconSize: 28,
-                            onPressed: () => _openSocial(
-                                SocialType.Snapchat, contact.snapUsername!),
-                            icon: SocialIcon.snapchatIconButton!.socialIcon,
-                          ),
-                        if (contact.instaUsername?.isNotEmpty ?? false)
-                          IconButton(
-                            iconSize: 28,
-                            onPressed: () => _openSocial(
-                                SocialType.Instagram, contact.instaUsername!),
-                            icon: SocialIcon.instagramIconButton!.socialIcon,
-                          ),
-                        if (contact.discordUsername?.isNotEmpty ?? false)
-                          IconButton(
-                            iconSize: 28,
-                            onPressed: () => _openSocial(
-                                SocialType.Discord, contact.discordUsername!),
-                            icon: SocialIcon.discordIconButton!.socialIcon,
-                          ),
+                        Text(
+                          _truncatedText,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                if (contact.snapUsername?.isNotEmpty ?? false)
+                                  IconButton(
+                                    iconSize: 24,
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => _openSocial(
+                                        SocialType.Snapchat,
+                                        contact.snapUsername!),
+                                    icon: SocialIcon
+                                        .snapchatIconButton!.socialIcon,
+                                  ),
+                                if (contact.instaUsername?.isNotEmpty ?? false)
+                                  IconButton(
+                                    iconSize: 24,
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => _openSocial(
+                                        SocialType.Instagram,
+                                        contact.instaUsername!),
+                                    icon: SocialIcon
+                                        .instagramIconButton!.socialIcon,
+                                  ),
+                                if (contact.discordUsername?.isNotEmpty ??
+                                    false)
+                                  IconButton(
+                                    iconSize: 24,
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => _openSocial(
+                                        SocialType.Discord,
+                                        contact.discordUsername!),
+                                    icon: SocialIcon
+                                        .discordIconButton!.socialIcon,
+                                  ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  iconSize: 24,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.note_alt_outlined),
+                                  onPressed: () async {
+                                    await showNoteDialog(
+                                        context, contact.identifier, contact,
+                                        existingNotes: contact.notes);
+                                  },
+                                ),
+                                IconButton(
+                                  iconSize: 24,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.more_vert),
+                                  onPressed: () =>
+                                      _showPopupMenu(context, imagePath),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.note_alt_outlined),
-                          onPressed: () async {
-                            await showNoteDialog(context, contact.identifier,
-                                contact,
-                                existingNotes: contact.notes);
-                          },
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.more_vert),
-                          onPressed: () => _showPopupMenu(context, imagePath),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       }),
