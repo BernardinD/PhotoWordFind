@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
+import 'package:intl/intl.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -134,12 +135,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 child: ImageGallery(
                   images: images,
                   selectedImages: selectedImages,
-                  onImageSelected: (String imagePath) {
+                  sortOption: selectedSortOption,
+                  onImageSelected: (String id) {
                     setState(() {
-                      if (selectedImages.contains(imagePath)) {
-                        selectedImages.remove(imagePath);
+                      if (selectedImages.contains(id)) {
+                        selectedImages.remove(id);
                       } else {
-                        selectedImages.add(imagePath);
+                        selectedImages.add(id);
                       }
                     });
                   },
@@ -445,6 +447,7 @@ class ImageGallery extends StatelessWidget {
   final double galleryHeight; // New dynamic height parameter
   final ValueChanged<int> onPageChanged;
   final int currentIndex;
+  final String sortOption;
 
   ImageGallery({
     required this.images,
@@ -454,6 +457,7 @@ class ImageGallery extends StatelessWidget {
     required this.galleryHeight,
     required this.onPageChanged,
     required this.currentIndex,
+    required this.sortOption,
   });
 
   @override
@@ -486,6 +490,7 @@ class ImageGallery extends StatelessWidget {
                         selectedImages.contains(images[index].identifier),
                     extractedText: images[index].extractedText ?? "",
                     identifier: images[index].identifier,
+                    sortOption: sortOption,
                     onSelected: onImageSelected,
                     onMenuOptionSelected: onMenuOptionSelected,
                     contact: images[index],
@@ -524,6 +529,7 @@ class ImageTile extends StatelessWidget {
   final bool isSelected;
   final String extractedText;
   final String identifier;
+  final String sortOption;
   final Function(String) onSelected;
   final Function(String, String) onMenuOptionSelected;
   final ContactEntry contact;
@@ -533,6 +539,7 @@ class ImageTile extends StatelessWidget {
     required this.isSelected,
     required this.extractedText,
     required this.identifier,
+    required this.sortOption,
     required this.onSelected,
     required this.onMenuOptionSelected,
     required this.contact,
@@ -544,11 +551,18 @@ class ImageTile extends StatelessWidget {
     return '${extractedText.substring(0, maxChars)}...';
   }
 
+  String get _displayLabel {
+    if (sortOption == 'Date') {
+      return DateFormat.yMd().format(contact.dateFound);
+    }
+    return identifier;
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _showDetailsDialog(context),
-      onLongPress: () => onSelected(imagePath),
+      onLongPress: () => onSelected(identifier),
       child: LayoutBuilder(builder: (context, constraints) {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -582,19 +596,25 @@ class ImageTile extends StatelessWidget {
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      identifier,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  child: ConstrainedBox(
+                    constraints:
+                        BoxConstraints(maxWidth: constraints.maxWidth - 50),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 2, horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _displayLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -603,7 +623,7 @@ class ImageTile extends StatelessWidget {
                   top: 8,
                   right: 8,
                   child: GestureDetector(
-                    onTap: () => onSelected(imagePath),
+                    onTap: () => onSelected(identifier),
                     child: Icon(
                       isSelected
                           ? Icons.check_circle
@@ -642,8 +662,8 @@ class ImageTile extends StatelessWidget {
                             iconSize: 22,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
-                            constraints:
-                                const BoxConstraints.tightFor(width: 36, height: 36),
+                            constraints: const BoxConstraints.tightFor(
+                                width: 36, height: 36),
                             onPressed: () => _openSocial(
                                 SocialType.Snapchat, contact.snapUsername!),
                             icon: SocialIcon.snapchatIconButton!.socialIcon,
@@ -653,8 +673,8 @@ class ImageTile extends StatelessWidget {
                             iconSize: 22,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
-                            constraints:
-                                const BoxConstraints.tightFor(width: 36, height: 36),
+                            constraints: const BoxConstraints.tightFor(
+                                width: 36, height: 36),
                             onPressed: () => _openSocial(
                                 SocialType.Instagram, contact.instaUsername!),
                             icon: SocialIcon.instagramIconButton!.socialIcon,
@@ -664,8 +684,8 @@ class ImageTile extends StatelessWidget {
                             iconSize: 22,
                             color: Colors.white,
                             padding: EdgeInsets.zero,
-                            constraints:
-                                const BoxConstraints.tightFor(width: 36, height: 36),
+                            constraints: const BoxConstraints.tightFor(
+                                width: 36, height: 36),
                             onPressed: () => _openSocial(
                                 SocialType.Discord, contact.discordUsername!),
                             icon: SocialIcon.discordIconButton!.socialIcon,
@@ -674,8 +694,8 @@ class ImageTile extends StatelessWidget {
                           iconSize: 22,
                           color: Colors.white,
                           padding: EdgeInsets.zero,
-                          constraints:
-                              const BoxConstraints.tightFor(width: 36, height: 36),
+                          constraints: const BoxConstraints.tightFor(
+                              width: 36, height: 36),
                           icon: const Icon(Icons.note_alt_outlined),
                           onPressed: () async {
                             await showNoteDialog(
@@ -687,8 +707,8 @@ class ImageTile extends StatelessWidget {
                           iconSize: 22,
                           color: Colors.white,
                           padding: EdgeInsets.zero,
-                          constraints:
-                              const BoxConstraints.tightFor(width: 36, height: 36),
+                          constraints: const BoxConstraints.tightFor(
+                              width: 36, height: 36),
                           icon: const Icon(Icons.more_vert),
                           onPressed: () => _showPopupMenu(context, imagePath),
                         ),
