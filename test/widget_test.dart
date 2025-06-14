@@ -9,11 +9,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:PhotoWordFind/main.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:hive/hive.dart';
+import 'dart:io';
 
 void main() {
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final dir = await Directory.systemTemp.createTemp('hive_test');
+    Hive.init(dir.path);
+    await Hive.openBox('contacts');
+  });
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(MyApp(title: "Testing"));
+    await tester.pumpAndSettle();
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

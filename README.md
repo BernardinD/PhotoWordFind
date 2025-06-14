@@ -12,6 +12,7 @@ The experimental gallery uses a new `SearchService` which builds a search string
 - Tap an image tile to view it full size and read all extracted text
 - The gallery remembers your last selected state filter across sessions
 - A counter shows which image is currently visible out of the filtered list
+- Responsive top bar with search and state filter that adapts to screen size
 
 ### Todos
 - [ ] Add photos to gallery in batches (requires async functionality)

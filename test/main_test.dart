@@ -4,22 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:hive/hive.dart';
+import 'dart:io';
 // import 'package:test/test.dart';
 
 // @GenerateMocks([FilePicker])
 
 class MockFilePicker extends Mock implements FilePicker {}
 
-void main(){
+void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    final dir = await Directory.systemTemp.createTemp('hive_test');
+    Hive.init(dir.path);
+    await Hive.openBox('contacts');
+  });
 
   setUp(() {
     mockFilePicker();
   });
 
-  testWidgets("Test Move button disabled", (tester) async{
+  testWidgets("Test Move button disabled", (tester) async {
     await tester.pumpWidget(MyApp(title: 'Flutter Test Home Page'));
-    // await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     var move = find.byKey(ValueKey("Move"));
     expect(move, findsOneWidget);
@@ -29,19 +37,15 @@ void main(){
     await tester.pump();
 
     expect(tester.widget<ElevatedButton>(move).enabled, false);
-
   });
 
-  testWidgets("Test Move button enabled", (tester) async{
+  testWidgets("Test Move button enabled", (tester) async {
     await tester.pumpWidget(MyApp(title: 'Flutter Test Home Page'));
-    // await tester.pumpAndSettle(Duration(seconds: 60));
-    // await tester.pumpAndSettle();
-    // await tester.pump(Duration(minutes: 100));
+    await tester.pumpAndSettle();
 
     var move = find.byKey(ValueKey("Move"));
     expect(move, findsOneWidget);
     expect(tester.widget<ElevatedButton>(move).enabled, false);
-
 
     expect(MyApp.gallery, isNotNull);
 
@@ -55,26 +59,22 @@ void main(){
     await tester.pump();
     await tester.pump();
 
-
     expect(move, findsOneWidget);
     var display = find.byKey(ValueKey("Display"));
     expect(display, findsOneWidget);
     expect(MyApp.gallery.selected.isNotEmpty, true);
     expect(tester.widget<ElevatedButton>(display).enabled, true);
     expect(tester.widget<ElevatedButton>(move).enabled, true);
-
   });
 
-
-  testWidgets("Test Move button invalid path", (tester) async{
+  testWidgets("Test Move button invalid path", (tester) async {
     await tester.pumpWidget(MyApp(title: 'Flutter Test Home Page'));
+    await tester.pumpAndSettle();
 
-    var move =
-    find.byKey(ValueKey("Move"));
+    var move = find.byKey(ValueKey("Move"));
     // find.widgetWithText(ElevatedButton, "Move");
     expect(move, findsOneWidget);
     expect(tester.widget<ElevatedButton>(move).enabled, false);
-
 
     expect(MyApp.gallery, isNotNull);
 
@@ -88,8 +88,10 @@ void main(){
       }
       return null;
     }
+
     TestWidgetsFlutterBinding.ensureInitialized();
-    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger.setMockMethodCallHandler(channel, handler);
+    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, handler);
 
     // when(FilePicker.platform.getDirectoryPath).thenReturn(({String dialogTitle, String initialDirectory, bool lockParentWindow}) async => "test");
     // await expect(FilePicker.platform.getDirectoryPath, "test");
@@ -99,8 +101,6 @@ void main(){
     tester.state(find.byType(MyHomePage)).setState(() {});
     await tester.pump();
     await tester.pump();
-
-
 
     expect(move, findsOneWidget);
     var display = find.widgetWithText(ElevatedButton, "Display");
@@ -112,21 +112,18 @@ void main(){
     await tester.tap(move);
   });
 
-
   test("Placeholder", () {
     // await tester.pumpWidget(MyHomePage(title: 'Flutter Test Home Page'));
-
 
     var state = new MyHomePage().createState();
     expect(() => state.move(), throwsA(isA<Error>()));
 
-
     // find.byType(type);
-  },
-  skip: true);
+  }, skip: true);
 
-  testWidgets("Placeholder2", (tester) async{
+  testWidgets("Placeholder2", (tester) async {
     await tester.pumpWidget(MyApp(title: 'Flutter Test Home Page'));
+    await tester.pumpAndSettle();
     //
     MyHomePage page = tester.widget(find.byType(MyHomePage));
     var state = page.createState();
@@ -137,24 +134,21 @@ void main(){
     // var state = page.createState();
     // state.initState();
     expect(() => state.move(), throwsA(isA<Exception>()));
-    for(var e in tester.allElements){
+    for (var e in tester.allElements) {
       debugPrint(e.toString());
     }
     // expect(() => state.move(), returnsNormally);
     // expect
-
   });
 
-  testWidgets("Test Mocking FilePicker", (tester) async{
+  testWidgets("Test Mocking FilePicker", (tester) async {
     await tester.pumpWidget(MyApp(title: 'Flutter Test Home Page'));
+    await tester.pumpAndSettle();
 
-
-    var move =
-    find.byKey(ValueKey("Move"));
+    var move = find.byKey(ValueKey("Move"));
     // find.widgetWithText(ElevatedButton, "Move");
     expect(move, findsOneWidget);
     expect(tester.widget<ElevatedButton>(move).enabled, false);
-
 
     expect(MyApp.gallery, isNotNull);
 
@@ -173,8 +167,6 @@ void main(){
     await tester.pump();
     await tester.pump();
 
-
-
     expect(move, findsOneWidget);
     var display = find.widgetWithText(ElevatedButton, "Display");
     expect(display, findsOneWidget);
@@ -183,16 +175,18 @@ void main(){
     expect(tester.widget<ElevatedButton>(move).enabled, true);
 
     await tester.tap(move);
-
   });
 }
+
 mockFilePicker() {
   const MethodChannel channel =
-  MethodChannel('miguelruivo.flutter.plugins.filepicker');
+      MethodChannel('miguelruivo.flutter.plugins.filepicker');
   channel.setMockMethodCallHandler((MethodCall methodCall) async {
     print("MockMethodChannel run");
 
-    final filePickerResult = [{'name': "test"}];
+    final filePickerResult = [
+      {'name': "test"}
+    ];
     return filePickerResult;
   });
 }
