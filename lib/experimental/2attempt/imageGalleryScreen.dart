@@ -128,8 +128,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           final screenHeight = constraints.maxHeight;
           // Calculate the height of the top bar ahead of time so the
           // gallery can take the remaining space without overflowing.
-          final barHeight = (screenHeight * 0.2).clamp(120.0, 200.0);
-          final galleryHeight = screenHeight - barHeight - 24; // account for margins
+          // The top controls shrink when space is limited and expand slightly
+          // on larger displays. This prevents the gallery from overlapping the
+          // controls in split-screen or when the keyboard appears.
+          final barHeight = (screenHeight * 0.2).clamp(80.0, 160.0);
+          final galleryHeight =
+              screenHeight - barHeight - 24; // account for margins
 
           return Column(
             children: [
@@ -332,7 +336,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           padding: const EdgeInsets.all(12.0),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueGrey.shade700, Colors.blueGrey.shade400],
+              colors: [
+                Colors.blue.shade600,
+                Colors.blue.shade300,
+              ],
             ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: const [
@@ -356,7 +363,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       },
     );
   }
-
 
   Widget _buildOrderIcon({
     required IconData icon,
