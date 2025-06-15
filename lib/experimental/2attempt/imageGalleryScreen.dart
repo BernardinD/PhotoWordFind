@@ -835,54 +835,91 @@ class _ImageTileState extends State<ImageTile> {
     );
   }
 
-  Future<bool> _confirm(BuildContext context) async {
+  Future<bool> _confirm(BuildContext context, {String message = 'Are you sure?'}) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => ConfirmationDialog(message: 'Are you sure?'),
+      builder: (_) => ConfirmationDialog(message: message),
     );
     return result ?? false;
   }
 
   Future<void> _editUsernames(BuildContext context) async {
-    final snapController = TextEditingController(text: widget.contact.snapUsername ?? '');
-    final instaController = TextEditingController(text: widget.contact.instaUsername ?? '');
-    final discordController = TextEditingController(text: widget.contact.discordUsername ?? '');
+    final originalSnap = widget.contact.snapUsername ?? '';
+    final originalInsta = widget.contact.instaUsername ?? '';
+    final originalDiscord = widget.contact.discordUsername ?? '';
+
+    final snapController = TextEditingController(text: originalSnap);
+    final instaController = TextEditingController(text: originalInsta);
+    final discordController = TextEditingController(text: originalDiscord);
+
+    bool changed = false;
+    void updateChanged() {
+      changed = snapController.text != originalSnap ||
+          instaController.text != originalInsta ||
+          discordController.text != originalDiscord;
+    }
+
+    snapController.addListener(updateChanged);
+    instaController.addListener(updateChanged);
+    discordController.addListener(updateChanged);
 
     final result = await showDialog<List<String>>(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Edit Usernames'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: snapController,
-                decoration: InputDecoration(labelText: 'Snapchat'),
+        return WillPopScope(
+          onWillPop: () async {
+            if (changed) {
+              return await _confirm(context, message: 'Discard changes?');
+            }
+            return true;
+          },
+          child: AlertDialog(
+            title: Text('Edit Usernames'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: snapController,
+                  decoration: InputDecoration(labelText: 'Snapchat'),
+                ),
+                TextField(
+                  controller: instaController,
+                  decoration: InputDecoration(labelText: 'Instagram'),
+                ),
+                TextField(
+                  controller: discordController,
+                  decoration: InputDecoration(labelText: 'Discord'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  if (changed) {
+                    final discard = await _confirm(context, message: 'Discard changes?');
+                    if (!discard) return;
+                  }
+                  Navigator.pop(context);
+                },
+                child: Text('Cancel'),
               ),
-              TextField(
-                controller: instaController,
-                decoration: InputDecoration(labelText: 'Instagram'),
-              ),
-              TextField(
-                controller: discordController,
-                decoration: InputDecoration(labelText: 'Discord'),
+              TextButton(
+                onPressed: () async {
+                  if (changed) {
+                    final confirmSave = await _confirm(context, message: 'Save changes?');
+                    if (!confirmSave) return;
+                  }
+                  Navigator.pop(context, [
+                    snapController.text,
+                    instaController.text,
+                    discordController.text,
+                  ]);
+                },
+                child: Text('Save'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(
-                context,
-                [snapController.text, instaController.text, discordController.text],
-              ),
-              child: Text('Save'),
-            ),
-          ],
         );
       },
     );
