@@ -127,8 +127,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           double screenHeight = constraints.maxHeight;
           return Column(
             children: [
-              _buildTopBar(),
-              _buildSortingFilteringBar(),
+              _buildControls(),
               Expanded(
                 child: ImageGallery(
                   images: images,
@@ -205,125 +204,83 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     );
   }
 
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              // Directory Dropdown
-              Expanded(
-                child: DropdownButton<String>(
-                  value: selectedState,
-                  underline: SizedBox(),
-                  isExpanded: true,
-                  items: states
-                      .map((directory) => DropdownMenuItem<String>(
-                            value: directory,
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12.0),
-                              child: Text(directory),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (value) async {
-                    selectedState = value!;
-                    await _saveLastSelectedState(selectedState);
-                    await _filterImages();
-                  },
-                  style: TextStyle(color: Colors.black),
-                  dropdownColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8), // Spacer
-              // Search Text Field
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search...',
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding:
-                        EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
-                  ),
-                  onChanged: (value) async {
-                    searchQuery = value;
-                    await _filterImages();
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Showing ${images.length} of ${allImages.length} images',
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSortingFilteringBar() {
+  Widget _buildControls() {
     return Card(
+      margin: const EdgeInsets.all(12),
       elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Sort Option Dropdown
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      offset: Offset(0, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: DropdownButton<String>(
-                  value: selectedSortOption,
-                  isExpanded: true,
-                  items: sortOptions
-                      .map((option) => DropdownMenuItem<String>(
-                            value: option,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Text(option),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (value) async {
-                    selectedSortOption = value!;
-                    await _applyFiltersAndSort();
-                  },
-                  underline: SizedBox(), // Removes the underline
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: Colors.blueAccent), // Custom dropdown icon
-                  style: TextStyle(color: Colors.black), // Dropdown text style
-                  dropdownColor: Colors.white, // Dropdown background color
-                ),
-              ),
-            ),
-            SizedBox(width: 10), // Spacer
-            // Icon Buttons for Sort Order
             Row(
               children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: selectedState,
+                    decoration: InputDecoration(
+                      labelText: 'State',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: states
+                        .map((dir) => DropdownMenuItem<String>(
+                              value: dir,
+                              child: Text(dir),
+                            ))
+                        .toList(),
+                    onChanged: (value) async {
+                      selectedState = value!;
+                      await _saveLastSelectedState(selectedState);
+                      await _filterImages();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search',
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) async {
+                      searchQuery = value;
+                      await _filterImages();
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: selectedSortOption,
+                    decoration: InputDecoration(
+                      labelText: 'Sort by',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: sortOptions
+                        .map((option) => DropdownMenuItem<String>(
+                              value: option,
+                              child: Text(option),
+                            ))
+                        .toList(),
+                    onChanged: (value) async {
+                      selectedSortOption = value!;
+                      await _applyFiltersAndSort();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
                 _buildOrderIcon(
                   icon: Icons.arrow_upward,
                   isActive: isAscending,
@@ -342,7 +299,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                 ),
               ],
             ),
-            // Filter dropdown now lives in the top bar to reduce clutter
+            const SizedBox(height: 8),
+            Text(
+              'Showing ${images.length} of ${allImages.length} images',
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -354,18 +315,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     required bool isActive,
     required VoidCallback onPressed,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isActive ? Colors.blue.withOpacity(0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          color: isActive ? Colors.blue : Colors.grey,
-          size: 28, // Size of the icons
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: isActive ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+          shape: BoxShape.circle,
         ),
-        onPressed: onPressed,
+        child: IconButton(
+          icon: Icon(icon, color: isActive ? Colors.blue : Colors.grey),
+          onPressed: onPressed,
+        ),
       ),
     );
   }
