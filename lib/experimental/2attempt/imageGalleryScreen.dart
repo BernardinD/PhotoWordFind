@@ -205,126 +205,111 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   }
 
   Widget _buildControls() {
-    return Card(
-      margin: const EdgeInsets.all(12),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedState,
-                    decoration: InputDecoration(
-                      labelText: 'State',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: states
-                        .map((dir) => DropdownMenuItem<String>(
-                              value: dir,
-                              child: Text(dir),
-                            ))
-                        .toList(),
-                    onChanged: (value) async {
-                      selectedState = value!;
-                      await _saveLastSelectedState(selectedState);
-                      await _filterImages();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search',
-                      prefixIcon: const Icon(Icons.search),
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (value) async {
-                      searchQuery = value;
-                      await _filterImages();
-                    },
-                  ),
-                ),
-              ],
+    return LayoutBuilder(builder: (context, constraints) {
+      final isWide = constraints.maxWidth > 500;
+      final children = <Widget>[
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            value: selectedState,
+            decoration: InputDecoration(
+              labelText: 'State',
+              border: const OutlineInputBorder(),
+              isDense: true,
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedSortOption,
-                    decoration: InputDecoration(
-                      labelText: 'Sort by',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: sortOptions
-                        .map((option) => DropdownMenuItem<String>(
-                              value: option,
-                              child: Text(option),
-                            ))
-                        .toList(),
-                    onChanged: (value) async {
-                      selectedSortOption = value!;
-                      await _applyFiltersAndSort();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildOrderIcon(
-                  icon: Icons.arrow_upward,
-                  isActive: isAscending,
-                  onPressed: () async {
-                    isAscending = true;
-                    await _applyFiltersAndSort();
-                  },
-                ),
-                _buildOrderIcon(
-                  icon: Icons.arrow_downward,
-                  isActive: !isAscending,
-                  onPressed: () async {
-                    isAscending = false;
-                    await _applyFiltersAndSort();
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Showing ${images.length} of ${allImages.length} images',
-              textAlign: TextAlign.center,
-            ),
-          ],
+            items: states
+                .map((dir) => DropdownMenuItem<String>(
+                      value: dir,
+                      child: Text(dir),
+                    ))
+                .toList(),
+            onChanged: (value) async {
+              selectedState = value!;
+              await _saveLastSelectedState(selectedState);
+              await _filterImages();
+            },
+          ),
         ),
-      ),
-    );
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Search',
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (value) async {
+              searchQuery = value;
+              await _filterImages();
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            value: selectedSortOption,
+            decoration: InputDecoration(
+              labelText: 'Sort by',
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: sortOptions
+                .map((option) => DropdownMenuItem<String>(
+                      value: option,
+                      child: Text(option),
+                    ))
+                .toList(),
+            onChanged: (value) async {
+              selectedSortOption = value!;
+              await _applyFiltersAndSort();
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildOrderToggle(),
+      ];
+
+      Widget content = isWide
+          ? Row(children: children)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: children.sublist(0, 3)),
+                const SizedBox(height: 12),
+                Row(children: children.sublist(3)),
+              ],
+            );
+
+      return Card(
+        margin: const EdgeInsets.all(12),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(padding: const EdgeInsets.all(12.0), child: content),
+      );
+    });
   }
 
-  Widget _buildOrderIcon({
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildOrderToggle() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: Ink(
         decoration: BoxDecoration(
-          color: isActive ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+          color: Colors.blue.withOpacity(0.1),
           shape: BoxShape.circle,
         ),
         child: IconButton(
-          icon: Icon(icon, color: isActive ? Colors.blue : Colors.grey),
-          onPressed: onPressed,
+          icon: AnimatedRotation(
+            turns: isAscending ? 0 : 0.5,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.arrow_upward, color: Colors.blue),
+          ),
+          onPressed: () async {
+            isAscending = !isAscending;
+            await _applyFiltersAndSort();
+          },
         ),
       ),
     );
