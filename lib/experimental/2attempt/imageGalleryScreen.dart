@@ -30,7 +30,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   List<String> sortOptions = [
     'Name',
     'Date',
-    'Size'
+    'Size',
+    'Snap Added Date',
+    'Instagram Added Date',
+    'Added on Snapchat',
+    'Added on Instagram'
   ]; // Add your sort options here
   String selectedState = 'All';
   List<String> states = ['All'];
@@ -362,6 +366,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           result = File(a.imagePath)
               .lengthSync()
               .compareTo(File(b.imagePath).lengthSync());
+          break;
+        case 'Snap Added Date':
+          DateTime aDate =
+              a.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0);
+          DateTime bDate =
+              b.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0);
+          result = aDate.compareTo(bDate);
+          break;
+        case 'Instagram Added Date':
+          DateTime aDate =
+              a.dateAddedOnInsta ?? DateTime.fromMillisecondsSinceEpoch(0);
+          DateTime bDate =
+              b.dateAddedOnInsta ?? DateTime.fromMillisecondsSinceEpoch(0);
+          result = aDate.compareTo(bDate);
+          break;
+        case 'Added on Snapchat':
+          result = (a.addedOnSnap ? 1 : 0).compareTo(b.addedOnSnap ? 1 : 0);
+          break;
+        case 'Added on Instagram':
+          result = (a.addedOnInsta ? 1 : 0).compareTo(b.addedOnInsta ? 1 : 0);
           break;
         case 'Name':
         default:
