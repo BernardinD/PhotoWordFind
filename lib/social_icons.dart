@@ -113,13 +113,25 @@ extension SocialTypeExtension on SocialType{
   saveUsername(ContactEntry entry, String value, {required bool overriding}) async {
     switch (this) {
       case SocialType.Snapchat:
-        entry.snapUsername = value;
+        if (overriding) {
+          entry.updateSnapchat(value);
+        } else {
+          entry.snapUsername = value;
+        }
         break;
       case SocialType.Instagram:
-        entry.instaUsername = value;
+        if (overriding) {
+          entry.updateInstagram(value);
+        } else {
+          entry.instaUsername = value;
+        }
         break;
       case SocialType.Discord:
-        entry.discordUsername = value;
+        if (overriding) {
+          entry.updateDiscord(value);
+        } else {
+          entry.discordUsername = value;
+        }
         break;
       case SocialType.Kik:
       // return SocialIcon.kikIconButton.socialIcon;
