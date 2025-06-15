@@ -24,7 +24,8 @@ class ImageGalleryScreen extends StatefulWidget {
   _ImageGalleryScreenState createState() => _ImageGalleryScreenState();
 }
 
-class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
+class _ImageGalleryScreenState extends State<ImageGalleryScreen>
+    with TickerProviderStateMixin {
   String searchQuery = '';
   String selectedSortOption = 'Name'; // Default value from the list
   List<String> sortOptions = [
@@ -50,6 +51,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
   // Add a setting to control which loading method to use
   bool useJsonFileForLoading = false; // Set to true to load from JSON file
+
+  bool _controlsExpanded = true; // Tracks whether the controls are minimized
 
   @override
   void initState() {
@@ -209,6 +212,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   }
 
   Widget _buildControls() {
+    return AnimatedSize(
+        duration: const Duration(milliseconds: 300),
+        child: _controlsExpanded
+            ? _buildExpandedControls()
+            : _buildMinimizedControls());
+  }
+
+  Widget _buildExpandedControls() {
     return LayoutBuilder(builder: (context, constraints) {
       final isWide = constraints.maxWidth > 500;
       final children = <Widget>[
@@ -291,9 +302,68 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Padding(padding: const EdgeInsets.all(12.0), child: content),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.expand_less),
+                  onPressed: () {
+                    setState(() => _controlsExpanded = false);
+                  },
+                ),
+              ),
+              content,
+            ],
+          ),
+        ),
       );
     });
+  }
+
+  Widget _buildMinimizedControls() {
+    return Card(
+      margin: const EdgeInsets.all(12),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: selectedSortOption,
+                decoration: const InputDecoration(
+                  labelText: 'Sort by',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: sortOptions
+                    .map((option) => DropdownMenuItem<String>(
+                          value: option,
+                          child: Text(option),
+                        ))
+                    .toList(),
+                onChanged: (value) async {
+                  selectedSortOption = value!;
+                  await _applyFiltersAndSort();
+                },
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.expand_more),
+              onPressed: () {
+                setState(() => _controlsExpanded = true);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildOrderToggle() {
