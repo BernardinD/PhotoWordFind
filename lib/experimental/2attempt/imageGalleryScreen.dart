@@ -187,7 +187,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         hintText: 'Search images',
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceVariant,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
