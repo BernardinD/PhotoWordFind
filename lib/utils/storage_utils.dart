@@ -295,6 +295,12 @@ class StorageUtils {
     return ret;
   }
 
+  /// Returns all keys from the contacts Hive box without fetching values.
+  static List<String> getKeys() {
+    final box = Hive.box('contacts');
+    return box.keys.whereType<String>().toList();
+  }
+
   /// Get size of Contacts box
   static int getSize() {
     final box = Hive.box('contacts');
