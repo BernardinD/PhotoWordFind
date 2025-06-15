@@ -333,30 +333,30 @@ abstract class _ContactEntry with Store {
   @action
   updateSnapchat(String snapchat) {
     _suppressAutoSave = false;
-    if (snapUsername != null) {
-      previousHandles?[SubKeys.SnapUsername]?.add(snapchat);
-      snapUsername = snapchat;
+    if (snapUsername != null && snapUsername!.isNotEmpty) {
+      previousHandles?[SubKeys.SnapUsername]?.add(snapUsername!);
     }
+    snapUsername = snapchat;
     _suppressAutoSave = true;
   }
 
   @action
   updateInstagram(String instagram) {
     _suppressAutoSave = false;
-    if (instaUsername != null) {
-      previousHandles?[SubKeys.InstaUsername]?.add(instagram);
-      instaUsername = instagram;
+    if (instaUsername != null && instaUsername!.isNotEmpty) {
+      previousHandles?[SubKeys.InstaUsername]?.add(instaUsername!);
     }
+    instaUsername = instagram;
     _suppressAutoSave = true;
   }
 
   @action
   updateDiscord(String discord) {
     _suppressAutoSave = false;
-    if (discordUsername != null) {
-      previousHandles?[SubKeys.DiscordUsername]?.add(discord);
-      discordUsername = discord;
+    if (discordUsername != null && discordUsername!.isNotEmpty) {
+      previousHandles?[SubKeys.DiscordUsername]?.add(discordUsername!);
     }
+    discordUsername = discord;
     _suppressAutoSave = true;
   }
 

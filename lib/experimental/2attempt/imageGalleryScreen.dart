@@ -491,7 +491,7 @@ class ImageGallery extends StatelessWidget {
 }
 
 // Updated ImageTile Widget with Selection
-class ImageTile extends StatelessWidget {
+class ImageTile extends StatefulWidget {
   final String imagePath;
   final bool isSelected;
   final String extractedText;
@@ -512,31 +512,37 @@ class ImageTile extends StatelessWidget {
     required this.contact,
   });
 
+  @override
+  _ImageTileState createState() => _ImageTileState();
+}
+
+class _ImageTileState extends State<ImageTile> {
+
   String get _truncatedText {
     const maxChars = 120;
-    if (extractedText.length <= maxChars) return extractedText;
-    return '${extractedText.substring(0, maxChars)}...';
+    if (widget.extractedText.length <= maxChars) return widget.extractedText;
+    return '${widget.extractedText.substring(0, maxChars)}...';
   }
 
   String get _displayLabel {
-    if (sortOption == 'Date') {
-      return DateFormat.yMd().format(contact.dateFound);
+    if (widget.sortOption == 'Date') {
+      return DateFormat.yMd().format(widget.contact.dateFound);
     }
-    return identifier;
+    return widget.identifier;
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _showDetailsDialog(context),
-      onLongPress: () => onSelected(identifier),
+      onLongPress: () => widget.onSelected(widget.identifier),
       child: LayoutBuilder(builder: (context, constraints) {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           width: constraints.maxWidth * 0.8,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: isSelected
+            border: widget.isSelected
                 ? Border.all(color: Colors.blueAccent, width: 3)
                 : null,
             boxShadow: const [
@@ -553,7 +559,7 @@ class ImageTile extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: PhotoView(
-                    imageProvider: FileImage(File(imagePath)),
+                    imageProvider: FileImage(File(widget.imagePath)),
                     backgroundDecoration:
                         const BoxDecoration(color: Colors.white),
                     minScale: PhotoViewComputedScale.contained,
@@ -590,12 +596,12 @@ class ImageTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       GestureDetector(
-                        onTap: () => onSelected(identifier),
+                        onTap: () => widget.onSelected(widget.identifier),
                         child: Icon(
-                          isSelected
+                          widget.isSelected
                               ? Icons.check_circle
                               : Icons.radio_button_unchecked,
-                          color: isSelected ? Colors.blueAccent : Colors.grey,
+                          color: widget.isSelected ? Colors.blueAccent : Colors.grey,
                           size: 28,
                         ),
                       ),
@@ -626,7 +632,7 @@ class ImageTile extends StatelessWidget {
                             style: const TextStyle(color: Colors.white),
                           ),
                         ),
-                        if (contact.snapUsername?.isNotEmpty ?? false)
+                        if (widget.contact.snapUsername?.isNotEmpty ?? false)
                           IconButton(
                             iconSize: 22,
                             color: Colors.white,
@@ -634,10 +640,10 @@ class ImageTile extends StatelessWidget {
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
                             onPressed: () => _openSocial(
-                                SocialType.Snapchat, contact.snapUsername!),
+                                SocialType.Snapchat, widget.contact.snapUsername!),
                             icon: SocialIcon.snapchatIconButton!.socialIcon,
                           ),
-                        if (contact.instaUsername?.isNotEmpty ?? false)
+                        if (widget.contact.instaUsername?.isNotEmpty ?? false)
                           IconButton(
                             iconSize: 22,
                             color: Colors.white,
@@ -645,10 +651,10 @@ class ImageTile extends StatelessWidget {
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
                             onPressed: () => _openSocial(
-                                SocialType.Instagram, contact.instaUsername!),
+                                SocialType.Instagram, widget.contact.instaUsername!),
                             icon: SocialIcon.instagramIconButton!.socialIcon,
                           ),
-                        if (contact.discordUsername?.isNotEmpty ?? false)
+                        if (widget.contact.discordUsername?.isNotEmpty ?? false)
                           IconButton(
                             iconSize: 22,
                             color: Colors.white,
@@ -656,7 +662,7 @@ class ImageTile extends StatelessWidget {
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
                             onPressed: () => _openSocial(
-                                SocialType.Discord, contact.discordUsername!),
+                                SocialType.Discord, widget.contact.discordUsername!),
                             icon: SocialIcon.discordIconButton!.socialIcon,
                           ),
                         IconButton(
@@ -668,8 +674,8 @@ class ImageTile extends StatelessWidget {
                           icon: const Icon(Icons.note_alt_outlined),
                           onPressed: () async {
                             await showNoteDialog(
-                                context, contact.identifier, contact,
-                                existingNotes: contact.notes);
+                                context, widget.contact.identifier, widget.contact,
+                                existingNotes: widget.contact.notes);
                           },
                         ),
                         IconButton(
@@ -678,8 +684,17 @@ class ImageTile extends StatelessWidget {
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints.tightFor(
                               width: 36, height: 36),
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editUsernames(context),
+                        ),
+                        IconButton(
+                          iconSize: 22,
+                          color: Colors.white,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                              width: 36, height: 36),
                           icon: const Icon(Icons.more_vert),
-                          onPressed: () => _showPopupMenu(context, imagePath),
+                          onPressed: () => _showPopupMenu(context, widget.imagePath),
                         ),
                       ],
                     ),
@@ -708,61 +723,61 @@ class ImageTile extends StatelessWidget {
                 _showDetailsDialog(context);
               },
             ),
-            if (contact.snapUsername?.isNotEmpty ?? false)
+            if (widget.contact.snapUsername?.isNotEmpty ?? false)
               ListTile(
                 leading: Icon(Icons.chat_bubble),
                 title: Text('Open on Snap'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Snapchat, contact.snapUsername!);
+                  _openSocial(SocialType.Snapchat, widget.contact.snapUsername!);
                 },
               ),
-            if (contact.instaUsername?.isNotEmpty ?? false)
+            if (widget.contact.instaUsername?.isNotEmpty ?? false)
               ListTile(
                 leading: Icon(Icons.camera_alt),
                 title: Text('Open on Insta'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Instagram, contact.instaUsername!);
+                  _openSocial(SocialType.Instagram, widget.contact.instaUsername!);
                 },
               ),
-            if (contact.discordUsername?.isNotEmpty ?? false)
+            if (widget.contact.discordUsername?.isNotEmpty ?? false)
               ListTile(
                 leading: Icon(Icons.discord),
                 title: Text('Open on Discord'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Discord, contact.discordUsername!);
+                  _openSocial(SocialType.Discord, widget.contact.discordUsername!);
                 },
               ),
-            if (contact.addedOnSnap)
+            if (widget.contact.addedOnSnap)
               ListTile(
                 leading: Icon(Icons.refresh),
                 title: Text('Mark Snap Unadded'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   bool res = await _confirm(context);
-                  if (res) contact.resetSnapchatAdd();
+                  if (res) widget.contact.resetSnapchatAdd();
                 },
               ),
-            if (contact.addedOnInsta)
+            if (widget.contact.addedOnInsta)
               ListTile(
                 leading: Icon(Icons.refresh),
                 title: Text('Mark Insta Unadded'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   bool res = await _confirm(context);
-                  if (res) contact.resetInstagramAdd();
+                  if (res) widget.contact.resetInstagramAdd();
                 },
               ),
-            if (contact.addedOnDiscord)
+            if (widget.contact.addedOnDiscord)
               ListTile(
                 leading: Icon(Icons.refresh),
                 title: Text('Mark Discord Unadded'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   bool res = await _confirm(context);
-                  if (res) contact.resetDiscordAdd();
+                  if (res) widget.contact.resetDiscordAdd();
                 },
               ),
             ListTile(
@@ -770,15 +785,15 @@ class ImageTile extends StatelessWidget {
               title: Text('Edit Notes'),
               onTap: () async {
                 Navigator.pop(sheetContext);
-                await showNoteDialog(context, contact.identifier, contact,
-                    existingNotes: contact.notes);
+                await showNoteDialog(context, widget.contact.identifier, widget.contact,
+                    existingNotes: widget.contact.notes);
               },
             ),
             ListTile(
               leading: Icon(Icons.move_to_inbox),
               title: Text('Move'),
               onTap: () {
-                onMenuOptionSelected(imagePath, 'move');
+                widget.onMenuOptionSelected(imagePath, 'move');
                 Navigator.pop(sheetContext);
               },
             ),
@@ -798,7 +813,7 @@ class ImageTile extends StatelessWidget {
             Container(
               constraints: BoxConstraints(maxHeight: 300),
               child: PhotoView(
-                imageProvider: FileImage(File(imagePath)),
+                imageProvider: FileImage(File(widget.imagePath)),
                 backgroundDecoration: BoxDecoration(color: Colors.white),
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: PhotoViewComputedScale.covered * 2.5,
@@ -807,7 +822,7 @@ class ImageTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Text(
-                extractedText.isNotEmpty ? extractedText : 'No text found',
+                widget.extractedText.isNotEmpty ? widget.extractedText : 'No text found',
               ),
             ),
             TextButton(
@@ -826,6 +841,64 @@ class ImageTile extends StatelessWidget {
       builder: (_) => ConfirmationDialog(message: 'Are you sure?'),
     );
     return result ?? false;
+  }
+
+  Future<void> _editUsernames(BuildContext context) async {
+    final snapController = TextEditingController(text: widget.contact.snapUsername ?? '');
+    final instaController = TextEditingController(text: widget.contact.instaUsername ?? '');
+    final discordController = TextEditingController(text: widget.contact.discordUsername ?? '');
+
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Usernames'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: snapController,
+                decoration: InputDecoration(labelText: 'Snapchat'),
+              ),
+              TextField(
+                controller: instaController,
+                decoration: InputDecoration(labelText: 'Instagram'),
+              ),
+              TextField(
+                controller: discordController,
+                decoration: InputDecoration(labelText: 'Discord'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(
+                context,
+                [snapController.text, instaController.text, discordController.text],
+              ),
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null) {
+      if (result[0] != widget.contact.snapUsername) {
+        await SocialType.Snapchat.saveUsername(widget.contact, result[0], overriding: true);
+      }
+      if (result[1] != widget.contact.instaUsername) {
+        await SocialType.Instagram.saveUsername(widget.contact, result[1], overriding: true);
+      }
+      if (result[2] != widget.contact.discordUsername) {
+        await SocialType.Discord.saveUsername(widget.contact, result[2], overriding: true);
+      }
+      setState(() {});
+    }
   }
 
   void _openSocial(SocialType social, String username) async {
