@@ -175,20 +175,20 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               width: MediaQuery.of(context).size.width * 1.20,
     final availableHeight =
         screenHeight - MediaQuery.of(context).viewInsets.bottom;
-    final barHeight = (availableHeight * 0.18).clamp(90.0, 160.0);
+    final barHeight = (availableHeight * 0.2).clamp(80.0, 150.0);
 
     final searchField = TextField(
       decoration: InputDecoration(
         hintText: 'Search images',
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: Colors.grey.shade100,
+        fillColor: Theme.of(context).colorScheme.surfaceVariant,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         contentPadding:
-            const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
+            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
       ),
       onChanged: (value) async {
         searchQuery = value;
@@ -263,15 +263,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            colors: [Colors.blueGrey.shade50, Colors.blueGrey.shade100],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          boxShadow: const [
-            BoxShadow(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
               color: Colors.black26,
-              offset: Offset(0, 2),
-              blurRadius: 6,
+              offset: Offset(0, 3),
+              blurRadius: 8,
             )
           ],
         ),
@@ -307,13 +303,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               ],
             );
           },
-                        searchField,
-                        const SizedBox(height: 12),
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
+    final activeColor = Theme.of(context).colorScheme.primary;
+    return Material(
+      color: isActive ? activeColor.withOpacity(0.15) : Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isActive ? activeColor : Colors.grey.shade600,
                             SizedBox(
                               width: constraints.maxWidth / 2 - 18,
                               child: stateDropdown,
@@ -455,24 +449,6 @@ class ImageGallery extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox.expand(
-      child: Stack(
-        children: [
-          ScrollbarTheme(
-            data: ScrollbarThemeData(
-              thumbColor: WidgetStateProperty.all(Colors.blueAccent),
-              thickness: WidgetStateProperty.all(8.0),
-              radius: Radius.circular(8),
-              trackColor: WidgetStateProperty.all(Colors.grey.withOpacity(0.3)),
-              trackBorderColor: WidgetStateProperty.all(Colors.transparent),
-            ),
-            child: Scrollbar(
-              thumbVisibility: true,
-              interactive: true,
-              thickness: 10,
-              controller: _pageController, // Use the same controller here
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: images.length,
                 onPageChanged: onPageChanged,
                 itemBuilder: (context, index) {
                   return ImageTile(
