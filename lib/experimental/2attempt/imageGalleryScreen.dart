@@ -259,47 +259,54 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    runSpacing: 8,
-                      SizedBox(
-                        width: narrow ? double.infinity : 160,
-                        child: stateDropdown,
-                      ),
-                      SizedBox(
-                        width: narrow ? double.infinity : 140,
-                        child: sortDropdown,
-                      ),
-                      if (narrow) orderButtons(),
-                ],
-              );
-            },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [Colors.blueGrey.shade50, Colors.blueGrey.shade100],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              offset: Offset(0, 2),
+              blurRadius: 6,
+            )
+          ],
         ),
-      ),
-                          SizedBox(
-                            width: constraints.maxWidth / 2 - 18,
-                            child: stateDropdown,
-                          ),
-                          SizedBox(
-                            width: constraints.maxWidth / 2 - 18,
-                            child: sortDropdown,
-                          ),
-                          orderButtons,
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(child: searchField),
-                      const SizedBox(width: 12),
-                      SizedBox(width: 160, child: stateDropdown),
-                      const SizedBox(width: 12),
-                      SizedBox(width: 140, child: sortDropdown),
-                      const SizedBox(width: 12),
-                      orderButtons,
-                    ],
-                  ),
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 600;
+            final children = [
+              Expanded(child: searchField),
+              const SizedBox(width: 8),
+              if (!narrow) orderButtons(),
+            ];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: children),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(
+                      width: narrow ? double.infinity : 160,
+                      child: stateDropdown,
+                    ),
+                    SizedBox(
+                      width: narrow ? double.infinity : 140,
+                      child: sortDropdown,
+                    ),
+                    if (narrow) orderButtons(),
+                  ],
+                )
+              ],
+            );
+          },
                         searchField,
                         const SizedBox(height: 12),
                         Wrap(
