@@ -173,7 +173,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
             scrollDirection: Axis.horizontal,
             child: Container(
               width: MediaQuery.of(context).size.width * 1.20,
-              child: Row(
+    final availableHeight =
+        screenHeight - MediaQuery.of(context).viewInsets.bottom;
+    final barHeight = (availableHeight * 0.2).clamp(80.0, 160.0);
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   SocialIcon.snapchatIconButton!,
@@ -261,46 +263,54 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
                   ))
               .toList(),
           onChanged: (value) async {
-            selectedSortOption = value!;
-            await _applyFiltersAndSort();
-          },
-        );
-
-        final orderButtons = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildOrderIcon(
-              icon: Icons.arrow_upward,
-              isActive: isAscending,
-              onPressed: () async {
-                isAscending = true;
-                await _applyFiltersAndSort();
-              },
-            ),
-            _buildOrderIcon(
-              icon: Icons.arrow_downward,
-              isActive: !isAscending,
-              onPressed: () async {
-                isAscending = false;
-                await _applyFiltersAndSort();
-              },
-            ),
-          ],
-        );
-
-        final isNarrow = constraints.maxWidth < 500;
-
-        return SizedBox(
-          height: barHeight,
-          child: Card(
-            margin: const EdgeInsets.all(12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: isNarrow
-                  ? Column(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blueGrey.shade50, Colors.blueGrey.shade100],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            padding: const EdgeInsets.all(12),
+            child: isNarrow
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      searchField,
+                      const SizedBox(height: 12),
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          SizedBox(
+                            width: constraints.maxWidth / 2 - 18,
+                            child: stateDropdown,
+                          ),
+                          SizedBox(
+                            width: constraints.maxWidth / 2 - 18,
+                            child: sortDropdown,
+                          ),
+                          orderButtons,
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: searchField),
+                      const SizedBox(width: 12),
+                      SizedBox(width: 160, child: stateDropdown),
+                      const SizedBox(width: 12),
+                      SizedBox(width: 140, child: sortDropdown),
+                      const SizedBox(width: 12),
+                      orderButtons,
+                    ],
+                  ),
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         searchField,
