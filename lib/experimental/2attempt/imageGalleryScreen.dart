@@ -61,11 +61,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     // Read the image path map from the JSON file (simulating a separate storage location)
     List<ContactEntry> loadedImages = [];
 
-    // TODO: revisit this logicand whether it can be simplified
-    // specifically, whether there's a way to remove the redundancy of creating a map
-    // and then using the results of that map to essentially create a second map with `get()`
-    for (final entry in (await StorageUtils.toMap()).entries) {
-      final identifier = entry.key;
+    // Fetch each contact directly from Hive using the keys list to avoid
+    // reading the entire box twice.
+    for (final identifier in StorageUtils.getKeys()) {
       final contactEntry = await StorageUtils.get(identifier);
       if (contactEntry != null) {
         loadedImages.add(contactEntry);
