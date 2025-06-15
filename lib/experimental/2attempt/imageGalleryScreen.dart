@@ -175,118 +175,105 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               width: MediaQuery.of(context).size.width * 1.20,
     final availableHeight =
         screenHeight - MediaQuery.of(context).viewInsets.bottom;
-    final barHeight = (availableHeight * 0.2).clamp(80.0, 160.0);
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SocialIcon.snapchatIconButton!,
-                  Spacer(),
-                  SocialIcon.galleryIconButton!,
-                  Spacer(),
-                  SocialIcon.bumbleIconButton!,
-                  Spacer(),
-                  FloatingActionButton(
-                    heroTag: null,
-                    tooltip: 'Change current directory',
-                    onPressed: null, //changeDir,
-                    child: Icon(Icons.drive_folder_upload),
-                  ),
-                  Spacer(),
-                  SocialIcon.instagramIconButton!,
-                  Spacer(),
-                  SocialIcon.discordIconButton!,
-                  Spacer(),
-                  SocialIcon.kikIconButton!,
-                ],
-              ),
-            ),
-          ),
-        ],
+    final barHeight = (availableHeight * 0.18).clamp(90.0, 160.0);
+
+    final searchField = TextField(
+      decoration: InputDecoration(
+        hintText: 'Search images',
+        prefixIcon: const Icon(Icons.search),
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
       ),
+      onChanged: (value) async {
+        searchQuery = value;
+        await _filterImages();
+      },
     );
-  }
-
-  Widget _buildTopBar(double screenHeight) {
-    final barHeight = (screenHeight * 0.2).clamp(80.0, 160.0);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final searchField = TextField(
-          decoration: InputDecoration(
-            hintText: 'Search...',
-            prefixIcon: const Icon(Icons.search),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 12.0, horizontal: 15.0),
-          ),
-          onChanged: (value) async {
-            searchQuery = value;
-            await _filterImages();
-          },
-        );
-
-        final stateDropdown = DropdownButton<String>(
-          value: selectedState,
-          underline: const SizedBox(),
-          isExpanded: true,
-          items: states
-              .map((directory) => DropdownMenuItem<String>(
-                    value: directory,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: Text(directory),
-                    ),
-                  ))
-              .toList(),
-          onChanged: (value) async {
-            selectedState = value!;
-            await _saveLastSelectedState(selectedState);
-            await _filterImages();
-          },
-        );
-
-        final sortDropdown = DropdownButton<String>(
-          value: selectedSortOption,
-          underline: const SizedBox(),
-          isExpanded: true,
-          items: sortOptions
-              .map((option) => DropdownMenuItem<String>(
-                    value: option,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: Text(option),
-                    ),
-                  ))
-              .toList(),
-          onChanged: (value) async {
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blueGrey.shade50, Colors.blueGrey.shade100],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
+    final stateDropdown = DropdownButton<String>(
+      value: selectedState,
+      underline: const SizedBox(),
+      isExpanded: true,
+      items: states
+          .map((directory) => DropdownMenuItem<String>(
+                value: directory,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(directory),
                 ),
-              ],
-            padding: const EdgeInsets.all(12),
-            child: isNarrow
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      searchField,
-                      const SizedBox(height: 12),
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
+              ))
+          .toList(),
+      onChanged: (value) async {
+        selectedState = value!;
+        await _saveLastSelectedState(selectedState);
+        await _filterImages();
+      },
+    );
+    final sortDropdown = DropdownButton<String>(
+      value: selectedSortOption,
+      underline: const SizedBox(),
+      isExpanded: true,
+      items: sortOptions
+          .map((option) => DropdownMenuItem<String>(
+                value: option,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(option),
+                ),
+              ))
+          .toList(),
+      onChanged: (value) async {
+        selectedSortOption = value!;
+        await _applyFiltersAndSort();
+      },
+    );
+    Widget orderButtons() => Row(
+    return SizedBox(
+      height: barHeight,
+      child: Card(
+        margin: const EdgeInsets.all(12),
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 600;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                      Expanded(child: searchField),
+                      if (!narrow) ...[
+                        const SizedBox(width: 8),
+                        orderButtons(),
+                      ]
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                      SizedBox(
+                        width: narrow ? double.infinity : 160,
+                        child: stateDropdown,
+                      ),
+                      SizedBox(
+                        width: narrow ? double.infinity : 140,
+                        child: sortDropdown,
+                      ),
+                      if (narrow) orderButtons(),
+                ],
+              );
+            },
+        ),
+      ),
                           SizedBox(
                             width: constraints.maxWidth / 2 - 18,
                             child: stateDropdown,
