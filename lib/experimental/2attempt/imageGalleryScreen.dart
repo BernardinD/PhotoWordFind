@@ -96,7 +96,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       } else if (value is Map<String, dynamic>) {
         // If the value is a full contact JSON, use fromJson
         final imagePath = value['imagePath'] ?? '';
-        loadedImages.add(ContactEntry.fromJson(
+          final barHeight = _calculateBarHeight(screenHeight);
+              _buildTopBar(barHeight),
+                  galleryHeight: screenHeight - barHeight,
           identifier,
           imagePath,
           value,
@@ -172,10 +174,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Container(
-              width: MediaQuery.of(context).size.width * 1.20,
+  double _calculateBarHeight(double screenHeight) {
     final availableHeight =
         screenHeight - MediaQuery.of(context).viewInsets.bottom;
-    final barHeight = (availableHeight * 0.2).clamp(80.0, 150.0);
+    return (availableHeight * 0.2).clamp(80.0, 150.0);
+  }
+
+  Widget _buildTopBar(double barHeight) {
 
     final searchField = TextField(
       decoration: InputDecoration(
@@ -401,7 +406,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       int result;
       switch (selectedSortOption) {
         case 'Date':
-          result = a.dateFound.compareTo(b.dateFound);
+  final double galleryHeight;
+    required this.galleryHeight,
+    return SizedBox(
+      height: galleryHeight,
           break;
         case 'Size':
           result = File(a.imagePath)
