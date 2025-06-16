@@ -727,70 +727,78 @@ class _ImageTileState extends State<ImageTile> {
                             style: const TextStyle(color: Colors.white),
                           ),
                         ),
-                        if (widget.contact.snapUsername?.isNotEmpty ?? false)
-                          IconButton(
-                            iconSize: 22,
-                            color: Colors.white,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints.tightFor(
-                                width: 36, height: 36),
-                            onPressed: () => _openSocial(SocialType.Snapchat,
-                                widget.contact.snapUsername!),
-                            icon: SocialIcon.snapchatIconButton!.socialIcon,
+                        Flexible(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                if (widget.contact.snapUsername?.isNotEmpty ?? false)
+                                  IconButton(
+                                    iconSize: 22,
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 36, height: 36),
+                                    onPressed: () => _openSocial(
+                                        SocialType.Snapchat, widget.contact.snapUsername!),
+                                    icon: SocialIcon.snapchatIconButton!.socialIcon,
+                                  ),
+                                if (widget.contact.instaUsername?.isNotEmpty ?? false)
+                                  IconButton(
+                                    iconSize: 22,
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 36, height: 36),
+                                    onPressed: () => _openSocial(
+                                        SocialType.Instagram, widget.contact.instaUsername!),
+                                    icon: SocialIcon.instagramIconButton!.socialIcon,
+                                  ),
+                                if (widget.contact.discordUsername?.isNotEmpty ?? false)
+                                  IconButton(
+                                    iconSize: 22,
+                                    color: Colors.white,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 36, height: 36),
+                                    onPressed: () => _openSocial(
+                                        SocialType.Discord, widget.contact.discordUsername!),
+                                    icon: SocialIcon.discordIconButton!.socialIcon,
+                                  ),
+                                IconButton(
+                                  iconSize: 22,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 36, height: 36),
+                                  icon: const Icon(Icons.note_alt_outlined),
+                                  onPressed: () async {
+                                    await showNoteDialog(
+                                        context, widget.contact.identifier, widget.contact,
+                                        existingNotes: widget.contact.notes);
+                                  },
+                                ),
+                                IconButton(
+                                  iconSize: 22,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 36, height: 36),
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () => _editUsernames(context),
+                                ),
+                                IconButton(
+                                  iconSize: 22,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 36, height: 36),
+                                  icon: const Icon(Icons.more_vert),
+                                  onPressed: () => _showPopupMenu(context, widget.imagePath),
+                                ),
+                              ],
+                            ),
                           ),
-                        if (widget.contact.instaUsername?.isNotEmpty ?? false)
-                          IconButton(
-                            iconSize: 22,
-                            color: Colors.white,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints.tightFor(
-                                width: 36, height: 36),
-                            onPressed: () => _openSocial(SocialType.Instagram,
-                                widget.contact.instaUsername!),
-                            icon: SocialIcon.instagramIconButton!.socialIcon,
-                          ),
-                        if (widget.contact.discordUsername?.isNotEmpty ?? false)
-                          IconButton(
-                            iconSize: 22,
-                            color: Colors.white,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints.tightFor(
-                                width: 36, height: 36),
-                            onPressed: () => _openSocial(SocialType.Discord,
-                                widget.contact.discordUsername!),
-                            icon: SocialIcon.discordIconButton!.socialIcon,
-                          ),
-                        IconButton(
-                          iconSize: 22,
-                          color: Colors.white,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(
-                              width: 36, height: 36),
-                          icon: const Icon(Icons.note_alt_outlined),
-                          onPressed: () async {
-                            await showNoteDialog(context,
-                                widget.contact.identifier, widget.contact,
-                                existingNotes: widget.contact.notes);
-                          },
-                        ),
-                        IconButton(
-                          iconSize: 22,
-                          color: Colors.white,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(
-                              width: 36, height: 36),
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editUsernames(context),
-                        ),
-                        IconButton(
-                          iconSize: 22,
-                          color: Colors.white,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(
-                              width: 36, height: 36),
-                          icon: const Icon(Icons.more_vert),
-                          onPressed: () =>
-                              _showPopupMenu(context, widget.imagePath),
                         ),
                       ],
                     ),
