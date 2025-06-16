@@ -849,36 +849,81 @@ class _ImageTileState extends State<ImageTile> {
                       SocialType.Discord, widget.contact.discordUsername!);
                 },
               ),
-            if (widget.contact.addedOnSnap)
+            if (widget.contact.addedOnSnap) ...[
               ListTile(
-                leading: Icon(Icons.refresh),
-                title: Text('Mark Snap Unadded'),
+                leading: Icon(Icons.person_off),
+                title: Text('Quick Unfriend on Snap'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  bool res = await _confirm(context);
-                  if (res) widget.contact.resetSnapchatAdd();
+                  await _unfriendSocial(
+                    SocialType.Snapchat,
+                    autoReason: 'no response',
+                  );
                 },
               ),
-            if (widget.contact.addedOnInsta)
               ListTile(
-                leading: Icon(Icons.refresh),
-                title: Text('Mark Insta Unadded'),
+                leading: Icon(Icons.person_remove),
+                title: Text('Unfriend on Snap with Note'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  bool res = await _confirm(context);
-                  if (res) widget.contact.resetInstagramAdd();
+                  await _unfriendSocial(
+                    SocialType.Snapchat,
+                    promptForNote: true,
+                    autoReason: 'conversation ended',
+                  );
                 },
               ),
-            if (widget.contact.addedOnDiscord)
+            ],
+            if (widget.contact.addedOnInsta) ...[
               ListTile(
-                leading: Icon(Icons.refresh),
-                title: Text('Mark Discord Unadded'),
+                leading: Icon(Icons.person_off),
+                title: Text('Quick Unfriend on Insta'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  bool res = await _confirm(context);
-                  if (res) widget.contact.resetDiscordAdd();
+                  await _unfriendSocial(
+                    SocialType.Instagram,
+                    autoReason: 'no response',
+                  );
                 },
               ),
+              ListTile(
+                leading: Icon(Icons.person_remove),
+                title: Text('Unfriend on Insta with Note'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _unfriendSocial(
+                    SocialType.Instagram,
+                    promptForNote: true,
+                    autoReason: 'conversation ended',
+                  );
+                },
+              ),
+            ],
+            if (widget.contact.addedOnDiscord) ...[
+              ListTile(
+                leading: Icon(Icons.person_off),
+                title: Text('Quick Unfriend on Discord'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _unfriendSocial(
+                    SocialType.Discord,
+                    autoReason: 'no response',
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.person_remove),
+                title: Text('Unfriend on Discord with Note'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _unfriendSocial(
+                    SocialType.Discord,
+                    promptForNote: true,
+                    autoReason: 'conversation ended',
+                  );
+                },
+              ),
+            ],
             ListTile(
               leading: Icon(Icons.note_alt_outlined),
               title: Text('Edit Notes'),
@@ -1065,6 +1110,47 @@ class _ImageTileState extends State<ImageTile> {
     }
     if (!url.hasEmptyPath) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _unfriendSocial(
+    SocialType social, {
+    bool promptForNote = false,
+    String? autoReason,
+  }) async {
+    final username = await social.getUserName(widget.contact);
+    if (username == null || username.isEmpty) return;
+
+    _openSocial(social, username);
+    bool res = await _confirm(context, message: 'Confirm unfriended?');
+    if (!res) return;
+
+    setState(() {
+      widget.contact.state = 'Stings';
+
+      final now = DateFormat.yMd().add_jm().format(DateTime.now());
+      String note = 'Unfriended from ${social.name} on $now';
+      if (autoReason != null && autoReason.isNotEmpty) {
+        note += ' ($autoReason)';
+      }
+      if (widget.contact.notes == null || widget.contact.notes!.isEmpty) {
+        widget.contact.notes = note;
+      } else {
+        widget.contact.notes = '${widget.contact.notes}\n$note';
+      }
+    });
+
+    if (promptForNote) {
+      final extra = await showNoteDialog(
+        context,
+        widget.contact.identifier,
+        widget.contact,
+      );
+      if (extra != null && extra.isNotEmpty) {
+        setState(() {
+          widget.contact.notes = '${widget.contact.notes}\n$extra';
+        });
+      }
     }
   }
 }
