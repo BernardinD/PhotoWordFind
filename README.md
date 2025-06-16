@@ -12,6 +12,8 @@ The experimental gallery uses a new `SearchService` which builds a search string
 - Tap an image tile to view it full size and read all extracted text
 - The gallery remembers your last selected state filter across sessions
 - A counter shows which image is currently visible out of the filtered list
+- Quick actions to open Snapchat/Instagram/Discord profiles and mark them as unadded with a timestamped note
+- Additional quick options let you automatically mark contacts as "No response" or open a note dialog after unadding
 
 ### Todos
 - [ ] Add photos to gallery in batches (requires async functionality)

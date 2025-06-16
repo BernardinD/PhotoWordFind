@@ -820,36 +820,78 @@ class _ImageTileState extends State<ImageTile> {
                   _openSocial(SocialType.Discord, widget.contact.discordUsername!);
                 },
               ),
-            if (widget.contact.addedOnSnap)
+            if (widget.contact.addedOnSnap) ...[
               ListTile(
-                leading: Icon(Icons.refresh),
-                title: Text('Mark Snap Unadded'),
+                leading: Icon(Icons.person_off),
+                title: Text('Quick Unadd Snap'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  bool res = await _confirm(context);
-                  if (res) widget.contact.resetSnapchatAdd();
+                  await _unaddSocial(
+                    SocialType.Snapchat,
+                    reason: 'No response',
+                  );
                 },
               ),
-            if (widget.contact.addedOnInsta)
               ListTile(
-                leading: Icon(Icons.refresh),
-                title: Text('Mark Insta Unadded'),
+                leading: Icon(Icons.person_remove),
+                title: Text('Unadd Snap w/Note'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  bool res = await _confirm(context);
-                  if (res) widget.contact.resetInstagramAdd();
+                  await _unaddSocial(
+                    SocialType.Snapchat,
+                    openNoteDialog: true,
+                  );
                 },
               ),
-            if (widget.contact.addedOnDiscord)
+            ],
+            if (widget.contact.addedOnInsta) ...[
               ListTile(
-                leading: Icon(Icons.refresh),
-                title: Text('Mark Discord Unadded'),
+                leading: Icon(Icons.person_off),
+                title: Text('Quick Unadd Insta'),
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  bool res = await _confirm(context);
-                  if (res) widget.contact.resetDiscordAdd();
+                  await _unaddSocial(
+                    SocialType.Instagram,
+                    reason: 'No response',
+                  );
                 },
               ),
+              ListTile(
+                leading: Icon(Icons.person_remove),
+                title: Text('Unadd Insta w/Note'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _unaddSocial(
+                    SocialType.Instagram,
+                    openNoteDialog: true,
+                  );
+                },
+              ),
+            ],
+            if (widget.contact.addedOnDiscord) ...[
+              ListTile(
+                leading: Icon(Icons.person_off),
+                title: Text('Quick Unadd Discord'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _unaddSocial(
+                    SocialType.Discord,
+                    reason: 'No response',
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.person_remove),
+                title: Text('Unadd Discord w/Note'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _unaddSocial(
+                    SocialType.Discord,
+                    openNoteDialog: true,
+                  );
+                },
+              ),
+            ],
             ListTile(
               leading: Icon(Icons.note_alt_outlined),
               title: Text('Edit Notes'),
@@ -1027,6 +1069,54 @@ class _ImageTileState extends State<ImageTile> {
     }
     if (!url.hasEmptyPath) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _unaddSocial(
+    SocialType social, {
+    String? reason,
+    bool openNoteDialog = false,
+  }) async {
+    final username = await social.getUserName(widget.contact);
+    if (username == null || username.isEmpty) return;
+
+    _openSocial(social, username);
+    bool res = await _confirm(context, message: 'Mark as unadded?');
+    if (!res) return;
+
+    setState(() {
+      switch (social) {
+        case SocialType.Snapchat:
+          widget.contact.resetSnapchatAdd();
+          break;
+        case SocialType.Instagram:
+          widget.contact.resetInstagramAdd();
+          break;
+        case SocialType.Discord:
+          widget.contact.resetDiscordAdd();
+          break;
+        default:
+          break;
+      }
+
+      final now = DateFormat.yMd().add_jm().format(DateTime.now());
+      final note =
+          'Unadded from ${social.name} on $now${reason != null ? ' - $reason' : ''}';
+      if (widget.contact.notes == null || widget.contact.notes!.isEmpty) {
+        widget.contact.notes = note;
+      } else {
+        widget.contact.notes = '${widget.contact.notes}\n$note';
+      }
+      widget.contact.state = 'Strings';
+    });
+
+    if (openNoteDialog) {
+      await showNoteDialog(
+        context,
+        widget.contact.identifier,
+        widget.contact,
+        existingNotes: widget.contact.notes,
+      );
     }
   }
 }
