@@ -6,6 +6,7 @@ Future<String?> showNoteDialog(
     BuildContext context, String key, ContactEntry? contact,
     {String? existingNotes}) {
   final _formKey = GlobalKey<FormState>(); // Key for the form
+  final _noteFocus = FocusNode();
   final originalNote = existingNotes ?? '';
   TextEditingController noteController =
       TextEditingController(text: originalNote);
@@ -65,8 +66,13 @@ Future<String?> showNoteDialog(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextFormField(
+                      focusNode: _noteFocus,
                       controller: noteController,
                       maxLines: 5,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      textCapitalization: TextCapitalization.sentences,
+                      onFieldSubmitted: (_) => _noteFocus.requestFocus(),
                       style: TextStyle(
                         fontSize: 14,
                       ),
@@ -136,7 +142,11 @@ Future<String?> showNoteDialog(
         ),
       );
     },
-  );
+  ).then((value) {
+    noteController.dispose();
+    _noteFocus.dispose();
+    return value;
+  });
 }
 
 void _onSave(String key, notes, ContactEntry? contact) {
