@@ -30,7 +30,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   String selectedSortOption = 'Name'; // Default value from the list
   List<String> sortOptions = [
     'Name',
-    'Date',
+    'Date found',
     'Size',
     'Snap Added Date',
     'Instagram Added Date',
@@ -426,7 +426,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     int compare(ContactEntry a, ContactEntry b) {
       int result;
       switch (selectedSortOption) {
-        case 'Date':
+        case 'Date found':
           result = a.dateFound.compareTo(b.dateFound);
           break;
         case 'Size':
@@ -592,10 +592,28 @@ class _ImageTileState extends State<ImageTile> {
   }
 
   String get _displayLabel {
-    if (widget.sortOption == 'Date') {
-      return DateFormat.yMd().format(widget.contact.dateFound);
+    switch (widget.sortOption) {
+      case 'Date found':
+        return DateFormat.yMd().format(widget.contact.dateFound);
+      case 'Snap Added Date':
+        final snapDate = widget.contact.dateAddedOnSnap;
+        return snapDate != null
+            ? DateFormat.yMd().format(snapDate)
+            : 'No date';
+      case 'Instagram Added Date':
+        final instaDate = widget.contact.dateAddedOnInsta;
+        return instaDate != null
+            ? DateFormat.yMd().format(instaDate)
+            : 'No date';
+      case 'Added on Snapchat':
+        return widget.contact.addedOnSnap ? 'Added' : 'Not Added';
+      case 'Added on Instagram':
+        return widget.contact.addedOnInsta ? 'Added' : 'Not Added';
+      case 'Name':
+        return widget.contact.name ?? widget.identifier;
+      default:
+        return widget.identifier;
     }
-    return widget.identifier;
   }
 
   @override

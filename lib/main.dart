@@ -223,7 +223,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Map<Sorts?, String> sortings = Map.from({
     Sorts.SortByTitle: "Sort By",
-    Sorts.Date: "Date Found",
+    Sorts.Date: "Date found",
     Sorts.DateAddedOnSnap: "Date Added on Snap",
     Sorts.DateAddedOnInsta: "Date Added on Instagram",
     Sorts.SnapDetected: "Snap Handle",
