@@ -161,9 +161,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   currentIndex: currentIndex,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                  'Image ${images.isEmpty ? 0 : currentIndex + 1} of ${images.length}'),
             ],
           );
         }),
