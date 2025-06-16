@@ -12,8 +12,14 @@ Future<String?> showNoteDialog(
       TextEditingController(text: originalNote);
 
   bool changed = false;
+  bool closing = false;
   noteController.addListener(() {
     changed = noteController.text != originalNote;
+  });
+  _noteFocus.addListener(() {
+    if (!_noteFocus.hasFocus && !closing) {
+      Future.microtask(() => _noteFocus.requestFocus());
+    }
   });
 
   Future<bool> _confirm(BuildContext context,
@@ -66,6 +72,7 @@ Future<String?> showNoteDialog(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextFormField(
+                      autofocus: true,
                       focusNode: _noteFocus,
                       controller: noteController,
                       maxLines: 5,
@@ -100,37 +107,39 @@ Future<String?> showNoteDialog(
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () async {
-                if (changed) {
-                  final discard =
-                      await _confirm(context, message: 'Discard changes?');
-                  if (!discard) return;
-                }
-                Navigator.of(context).pop(); // Dismiss the dialog
-              },
+              TextButton(
+                onPressed: () async {
+                  if (changed) {
+                    final discard =
+                        await _confirm(context, message: 'Discard changes?');
+                    if (!discard) return;
+                  }
+                  closing = true;
+                  Navigator.of(context).pop(); // Dismiss the dialog
+                },
               child: Text('Cancel'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.redAccent,
               ),
             ),
-            ElevatedButton(
-              child: Text('Save'),
-              onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  String note = noteController.text;
+              ElevatedButton(
+                child: Text('Save'),
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    String note = noteController.text;
 
-                  if (changed) {
-                    final confirmSave =
-                        await _confirm(context, message: 'Save changes?');
-                    if (!confirmSave) return;
+                    if (changed) {
+                      final confirmSave =
+                          await _confirm(context, message: 'Save changes?');
+                      if (!confirmSave) return;
+                    }
+
+                    // Call the onSave function and pass back the note
+                    _onSave(key, note, contact);
+                    closing = true;
+                    Navigator.of(context).pop(note);
                   }
-
-                  // Call the onSave function and pass back the note
-                  _onSave(key, note, contact);
-                  Navigator.of(context).pop(note);
-                }
-              },
+                },
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.deepPurple,
                 shape: RoundedRectangleBorder(
