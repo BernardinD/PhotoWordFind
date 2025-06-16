@@ -719,13 +719,11 @@ class _ImageTileState extends State<ImageTile> {
                     ),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            _truncatedText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white),
-                          ),
+                        Text(
+                          _truncatedText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white),
                         ),
                         Flexible(
                           child: SingleChildScrollView(
