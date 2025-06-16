@@ -292,12 +292,17 @@ abstract class _ContactEntry with Store {
   DateTime? dateAddedOnDiscord;
 
   @observable
+  /// Indicates that a friend request on Snapchat was believed to succeed.
+  /// Because the app cannot verify the add directly, this may need to be
+  /// reset manually if the request was never accepted.
   bool addedOnSnap;
 
   @observable
+  /// Same as [addedOnSnap] but for Instagram.
   bool addedOnInsta;
 
   @observable
+  /// Same as [addedOnSnap] but for Discord.
   bool addedOnDiscord;
 
   @observable
@@ -392,6 +397,8 @@ abstract class _ContactEntry with Store {
 
   @action
   resetSnapchatAdd() {
+    // Called when removing a Snapchat username. Since adds aren't verified,
+    // this clears the flag so the handle can be reused.
     // Avoid repeated calls for each field
     _suppressAutoSave = false;
     dateAddedOnSnap = null;
@@ -402,6 +409,7 @@ abstract class _ContactEntry with Store {
 
   @action
   resetInstagramAdd() {
+    // Same as [resetSnapchatAdd] but for Instagram.
     // Avoid repeated calls for each field
     _suppressAutoSave = false;
     dateAddedOnInsta = null;
@@ -412,6 +420,7 @@ abstract class _ContactEntry with Store {
 
   @action
   resetDiscordAdd() {
+    // Same as [resetSnapchatAdd] but for Discord.
     // Avoid repeated calls for each field
     _suppressAutoSave = false;
     dateAddedOnDiscord = null;
