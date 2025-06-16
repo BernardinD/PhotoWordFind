@@ -305,15 +305,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Extra padding to prevent the icon from overlapping the controls
-              Padding(
-                padding: const EdgeInsets.only(right: 40.0, top: 8.0),
-                child: content,
-              ),
+              content,
               Positioned(
-                top: 0,
-                right: 0,
+                top: -8,
+                right: -8,
                 child: IconButton(
                   icon: const Icon(Icons.expand_less),
                   onPressed: () {
