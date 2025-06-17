@@ -1,21 +1,9 @@
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-class _SentenceCapitalizationFormatter extends TextInputFormatter {
-  static final _exp = RegExp(r'(^|[.!?]\s+)([a-z])');
-
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final text = newValue.text.replaceAllMapped(
-      _exp,
-      (m) => '${m.group(1)}${m.group(2)!.toUpperCase()}',
-    );
-    return newValue.copyWith(text: text, selection: newValue.selection);
-  }
-}
+// Remove custom formatter so focus handling can be simplified. The built-in
+// `TextCapitalization.sentences` option already covers sentence casing for
+// speech input.
 
 Future<String?> showNoteDialog(
     BuildContext context, String key, ContactEntry? contact,
@@ -47,17 +35,24 @@ Future<String?> showNoteDialog(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext context) {
-      return WillPopScope(
-        onWillPop: () async {
-          if (changed) {
-            return await _confirm(context, message: 'Discard changes?');
-          }
-          return true;
-        },
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0),
-          ),
+      return StatefulBuilder(
+        builder: (context, setState) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_noteFocus.hasFocus) {
+              _noteFocus.requestFocus();
+            }
+          });
+          return WillPopScope(
+            onWillPop: () async {
+              if (changed) {
+                return await _confirm(context, message: 'Discard changes?');
+              }
+              return true;
+            },
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15.0),
+              ),
           icon: Icon(Icons.note_alt, color: Colors.deepPurple, size: 40),
           title: Text(
             'Add Note...',
@@ -88,9 +83,6 @@ Future<String?> showNoteDialog(
                       keyboardType: TextInputType.multiline,
                       textInputAction: TextInputAction.newline,
                       textCapitalization: TextCapitalization.sentences,
-                      inputFormatters: [
-                        _SentenceCapitalizationFormatter(),
-                      ],
                       onFieldSubmitted: (_) => _noteFocus.requestFocus(),
                       style: TextStyle(
                         fontSize: 14,
@@ -158,7 +150,9 @@ Future<String?> showNoteDialog(
               ),
             ),
           ],
-        ),
+            ),
+          );
+        },
       );
     },
   ).then((value) {
