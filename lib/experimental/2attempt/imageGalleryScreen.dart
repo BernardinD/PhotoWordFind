@@ -149,9 +149,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       }
                     });
                   },
-                  onMenuOptionSelected: (String imagePath, String option) {
-                    // Handle image option
-                  },
+                  onMenuOptionSelected: _onMenuOptionSelected,
                   galleryHeight: screenHeight,
                   onPageChanged: (idx) {
                     setState(() {
@@ -167,8 +165,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         floatingActionButton: selectedImages.isNotEmpty
             ? FloatingActionButton(
                 onPressed: () {
-                  // Trigger move operation
-                  // Optionally show confirmation dialog here
+                  _onMenuOptionSelected('', 'move');
                 },
                 child: Icon(Icons.move_to_inbox),
               )
@@ -479,6 +476,85 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     });
     _pageController.jumpToPage(0);
   }
+
+  Future<String?> _selectState() async {
+    String dropdownValue =
+        states.firstWhere((s) => s != 'All', orElse: () => '');
+    final controller = TextEditingController(text: dropdownValue);
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Move to state'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: dropdownValue.isEmpty ? null : dropdownValue,
+                items: states
+                    .where((s) => s != 'All')
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    dropdownValue = val;
+                    controller.text = val;
+                  }
+                },
+                decoration: const InputDecoration(labelText: 'Existing states'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(labelText: 'State'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _onMenuOptionSelected(String imagePath, String option) async {
+    if (option != 'move') return;
+    final targets = <ContactEntry>[];
+
+    if (selectedImages.isNotEmpty) {
+      for (final id in selectedImages) {
+        final match = allImages.where((e) => e.identifier == id);
+        if (match.isNotEmpty) targets.add(match.first);
+      }
+    } else {
+      final match = allImages.where((e) => e.imagePath == imagePath);
+      if (match.isNotEmpty) targets.add(match.first);
+    }
+
+    if (targets.isEmpty) return;
+
+    final newState = await _selectState();
+    if (newState == null || newState.isEmpty) return;
+
+    setState(() {
+      for (final entry in targets) {
+        entry.state = newState;
+      }
+      selectedImages.clear();
+    });
+
+    _updateStates(allImages);
+    await _applyFiltersAndSort();
+  }
 }
 
 // Updated ImageGallery Widget
@@ -605,9 +681,7 @@ class _ImageTileState extends State<ImageTile> {
         return DateFormat.yMd().format(widget.contact.dateFound);
       case 'Snap Added Date':
         final snapDate = widget.contact.dateAddedOnSnap;
-        return snapDate != null
-            ? DateFormat.yMd().format(snapDate)
-            : 'No date';
+        return snapDate != null ? DateFormat.yMd().format(snapDate) : 'No date';
       case 'Instagram Added Date':
         final instaDate = widget.contact.dateAddedOnInsta;
         return instaDate != null
@@ -730,7 +804,8 @@ class _ImageTileState extends State<ImageTile> {
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                if (widget.contact.snapUsername?.isNotEmpty ?? false)
+                                if (widget.contact.snapUsername?.isNotEmpty ??
+                                    false)
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
@@ -738,10 +813,13 @@ class _ImageTileState extends State<ImageTile> {
                                     constraints: const BoxConstraints.tightFor(
                                         width: 36, height: 36),
                                     onPressed: () => _openSocial(
-                                        SocialType.Snapchat, widget.contact.snapUsername!),
-                                    icon: SocialIcon.snapchatIconButton!.socialIcon,
+                                        SocialType.Snapchat,
+                                        widget.contact.snapUsername!),
+                                    icon: SocialIcon
+                                        .snapchatIconButton!.socialIcon,
                                   ),
-                                if (widget.contact.instaUsername?.isNotEmpty ?? false)
+                                if (widget.contact.instaUsername?.isNotEmpty ??
+                                    false)
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
@@ -749,10 +827,14 @@ class _ImageTileState extends State<ImageTile> {
                                     constraints: const BoxConstraints.tightFor(
                                         width: 36, height: 36),
                                     onPressed: () => _openSocial(
-                                        SocialType.Instagram, widget.contact.instaUsername!),
-                                    icon: SocialIcon.instagramIconButton!.socialIcon,
+                                        SocialType.Instagram,
+                                        widget.contact.instaUsername!),
+                                    icon: SocialIcon
+                                        .instagramIconButton!.socialIcon,
                                   ),
-                                if (widget.contact.discordUsername?.isNotEmpty ?? false)
+                                if (widget
+                                        .contact.discordUsername?.isNotEmpty ??
+                                    false)
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
@@ -760,8 +842,10 @@ class _ImageTileState extends State<ImageTile> {
                                     constraints: const BoxConstraints.tightFor(
                                         width: 36, height: 36),
                                     onPressed: () => _openSocial(
-                                        SocialType.Discord, widget.contact.discordUsername!),
-                                    icon: SocialIcon.discordIconButton!.socialIcon,
+                                        SocialType.Discord,
+                                        widget.contact.discordUsername!),
+                                    icon: SocialIcon
+                                        .discordIconButton!.socialIcon,
                                   ),
                                 IconButton(
                                   iconSize: 22,
@@ -772,7 +856,9 @@ class _ImageTileState extends State<ImageTile> {
                                   icon: const Icon(Icons.note_alt_outlined),
                                   onPressed: () async {
                                     await showNoteDialog(
-                                        context, widget.contact.identifier, widget.contact,
+                                        context,
+                                        widget.contact.identifier,
+                                        widget.contact,
                                         existingNotes: widget.contact.notes);
                                   },
                                 ),
@@ -792,7 +878,8 @@ class _ImageTileState extends State<ImageTile> {
                                   constraints: const BoxConstraints.tightFor(
                                       width: 36, height: 36),
                                   icon: const Icon(Icons.more_vert),
-                                  onPressed: () => _showPopupMenu(context, widget.imagePath),
+                                  onPressed: () =>
+                                      _showPopupMenu(context, widget.imagePath),
                                 ),
                               ],
                             ),
