@@ -1126,7 +1126,7 @@ class _ImageTileState extends State<ImageTile> {
     if (!res) return;
 
     setState(() {
-      widget.contact.state = 'Stings';
+      widget.contact.state = 'Strings';
 
       final now = DateFormat.yMd().add_jm().format(DateTime.now());
       String note = 'Unfriended from ${social.name} on $now';
