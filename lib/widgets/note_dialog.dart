@@ -1,6 +1,21 @@
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class _SentenceCapitalizationFormatter extends TextInputFormatter {
+  static final _exp = RegExp(r'(^|[.!?]\s+)([a-z])');
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text.replaceAllMapped(
+      _exp,
+      (m) => '${m.group(1)}${m.group(2)!.toUpperCase()}',
+    );
+    return newValue.copyWith(text: text, selection: newValue.selection);
+  }
+}
 
 Future<String?> showNoteDialog(
     BuildContext context, String key, ContactEntry? contact,
@@ -12,14 +27,8 @@ Future<String?> showNoteDialog(
       TextEditingController(text: originalNote);
 
   bool changed = false;
-  bool closing = false;
   noteController.addListener(() {
     changed = noteController.text != originalNote;
-  });
-  _noteFocus.addListener(() {
-    if (!_noteFocus.hasFocus && !closing) {
-      Future.microtask(() => _noteFocus.requestFocus());
-    }
   });
 
   Future<bool> _confirm(BuildContext context,
@@ -79,6 +88,9 @@ Future<String?> showNoteDialog(
                       keyboardType: TextInputType.multiline,
                       textInputAction: TextInputAction.newline,
                       textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: [
+                        _SentenceCapitalizationFormatter(),
+                      ],
                       onFieldSubmitted: (_) => _noteFocus.requestFocus(),
                       style: TextStyle(
                         fontSize: 14,
@@ -114,7 +126,6 @@ Future<String?> showNoteDialog(
                         await _confirm(context, message: 'Discard changes?');
                     if (!discard) return;
                   }
-                  closing = true;
                   Navigator.of(context).pop(); // Dismiss the dialog
                 },
               child: Text('Cancel'),
@@ -136,7 +147,6 @@ Future<String?> showNoteDialog(
 
                     // Call the onSave function and pass back the note
                     _onSave(key, note, contact);
-                    closing = true;
                     Navigator.of(context).pop(note);
                   }
                 },
