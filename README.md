@@ -26,6 +26,7 @@ The app can't confirm whether a friend request was ever accepted. When removing 
 - [x] Save original image used in GalleryCell object inside the object so that it can be used when `redoing` and the image doesn't get reloaded/re-adjusted
 - [ ] Test closing details dialog opened from popup menu (blocked by failing widget tests)
 - [ ] Update minimum Flutter version supported by the app to include the patch that prevents focus loss when toggling Android voice input
+- [ ] Fix the directory/state name typo "Strings" to be "Stings" and update any references
 
 ## Find Operation
 The legacy interface includes a **Find** command which scans a directory of images using OCR. The logic lives in `lib/utils/operations_utils.dart` and processes each file through `ocrParallel`, adding results to the gallery once text extraction is finished. The new interface does not yet trigger this operation directly.
