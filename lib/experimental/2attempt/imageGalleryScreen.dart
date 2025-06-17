@@ -223,6 +223,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         Expanded(
           child: DropdownButtonFormField<String>(
             value: selectedState,
+            isExpanded: true,
             decoration: InputDecoration(
               labelText: 'State',
               border: const OutlineInputBorder(),
@@ -261,6 +262,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         Expanded(
           child: DropdownButtonFormField<String>(
             value: selectedSortOption,
+            isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Sort by',
               border: const OutlineInputBorder(),
@@ -278,7 +280,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             },
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         _buildOrderToggle(),
       ];
 
@@ -339,6 +341,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             Expanded(
               child: DropdownButtonFormField<String>(
                 value: selectedSortOption,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Sort by',
                   border: OutlineInputBorder(),
@@ -356,6 +359,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 },
               ),
             ),
+            const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.expand_more),
               onPressed: () {
