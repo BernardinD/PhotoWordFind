@@ -54,10 +54,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   bool _controlsExpanded = true; // Tracks whether the controls are minimized
 
-  /// Context from inside the [MaterialApp] so dialogs have access to
-  /// localization and navigation.
+  /// Key for the root [Navigator] so dialogs can use a context that
+  /// has navigation and localization available.
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  BuildContext? _appContext;
 
   @override
   void initState() {
@@ -125,7 +124,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return MaterialApp(
       navigatorKey: _navigatorKey,
       builder: (ctx, child) {
-        _appContext = ctx;
         return ResponsiveBreakpoints.builder(
           child: child!,
           breakpoints: const [
@@ -489,7 +487,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         states.firstWhere((s) => s != 'All', orElse: () => '');
     final controller = TextEditingController(text: dropdownValue);
 
-    final dialogCtx = _appContext ?? context;
+    final dialogCtx = _navigatorKey.currentContext ?? context;
     return showDialog<String>(
       context: dialogCtx,
       builder: (context) {
