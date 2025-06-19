@@ -54,6 +54,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   bool _controlsExpanded = true; // Tracks whether the controls are minimized
 
+  /// Context from inside the [MaterialApp] so dialogs have access to
+  /// localization and navigation.
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  BuildContext? _appContext;
+
   @override
   void initState() {
     super.initState();
@@ -118,13 +123,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      builder: (context, child) {
+      navigatorKey: _navigatorKey,
+      builder: (ctx, child) {
+        _appContext = ctx;
         return ResponsiveBreakpoints.builder(
           child: child!,
-          breakpoints: [
-            const Breakpoint(start: 0, end: 600, name: MOBILE),
-            const Breakpoint(start: 601, end: 1200, name: TABLET),
-            const Breakpoint(start: 1201, end: double.infinity, name: DESKTOP),
+          breakpoints: const [
+            Breakpoint(start: 0, end: 600, name: MOBILE),
+            Breakpoint(start: 601, end: 1200, name: TABLET),
+            Breakpoint(start: 1201, end: double.infinity, name: DESKTOP),
           ],
         );
       },
@@ -482,8 +489,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         states.firstWhere((s) => s != 'All', orElse: () => '');
     final controller = TextEditingController(text: dropdownValue);
 
+    final dialogCtx = _appContext ?? context;
     return showDialog<String>(
-      context: context,
+      context: dialogCtx,
       builder: (context) {
         return AlertDialog(
           title: const Text('Move to state'),
