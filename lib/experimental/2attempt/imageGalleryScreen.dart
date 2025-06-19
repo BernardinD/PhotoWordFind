@@ -482,11 +482,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _pageController.jumpToPage(0);
   }
 
-  Future<String?> _selectState() async {
-    String? selected = states.firstWhere(
-      (s) => s != 'All',
-      orElse: () => '',
-    );
+  Future<String?> _selectState(String currentState) async {
+    String? selected = currentState.isNotEmpty
+        ? currentState
+        : states.firstWhere(
+            (s) => s != 'All',
+            orElse: () => '',
+          );
     final controller = TextEditingController(text: selected);
 
     final dialogCtx = _navigatorKey.currentContext ?? context;
@@ -501,6 +503,20 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (currentState.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            const Text('Current:'),
+                            const SizedBox(width: 4),
+                            Chip(
+                              label: Text(currentState),
+                              backgroundColor: Colors.grey.shade300,
+                            ),
+                          ],
+                        ),
+                      ),
                     if (states.where((s) => s != 'All').isNotEmpty)
                       Wrap(
                         spacing: 6,
@@ -563,7 +579,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     if (targets.isEmpty) return;
 
-    final newState = await _selectState();
+    String currentState = '';
+    if (targets.isNotEmpty) {
+      final firstState = targets.first.state ?? '';
+      if (targets.every((e) => e.state == firstState)) {
+        currentState = firstState;
+      }
+    }
+
+    final newState = await _selectState(currentState);
     if (newState == null || newState.isEmpty) return;
 
     setState(() {
