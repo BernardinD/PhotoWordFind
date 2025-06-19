@@ -483,50 +483,65 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Future<String?> _selectState() async {
-    String dropdownValue =
-        states.firstWhere((s) => s != 'All', orElse: () => '');
-    final controller = TextEditingController(text: dropdownValue);
+    String? selected = states.firstWhere(
+      (s) => s != 'All',
+      orElse: () => '',
+    );
+    final controller = TextEditingController(text: selected);
 
     final dialogCtx = _navigatorKey.currentContext ?? context;
     return showDialog<String>(
       context: dialogCtx,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Move to state'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: dropdownValue.isEmpty ? null : dropdownValue,
-                items: states
-                    .where((s) => s != 'All')
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    dropdownValue = val;
-                    controller.text = val;
-                  }
-                },
-                decoration: const InputDecoration(labelText: 'Existing states'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Move to state'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (states.where((s) => s != 'All').isNotEmpty)
+                      Wrap(
+                        spacing: 6,
+                        children: states
+                            .where((s) => s != 'All')
+                            .map(
+                              (s) => ChoiceChip(
+                                label: Text(s),
+                                selected: selected == s,
+                                onSelected: (_) {
+                                  setState(() {
+                                    selected = s;
+                                    controller.text = s;
+                                  });
+                                },
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controller,
+                      decoration:
+                          const InputDecoration(labelText: 'State'),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(labelText: 'State'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('OK'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(context, controller.text.trim()),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
