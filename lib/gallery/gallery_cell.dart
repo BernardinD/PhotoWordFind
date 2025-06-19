@@ -58,7 +58,10 @@ class _GalleryCellState extends State<GalleryCell> {
   GlobalKey? cropBoxKey = new GlobalKey();
   late final Key? cellKey = ValueKey(fileName);
   late final String fileName = widget.f.path.split("/").last;
+  late final PhotoViewController _controller;
+  late final PhotoViewScaleStateController _scaleStateController;
   late final PhotoView _photo;
+  TapDownDetails? _doubleTapDetails;
   late String? _notes;
   final SplayTreeMap<SocialType?, Text?> _dates =
       SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
@@ -69,12 +72,18 @@ class _GalleryCellState extends State<GalleryCell> {
     // TODO: implement initState
     super.initState();
 
+    _controller = PhotoViewController();
+    _scaleStateController = PhotoViewScaleStateController();
+
     _photo = PhotoView(
+      controller: _controller,
+      scaleStateController: _scaleStateController,
       imageProvider: FileImage(widget.srcImage),
-      initialScale: PhotoViewComputedScale.covered,
+      initialScale: PhotoViewComputedScale.covered * 0.75,
       minScale: PhotoViewComputedScale.contained * 0.4,
       maxScale: PhotoViewComputedScale.covered * 1.5,
       basePosition: Alignment.topCenter,
+      scaleStateCycle: (state) => state,
     );
 
     if (widget.contact?.dateAddedOnSnap != null) {
@@ -142,8 +151,14 @@ class _GalleryCellState extends State<GalleryCell> {
                 Expanded(
                   flex: 11,
                   child: ClipRect(
-                    child: Container(
-                      child: _photo,
+                    child: GestureDetector(
+                      onDoubleTapDown: (details) {
+                        _doubleTapDetails = details;
+                      },
+                      onDoubleTap: _handleDoubleTap,
+                      child: Container(
+                        child: _photo,
+                      ),
                     ),
                   ),
                 ),
@@ -401,6 +416,22 @@ class _GalleryCellState extends State<GalleryCell> {
         ),
       ]),
     );
+  }
+
+  void _handleDoubleTap() {
+    if (_doubleTapDetails == null) return;
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final Offset localPos = box.globalToLocal(_doubleTapDetails!.globalPosition);
+
+    final double currentScale = _controller.scale ?? 1.0;
+    final double newScale = currentScale * 2;
+
+    final Size size = box.size;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final Offset delta = (center - localPos) * (newScale / currentScale);
+
+    _controller.scale = newScale;
+    _controller.position += delta;
   }
 
   void showRedoWindow() {
