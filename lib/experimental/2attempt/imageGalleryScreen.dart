@@ -224,7 +224,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       final children = <Widget>[
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: selectedState,
+            value: states.contains(selectedState) ? selectedState : null,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: 'State',
@@ -342,7 +342,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: selectedSortOption,
+                value: sortOptions.contains(selectedSortOption)
+                    ? selectedSortOption
+                    : null,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Sort by',
@@ -409,6 +411,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final sorted = tags.toList()..sort();
     setState(() {
       states = ['All', ...sorted];
+      if (!states.contains(selectedState)) {
+        selectedState = 'All';
+      }
     });
   }
 
@@ -539,8 +544,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     const SizedBox(height: 8),
                     TextField(
                       controller: controller,
-                      decoration:
-                          const InputDecoration(labelText: 'State'),
+                      decoration: const InputDecoration(labelText: 'State'),
                     ),
                   ],
                 ),
