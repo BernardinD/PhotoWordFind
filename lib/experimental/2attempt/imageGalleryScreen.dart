@@ -588,6 +588,21 @@ class ImageTile extends StatefulWidget {
 
 class _ImageTileState extends State<ImageTile> {
 
+  late final PhotoViewController _controller;
+  late final PhotoViewScaleStateController _scaleStateController;
+  TapDownDetails? _doubleTapDetails;
+
+  static const double _zoomFactor = 2.0;
+  static const double _minScale = 0.75;
+  static const double _maxScale = 3.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PhotoViewController();
+    _scaleStateController = PhotoViewScaleStateController();
+  }
+
   String get _truncatedText {
     const maxChars = 120;
     if (widget.extractedText.length <= maxChars) return widget.extractedText;
@@ -628,12 +643,25 @@ class _ImageTileState extends State<ImageTile> {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: PhotoView(
-                    imageProvider: FileImage(File(widget.imagePath)),
-                    backgroundDecoration:
-                        const BoxDecoration(color: Colors.white),
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: PhotoViewComputedScale.covered * 2.5,
+                  child: GestureDetector(
+                    onDoubleTapDown: (details) => _doubleTapDetails = details,
+                    onDoubleTap: _handleDoubleTap,
+                    child: PhotoView(
+                      controller: _controller,
+                      scaleStateController: _scaleStateController,
+                      imageProvider: FileImage(File(widget.imagePath)),
+                      backgroundDecoration:
+                          const BoxDecoration(color: Colors.white),
+                      initialScale:
+                          PhotoViewComputedScale.contained * _minScale,
+                      minScale:
+                          PhotoViewComputedScale.contained * _minScale,
+                      maxScale:
+                          PhotoViewComputedScale.covered * _maxScale,
+                      basePosition: Alignment.topCenter,
+                      scaleStateCycle: (state) => state,
+                      enablePanAlways: true,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -1006,6 +1034,24 @@ class _ImageTileState extends State<ImageTile> {
       }
       setState(() {});
     }
+  }
+
+  void _handleDoubleTap() {
+    if (_doubleTapDetails == null) return;
+
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final Size size = box.size;
+    final Offset tap = _doubleTapDetails!.localPosition;
+
+    final Offset delta = size.center(Offset.zero) - tap;
+
+    final double currentScale = _controller.scale ?? _minScale;
+    final Offset currentOffset = _controller.position;
+
+    _controller.updateMultiple(
+      scale: (currentScale * _zoomFactor).clamp(_minScale, _maxScale),
+      position: currentOffset + delta * _zoomFactor,
+    );
   }
 
   void _openSocial(SocialType social, String username) async {

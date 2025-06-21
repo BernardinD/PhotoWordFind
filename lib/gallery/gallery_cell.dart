@@ -58,14 +58,7 @@ class _GalleryCellState extends State<GalleryCell> {
   GlobalKey? cropBoxKey = new GlobalKey();
   late final Key? cellKey = ValueKey(fileName);
   late final String fileName = widget.f.path.split("/").last;
-  late final PhotoViewController _controller;
-  late final PhotoViewScaleStateController _scaleStateController;
   late final PhotoView _photo;
-  TapDownDetails? _doubleTapDetails;
-
-  static const double _zoomFactor = 2.0;
-  static const double _minScale = 0.75;
-  static const double _maxScale = 3.0;
   late String? _notes;
   final SplayTreeMap<SocialType?, Text?> _dates =
       SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
@@ -76,19 +69,12 @@ class _GalleryCellState extends State<GalleryCell> {
     // TODO: implement initState
     super.initState();
 
-    _controller = PhotoViewController();
-    _scaleStateController = PhotoViewScaleStateController();
-
     _photo = PhotoView(
-      controller: _controller,
-      scaleStateController: _scaleStateController,
       imageProvider: FileImage(widget.srcImage),
-      initialScale: PhotoViewComputedScale.contained * _minScale,
-      minScale: PhotoViewComputedScale.contained * _minScale,
-      maxScale: PhotoViewComputedScale.covered * _maxScale,
+      initialScale: PhotoViewComputedScale.covered,
+      minScale: PhotoViewComputedScale.contained * 0.4,
+      maxScale: PhotoViewComputedScale.covered * 1.5,
       basePosition: Alignment.topCenter,
-      scaleStateCycle: (state) => state,
-      enablePanAlways: true,
     );
 
     if (widget.contact?.dateAddedOnSnap != null) {
@@ -156,14 +142,8 @@ class _GalleryCellState extends State<GalleryCell> {
                 Expanded(
                   flex: 11,
                   child: ClipRect(
-                    child: GestureDetector(
-                      onDoubleTapDown: (details) {
-                        _doubleTapDetails = details;
-                      },
-                      onDoubleTap: _handleDoubleTap,
-                      child: Container(
-                        child: _photo,
-                      ),
+                    child: Container(
+                      child: _photo,
                     ),
                   ),
                 ),
@@ -420,24 +400,6 @@ class _GalleryCellState extends State<GalleryCell> {
           ),
         ),
       ]),
-    );
-  }
-
-  void _handleDoubleTap() {
-    if (_doubleTapDetails == null) return;
-
-    final RenderBox box = context.findRenderObject() as RenderBox;
-    final Size size = box.size;
-    final Offset tap = _doubleTapDetails!.localPosition;
-
-    final Offset delta = size.center(Offset.zero) - tap;
-
-    final double currentScale = _controller.scale ?? _minScale;
-    final Offset currentOffset = _controller.position;
-
-    _controller.updateMultiple(
-      scale: (currentScale * _zoomFactor).clamp(_minScale, _maxScale),
-      position: currentOffset + delta * _zoomFactor,
     );
   }
 
