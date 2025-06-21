@@ -420,18 +420,20 @@ class _GalleryCellState extends State<GalleryCell> {
 
   void _handleDoubleTap() {
     if (_doubleTapDetails == null) return;
+
     final RenderBox box = context.findRenderObject() as RenderBox;
-    final Offset localPos = box.globalToLocal(_doubleTapDetails!.globalPosition);
+    final Offset tapPos = _doubleTapDetails!.localPosition;
 
     final double currentScale = _controller.scale ?? 1.0;
     final double newScale = currentScale * 2;
 
-    final Size size = box.size;
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final Offset delta = (center - localPos) * (newScale / currentScale);
+    final Offset center = box.size.center(Offset.zero);
+    final Offset offsetDelta = (center - tapPos) * (newScale / currentScale);
 
-    _controller.scale = newScale;
-    _controller.position += delta;
+    _controller.updateMultiple(
+      scale: newScale,
+      position: _controller.position + offsetDelta,
+    );
   }
 
   void showRedoWindow() {
