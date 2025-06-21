@@ -587,13 +587,11 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> {
-
   late final PhotoViewController _controller;
   late final PhotoViewScaleStateController _scaleStateController;
-  TapDownDetails? _doubleTapDetails;
 
   static const double _zoomFactor = 2.0;
-  static const double _minScale = 0.75;
+  static const double _minScale = 0.5;
   static const double _maxScale = 3.0;
 
   @override
@@ -644,20 +642,16 @@ class _ImageTileState extends State<ImageTile> {
               children: [
                 Positioned.fill(
                   child: GestureDetector(
-                    onDoubleTapDown: (details) => _doubleTapDetails = details,
-                    onDoubleTap: _handleDoubleTap,
+                    onDoubleTapDown: _handleDoubleTap,
                     child: PhotoView(
                       controller: _controller,
                       scaleStateController: _scaleStateController,
                       imageProvider: FileImage(File(widget.imagePath)),
                       backgroundDecoration:
                           const BoxDecoration(color: Colors.white),
-                      initialScale:
-                          PhotoViewComputedScale.contained * _minScale,
-                      minScale:
-                          PhotoViewComputedScale.contained * _minScale,
-                      maxScale:
-                          PhotoViewComputedScale.covered * _maxScale,
+                      initialScale: PhotoViewComputedScale.covered * _minScale,
+                      minScale: PhotoViewComputedScale.covered * _minScale,
+                      maxScale: PhotoViewComputedScale.covered * _maxScale,
                       basePosition: Alignment.topCenter,
                       scaleStateCycle: (state) => state,
                       enablePanAlways: true,
@@ -699,7 +693,9 @@ class _ImageTileState extends State<ImageTile> {
                           widget.isSelected
                               ? Icons.check_circle
                               : Icons.radio_button_unchecked,
-                          color: widget.isSelected ? Colors.blueAccent : Colors.grey,
+                          color: widget.isSelected
+                              ? Colors.blueAccent
+                              : Colors.grey,
                           size: 28,
                         ),
                       ),
@@ -737,8 +733,8 @@ class _ImageTileState extends State<ImageTile> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
-                            onPressed: () => _openSocial(
-                                SocialType.Snapchat, widget.contact.snapUsername!),
+                            onPressed: () => _openSocial(SocialType.Snapchat,
+                                widget.contact.snapUsername!),
                             icon: SocialIcon.snapchatIconButton!.socialIcon,
                           ),
                         if (widget.contact.instaUsername?.isNotEmpty ?? false)
@@ -748,8 +744,8 @@ class _ImageTileState extends State<ImageTile> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
-                            onPressed: () => _openSocial(
-                                SocialType.Instagram, widget.contact.instaUsername!),
+                            onPressed: () => _openSocial(SocialType.Instagram,
+                                widget.contact.instaUsername!),
                             icon: SocialIcon.instagramIconButton!.socialIcon,
                           ),
                         if (widget.contact.discordUsername?.isNotEmpty ?? false)
@@ -759,8 +755,8 @@ class _ImageTileState extends State<ImageTile> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
-                            onPressed: () => _openSocial(
-                                SocialType.Discord, widget.contact.discordUsername!),
+                            onPressed: () => _openSocial(SocialType.Discord,
+                                widget.contact.discordUsername!),
                             icon: SocialIcon.discordIconButton!.socialIcon,
                           ),
                         IconButton(
@@ -771,8 +767,8 @@ class _ImageTileState extends State<ImageTile> {
                               width: 36, height: 36),
                           icon: const Icon(Icons.note_alt_outlined),
                           onPressed: () async {
-                            await showNoteDialog(
-                                context, widget.contact.identifier, widget.contact,
+                            await showNoteDialog(context,
+                                widget.contact.identifier, widget.contact,
                                 existingNotes: widget.contact.notes);
                           },
                         ),
@@ -792,7 +788,8 @@ class _ImageTileState extends State<ImageTile> {
                           constraints: const BoxConstraints.tightFor(
                               width: 36, height: 36),
                           icon: const Icon(Icons.more_vert),
-                          onPressed: () => _showPopupMenu(context, widget.imagePath),
+                          onPressed: () =>
+                              _showPopupMenu(context, widget.imagePath),
                         ),
                       ],
                     ),
@@ -827,7 +824,8 @@ class _ImageTileState extends State<ImageTile> {
                 title: Text('Open on Snap'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Snapchat, widget.contact.snapUsername!);
+                  _openSocial(
+                      SocialType.Snapchat, widget.contact.snapUsername!);
                 },
               ),
             if (widget.contact.instaUsername?.isNotEmpty ?? false)
@@ -836,7 +834,8 @@ class _ImageTileState extends State<ImageTile> {
                 title: Text('Open on Insta'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Instagram, widget.contact.instaUsername!);
+                  _openSocial(
+                      SocialType.Instagram, widget.contact.instaUsername!);
                 },
               ),
             if (widget.contact.discordUsername?.isNotEmpty ?? false)
@@ -845,7 +844,8 @@ class _ImageTileState extends State<ImageTile> {
                 title: Text('Open on Discord'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Discord, widget.contact.discordUsername!);
+                  _openSocial(
+                      SocialType.Discord, widget.contact.discordUsername!);
                 },
               ),
             if (widget.contact.addedOnSnap)
@@ -883,7 +883,8 @@ class _ImageTileState extends State<ImageTile> {
               title: Text('Edit Notes'),
               onTap: () async {
                 Navigator.pop(sheetContext);
-                await showNoteDialog(context, widget.contact.identifier, widget.contact,
+                await showNoteDialog(
+                    context, widget.contact.identifier, widget.contact,
                     existingNotes: widget.contact.notes);
               },
             ),
@@ -920,7 +921,9 @@ class _ImageTileState extends State<ImageTile> {
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Text(
-                widget.extractedText.isNotEmpty ? widget.extractedText : 'No text found',
+                widget.extractedText.isNotEmpty
+                    ? widget.extractedText
+                    : 'No text found',
               ),
             ),
             TextButton(
@@ -933,7 +936,8 @@ class _ImageTileState extends State<ImageTile> {
     );
   }
 
-  Future<bool> _confirm(BuildContext context, {String message = 'Are you sure?'}) async {
+  Future<bool> _confirm(BuildContext context,
+      {String message = 'Are you sure?'}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => ConfirmationDialog(message: message),
@@ -995,7 +999,8 @@ class _ImageTileState extends State<ImageTile> {
               TextButton(
                 onPressed: () async {
                   if (changed) {
-                    final discard = await _confirm(context, message: 'Discard changes?');
+                    final discard =
+                        await _confirm(context, message: 'Discard changes?');
                     if (!discard) return;
                   }
                   Navigator.pop(context);
@@ -1005,7 +1010,8 @@ class _ImageTileState extends State<ImageTile> {
               TextButton(
                 onPressed: () async {
                   if (changed) {
-                    final confirmSave = await _confirm(context, message: 'Save changes?');
+                    final confirmSave =
+                        await _confirm(context, message: 'Save changes?');
                     if (!confirmSave) return;
                   }
                   Navigator.pop(context, [
@@ -1024,24 +1030,25 @@ class _ImageTileState extends State<ImageTile> {
 
     if (result != null) {
       if (result[0] != widget.contact.snapUsername) {
-        await SocialType.Snapchat.saveUsername(widget.contact, result[0], overriding: true);
+        await SocialType.Snapchat.saveUsername(widget.contact, result[0],
+            overriding: true);
       }
       if (result[1] != widget.contact.instaUsername) {
-        await SocialType.Instagram.saveUsername(widget.contact, result[1], overriding: true);
+        await SocialType.Instagram.saveUsername(widget.contact, result[1],
+            overriding: true);
       }
       if (result[2] != widget.contact.discordUsername) {
-        await SocialType.Discord.saveUsername(widget.contact, result[2], overriding: true);
+        await SocialType.Discord.saveUsername(widget.contact, result[2],
+            overriding: true);
       }
       setState(() {});
     }
   }
 
-  void _handleDoubleTap() {
-    if (_doubleTapDetails == null) return;
-
+  void _handleDoubleTap(TapDownDetails details) {
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Size size = box.size;
-    final Offset tap = _doubleTapDetails!.localPosition;
+    final Offset tap = details.localPosition;
 
     final Offset delta = size.center(Offset.zero) - tap;
 
