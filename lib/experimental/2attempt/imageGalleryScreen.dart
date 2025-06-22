@@ -591,6 +591,7 @@ class _ImageTileState extends State<ImageTile>
   late final PhotoViewController _controller;
   late final PhotoViewScaleStateController _scaleStateController;
   late final AnimationController _animationController;
+  final GlobalKey _photoKey = GlobalKey();
 
   static const double _zoomFactor = 2.0;
   static const double _minScale = 0.75;
@@ -654,6 +655,7 @@ class _ImageTileState extends State<ImageTile>
               children: [
                 Positioned.fill(
                   child: GestureDetector(
+                    key: _photoKey,
                     onDoubleTapDown: _handleDoubleTap,
                     child: PhotoView(
                       controller: _controller,
@@ -1058,10 +1060,11 @@ class _ImageTileState extends State<ImageTile>
   }
 
   void _handleDoubleTap(TapDownDetails details) {
-    final RenderBox box = context.findRenderObject() as RenderBox;
-    final Offset tap = details.localPosition;
-    final Offset center = box.size.center(Offset.zero);
-    final Offset delta = center - tap;
+    final RenderBox box =
+        _photoKey.currentContext?.findRenderObject() as RenderBox;
+    final Offset tap = box.globalToLocal(details.globalPosition);
+    final Size size = box.size;
+    final Offset delta = size.center(Offset.zero) - tap;
 
     final double startScale = _controller.scale ?? _minScale;
     final Offset startOffset = _controller.position ?? Offset.zero;
