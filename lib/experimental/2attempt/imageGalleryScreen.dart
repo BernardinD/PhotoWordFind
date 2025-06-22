@@ -58,18 +58,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   }
 
   Future<void> _loadImagesFromPreferences() async {
-    // Read the image path map from the JSON file (simulating a separate storage location)
-    List<ContactEntry> loadedImages = [];
-
-    // Fetch each contact directly from Hive using the keys list to avoid
-    // reading the entire box twice.
-    for (final identifier in StorageUtils.getKeys()) {
-      final contactEntry = await StorageUtils.get(identifier);
-      if (contactEntry != null) {
-        loadedImages.add(contactEntry);
-      }
-    }
-    allImages = loadedImages;
+    // Load all contacts in a single operation to reduce UI stalls
+    allImages = await StorageUtils.getAllEntries();
     _updateStates(allImages);
     await _restoreLastSelectedState();
     await _applyFiltersAndSort();
