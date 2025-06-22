@@ -593,7 +593,7 @@ class _ImageTileState extends State<ImageTile>
   late final AnimationController _animationController;
 
   static const double _zoomFactor = 2.0;
-  static const double _minScale = 0.5;
+  static const double _minScale = 0.75;
   static const double _maxScale = 3.0;
 
   @override
@@ -1059,27 +1059,25 @@ class _ImageTileState extends State<ImageTile>
 
   void _handleDoubleTap(TapDownDetails details) {
     final RenderBox box = context.findRenderObject() as RenderBox;
-    final Size size = box.size;
-    final Offset center = size.center(Offset.zero);
     final Offset tap = details.localPosition;
+    final Offset center = box.size.center(Offset.zero);
+    final Offset delta = center - tap;
 
     final double startScale = _controller.scale ?? _minScale;
-    final Offset startOffset = _controller.position;
+    final Offset startOffset = _controller.position ?? Offset.zero;
 
-    double endScale;
-    Offset endOffset;
     if (startScale >= _maxScale) {
-      endScale = _minScale;
-      endOffset = Offset.zero;
-    } else {
-      endScale = (startScale * _zoomFactor).clamp(_minScale, _maxScale);
-      final double factor = endScale / startScale;
-      endOffset = center - (tap - startOffset) * factor;
+      _controller.updateMultiple(scale: _minScale, position: Offset.zero);
+      return;
     }
 
-    final Tween<double> scaleTween = Tween(begin: startScale, end: endScale);
-    final Tween<Offset> positionTween =
-        Tween(begin: startOffset, end: endOffset);
+    final double endScale =
+        (startScale * _zoomFactor).clamp(_minScale, _maxScale);
+    final Offset endOffset =
+        startOffset + delta * (endScale / startScale);
+
+    final scaleTween = Tween(begin: startScale, end: endScale);
+    final positionTween = Tween(begin: startOffset, end: endOffset);
 
     void listener() {
       _controller.updateMultiple(
