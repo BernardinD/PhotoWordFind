@@ -1068,7 +1068,6 @@ class _ImageTileState extends State<ImageTile>
     final Offset tap = details.localPosition;
     final Size size = box.size;
     final Offset center = size.center(Offset.zero);
-    final Offset pivot = Alignment.topCenter.alongSize(size);
 
     final double startScale = _controller.scale ?? _minScale;
     final Offset startOffset = _controller.position ?? Offset.zero;
@@ -1085,10 +1084,9 @@ class _ImageTileState extends State<ImageTile>
     } else {
       endScale = (startScale * _zoomFactor).clamp(_minScale, _maxScale);
     }
-    final double ratio = endScale / startScale;
 
-    final Offset endOffset =
-        center - tap * ratio + startOffset * ratio + pivot * (ratio - 1);
+    final double factor = endScale / startScale;
+    final Offset endOffset = startOffset + (center - tap) * factor;
 
     final scaleTween = Tween(begin: startScale, end: endScale);
     final positionTween = Tween(begin: startOffset, end: endOffset);
