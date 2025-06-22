@@ -5,6 +5,9 @@ import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/search_service.dart';
+import 'package:PhotoWordFind/services/chat_gpt_service.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
@@ -45,6 +48,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   int currentIndex = 0;
   static const String _lastStateKey = 'last_selected_state';
+  static const String _importDirKey = 'import_directory';
+  String? _importDirPath;
 
   // State variable to track the selected sort order
   bool isAscending = true; // Default sorting order
@@ -66,6 +71,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     } else {
       _loadImagesFromPreferences();
     }
+    _loadImportDirectory();
   }
 
   Future<void> _loadImagesFromPreferences() async {
@@ -174,7 +180,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 },
                 child: Icon(Icons.move_to_inbox),
               )
-            : null,
+            : FloatingActionButton(
+                onPressed: _importImages,
+                tooltip: 'Import Images',
+                child: Icon(Icons.add),
+              ),
         persistentFooterButtons: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -192,7 +202,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   FloatingActionButton(
                     heroTag: null,
                     tooltip: 'Change current directory',
-                    onPressed: null, //changeDir,
+                    onPressed: _changeImportDir,
                     child: Icon(Icons.drive_folder_upload),
                   ),
                   Spacer(),
@@ -430,6 +440,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     await prefs.setString(_lastStateKey, value);
   }
 
+  Future<void> _loadImportDirectory() async {
+    final prefs = await SharedPreferences.getInstance();
+    _importDirPath = prefs.getString(_importDirKey) ?? '/storage/emulated/0/DCIM';
+  }
+
+  Future<void> _saveImportDirectory(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_importDirKey, path);
+  }
+
+  Future<void> _changeImportDir() async {
+    final dir = await FilePicker.platform.getDirectoryPath();
+    if (dir != null) {
+      setState(() {
+        _importDirPath = dir;
+      });
+      await _saveImportDirectory(dir);
+    }
+  }
+
   Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
         (await SearchService.searchEntriesWithOcr(allImages, searchQuery))
@@ -603,6 +633,75 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     _updateStates(allImages);
     await _applyFiltersAndSort();
+  }
+
+  Future<void> _importImages() async {
+    if (_importDirPath == null) {
+      await _changeImportDir();
+      if (_importDirPath == null) return;
+    }
+    final assets = await AssetPicker.pickAssets(
+      context,
+      pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
+      // Ideally restrict to [_importDirPath] if supported
+    );
+    if (assets == null || assets.isEmpty) return;
+
+    final baseDir = _importDirPath ?? '/storage/emulated/0/DCIM';
+    final destDir = Directory(path.join(baseDir, 'Comb'));
+    await destDir.create(recursive: true);
+
+    List<ContactEntry> newEntries = [];
+
+    for (final asset in assets) {
+      try {
+        final origin = await asset.originFile;
+        if (origin == null) continue;
+
+        final filename = path.basename(origin.path);
+        final destPath = path.join(destDir.path, filename);
+
+        try {
+          await origin.rename(destPath);
+        } catch (_) {
+          // Fall back to copy/delete if rename fails due to SAF restrictions
+          await origin.copy(destPath);
+          try {
+            await origin.delete();
+          } catch (_) {}
+        }
+
+        final id = path.basenameWithoutExtension(filename);
+        final entry = ContactEntry(
+          identifier: id,
+          imagePath: destPath,
+          dateFound: File(destPath).lastModifiedSync(),
+          json: {SubKeys.State: 'Comb'},
+        );
+
+        final result =
+            await ChatGPTService.processImage(imageFile: File(destPath));
+        if (result != null) {
+          entry.mergeFromJson(result, false);
+        }
+
+        await StorageUtils.save(entry, backup: false);
+        StorageUtils.filePaths[id] = destPath;
+        newEntries.add(entry);
+      } catch (e) {
+        debugPrint('Failed to import ${asset.id}: $e');
+      }
+    }
+
+    await StorageUtils.writeJson(StorageUtils.filePaths);
+
+    if (newEntries.isNotEmpty) {
+      setState(() {
+        allImages.addAll(newEntries);
+      });
+      _updateStates(allImages);
+      await _applyFiltersAndSort();
+    }
   }
 }
 
