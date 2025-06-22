@@ -593,8 +593,9 @@ class _ImageTileState extends State<ImageTile>
   late final AnimationController _animationController;
   final GlobalKey _photoKey = GlobalKey();
 
-  static const double _zoomFactor = 2.0;
+  static const double _zoomFactor = 1.5;
   static const double _minScale = 0.75;
+  static const double _coverScale = 1.0;
   static const double _maxScale = 3.0;
 
   @override
@@ -1072,13 +1073,18 @@ class _ImageTileState extends State<ImageTile>
     final double startScale = _controller.scale ?? _minScale;
     final Offset startOffset = _controller.position ?? Offset.zero;
 
-    if (startScale >= _maxScale) {
+    if ((startScale - _maxScale).abs() < 0.01 || startScale > _maxScale) {
       _controller.updateMultiple(scale: _minScale, position: Offset.zero);
+      _scaleStateController.scaleState = PhotoViewScaleState.initial;
       return;
     }
 
-    final double endScale =
-        (startScale * _zoomFactor).clamp(_minScale, _maxScale);
+    double endScale;
+    if (startScale < _coverScale) {
+      endScale = _coverScale;
+    } else {
+      endScale = (startScale * _zoomFactor).clamp(_minScale, _maxScale);
+    }
     final double ratio = endScale / startScale;
 
     final Offset endOffset =
