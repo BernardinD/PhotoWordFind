@@ -8,6 +8,7 @@ import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
@@ -453,6 +454,34 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     }
   }
 
+  Future<AssetPathEntity?> _getImportAlbum() async {
+    if (_importDirPath == null) return null;
+    final paths = await PhotoManager.getAssetPathList(
+      type: RequestType.image,
+      hasAll: true,
+    );
+    for (final p in paths) {
+      final String? rel = p.relativePath;
+      if (rel != null && _importDirPath!.endsWith(rel)) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  /// Delegate to limit the picker to a specific album
+  class _ImportDelegate extends AssetPickerDelegate {
+    _ImportDelegate(this.album);
+    final AssetPathEntity album;
+
+    @override
+    Future<List<AssetPathEntity>> loadPathEntities({
+      required List<AssetPathEntity> preloaded,
+    }) async {
+      return [album];
+    }
+  }
+
   Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
         (await SearchService.searchEntriesWithOcr(allImages, searchQuery))
@@ -515,11 +544,20 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       await _changeImportDir();
       if (_importDirPath == null) return;
     }
-    final assets = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
-      // Ideally restrict to [_importDirPath] if supported
-    );
+    List<AssetEntity>? assets;
+    final album = await _getImportAlbum();
+    if (album != null) {
+      assets = await AssetPicker.pickAssetsWithDelegate(
+        context,
+        pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
+        delegate: _ImportDelegate(album),
+      );
+    } else {
+      assets = await AssetPicker.pickAssets(
+        context,
+        pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
+      );
+    }
     if (assets == null || assets.isEmpty) return;
 
     final baseDir = _importDirPath ?? '/storage/emulated/0/DCIM';
@@ -535,6 +573,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
         final filename = path.basename(origin.path);
         final destPath = path.join(destDir.path, filename);
+
+        if (File(destPath).existsSync()) {
+          debugPrint('File already exists at \$destPath, skipping');
+          continue;
+        }
 
         try {
           await origin.rename(destPath);
