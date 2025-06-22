@@ -586,9 +586,11 @@ class ImageTile extends StatefulWidget {
   _ImageTileState createState() => _ImageTileState();
 }
 
-class _ImageTileState extends State<ImageTile> {
+class _ImageTileState extends State<ImageTile>
+    with SingleTickerProviderStateMixin {
   late final PhotoViewController _controller;
   late final PhotoViewScaleStateController _scaleStateController;
+  late final AnimationController _animationController;
 
   static const double _zoomFactor = 2.0;
   static const double _minScale = 0.5;
@@ -599,6 +601,16 @@ class _ImageTileState extends State<ImageTile> {
     super.initState();
     _controller = PhotoViewController();
     _scaleStateController = PhotoViewScaleStateController();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   String get _truncatedText {
@@ -1048,17 +1060,47 @@ class _ImageTileState extends State<ImageTile> {
   void _handleDoubleTap(TapDownDetails details) {
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Size size = box.size;
+    final Offset center = size.center(Offset.zero);
     final Offset tap = details.localPosition;
 
-    final Offset delta = size.center(Offset.zero) - tap;
+    final double startScale = _controller.scale ?? _minScale;
+    final Offset startOffset = _controller.position;
 
-    final double currentScale = _controller.scale ?? _minScale;
-    final Offset currentOffset = _controller.position;
+    double endScale;
+    Offset endOffset;
+    if (startScale >= _maxScale) {
+      endScale = _minScale;
+      endOffset = Offset.zero;
+    } else {
+      endScale = (startScale * _zoomFactor).clamp(_minScale, _maxScale);
+      final double factor = endScale / startScale;
+      endOffset = center - (tap - startOffset) * factor;
+    }
 
-    _controller.updateMultiple(
-      scale: (currentScale * _zoomFactor).clamp(_minScale, _maxScale),
-      position: currentOffset + delta * _zoomFactor,
-    );
+    final Tween<double> scaleTween = Tween(begin: startScale, end: endScale);
+    final Tween<Offset> positionTween =
+        Tween(begin: startOffset, end: endOffset);
+
+    void listener() {
+      _controller.updateMultiple(
+        scale: scaleTween.evaluate(_animationController),
+        position: positionTween.evaluate(_animationController),
+      );
+    }
+
+    void statusListener(AnimationStatus status) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        _animationController.removeListener(listener);
+        _animationController.removeStatusListener(statusListener);
+      }
+    }
+
+    _animationController
+      ..reset()
+      ..addListener(listener)
+      ..addStatusListener(statusListener)
+      ..forward();
   }
 
   void _openSocial(SocialType social, String username) async {
