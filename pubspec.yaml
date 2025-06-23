@@ -46,7 +46,7 @@ dependencies:
 
   # Photo gallery functionality
   photo_view: ^0.14.0
-  extended_image: ^8.1.0
+  extended_image: ^10.0.1
 
   # For little faded notification on screen
   fluttertoast: ^8.0.8
