@@ -665,10 +665,11 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                       imageProvider: FileImage(File(widget.imagePath)),
                       backgroundDecoration:
                           const BoxDecoration(color: Colors.white),
-                      initialScale:
-                          PhotoViewComputedScale.covered * _minScale,
-                      minScale: PhotoViewComputedScale.covered * _minScale,
-                      maxScale: PhotoViewComputedScale.covered * _maxScale,
+                      scaleBoundaries: ScaleBoundaries(
+                        PhotoViewComputedScale.covered * _minScale,
+                        PhotoViewComputedScale.covered * _maxScale,
+                        PhotoViewComputedScale.covered * _minScale,
+                      ),
                       basePosition: Alignment.topCenter,
                       enablePanAlways: true,
                       scaleStateCycle: (s) => s,
@@ -710,7 +711,9 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                           widget.isSelected
                               ? Icons.check_circle
                               : Icons.radio_button_unchecked,
-                          color: widget.isSelected ? Colors.blueAccent : Colors.grey,
+                          color: widget.isSelected
+                              ? Colors.blueAccent
+                              : Colors.grey,
                           size: 28,
                         ),
                       ),
@@ -748,8 +751,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
-                            onPressed: () => _openSocial(
-                                SocialType.Snapchat, widget.contact.snapUsername!),
+                            onPressed: () => _openSocial(SocialType.Snapchat,
+                                widget.contact.snapUsername!),
                             icon: SocialIcon.snapchatIconButton!.socialIcon,
                           ),
                         if (widget.contact.instaUsername?.isNotEmpty ?? false)
@@ -759,8 +762,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
-                            onPressed: () => _openSocial(
-                                SocialType.Instagram, widget.contact.instaUsername!),
+                            onPressed: () => _openSocial(SocialType.Instagram,
+                                widget.contact.instaUsername!),
                             icon: SocialIcon.instagramIconButton!.socialIcon,
                           ),
                         if (widget.contact.discordUsername?.isNotEmpty ?? false)
@@ -770,8 +773,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
                                 width: 36, height: 36),
-                            onPressed: () => _openSocial(
-                                SocialType.Discord, widget.contact.discordUsername!),
+                            onPressed: () => _openSocial(SocialType.Discord,
+                                widget.contact.discordUsername!),
                             icon: SocialIcon.discordIconButton!.socialIcon,
                           ),
                         IconButton(
@@ -782,8 +785,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                               width: 36, height: 36),
                           icon: const Icon(Icons.note_alt_outlined),
                           onPressed: () async {
-                            await showNoteDialog(
-                                context, widget.contact.identifier, widget.contact,
+                            await showNoteDialog(context,
+                                widget.contact.identifier, widget.contact,
                                 existingNotes: widget.contact.notes);
                           },
                         ),
@@ -803,7 +806,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                           constraints: const BoxConstraints.tightFor(
                               width: 36, height: 36),
                           icon: const Icon(Icons.more_vert),
-                          onPressed: () => _showPopupMenu(context, widget.imagePath),
+                          onPressed: () =>
+                              _showPopupMenu(context, widget.imagePath),
                         ),
                       ],
                     ),
@@ -838,7 +842,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                 title: Text('Open on Snap'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Snapchat, widget.contact.snapUsername!);
+                  _openSocial(
+                      SocialType.Snapchat, widget.contact.snapUsername!);
                 },
               ),
             if (widget.contact.instaUsername?.isNotEmpty ?? false)
@@ -847,7 +852,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                 title: Text('Open on Insta'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Instagram, widget.contact.instaUsername!);
+                  _openSocial(
+                      SocialType.Instagram, widget.contact.instaUsername!);
                 },
               ),
             if (widget.contact.discordUsername?.isNotEmpty ?? false)
@@ -856,7 +862,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                 title: Text('Open on Discord'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _openSocial(SocialType.Discord, widget.contact.discordUsername!);
+                  _openSocial(
+                      SocialType.Discord, widget.contact.discordUsername!);
                 },
               ),
             if (widget.contact.addedOnSnap)
@@ -894,7 +901,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
               title: Text('Edit Notes'),
               onTap: () async {
                 Navigator.pop(sheetContext);
-                await showNoteDialog(context, widget.contact.identifier, widget.contact,
+                await showNoteDialog(
+                    context, widget.contact.identifier, widget.contact,
                     existingNotes: widget.contact.notes);
               },
             ),
@@ -931,7 +939,9 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Text(
-                widget.extractedText.isNotEmpty ? widget.extractedText : 'No text found',
+                widget.extractedText.isNotEmpty
+                    ? widget.extractedText
+                    : 'No text found',
               ),
             ),
             TextButton(
@@ -944,7 +954,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
     );
   }
 
-  Future<bool> _confirm(BuildContext context, {String message = 'Are you sure?'}) async {
+  Future<bool> _confirm(BuildContext context,
+      {String message = 'Are you sure?'}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => ConfirmationDialog(message: message),
@@ -1006,7 +1017,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
               TextButton(
                 onPressed: () async {
                   if (changed) {
-                    final discard = await _confirm(context, message: 'Discard changes?');
+                    final discard =
+                        await _confirm(context, message: 'Discard changes?');
                     if (!discard) return;
                   }
                   Navigator.pop(context);
@@ -1016,7 +1028,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
               TextButton(
                 onPressed: () async {
                   if (changed) {
-                    final confirmSave = await _confirm(context, message: 'Save changes?');
+                    final confirmSave =
+                        await _confirm(context, message: 'Save changes?');
                     if (!confirmSave) return;
                   }
                   Navigator.pop(context, [
@@ -1035,74 +1048,45 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
 
     if (result != null) {
       if (result[0] != widget.contact.snapUsername) {
-        await SocialType.Snapchat.saveUsername(widget.contact, result[0], overriding: true);
+        await SocialType.Snapchat.saveUsername(widget.contact, result[0],
+            overriding: true);
       }
       if (result[1] != widget.contact.instaUsername) {
-        await SocialType.Instagram.saveUsername(widget.contact, result[1], overriding: true);
+        await SocialType.Instagram.saveUsername(widget.contact, result[1],
+            overriding: true);
       }
       if (result[2] != widget.contact.discordUsername) {
-        await SocialType.Discord.saveUsername(widget.contact, result[2], overriding: true);
+        await SocialType.Discord.saveUsername(widget.contact, result[2],
+            overriding: true);
       }
       setState(() {});
     }
   }
 
-  void _handleDoubleTap(TapDownDetails details) {
+  void _handleDoubleTap(TapDownDetails d) {
     final RenderBox? box =
         _photoKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
 
-    final Offset tap = details.localPosition;
-    final Size size = box.size;
-    final Offset center = size.center(Offset.zero);
-    final Offset pivot = Alignment.topCenter.alongSize(size);
+    final size = box.size;
+    final tap = d.localPosition;
+    final now = _controller.scale ?? _minScale;
 
-    final double startScale = _controller.scale ?? _minScale;
-    final Offset startOffset = _controller.position ?? Offset.zero;
+    final fillW = _controller.value?.scaleBoundaries.coveredScale ?? now;
 
-    if ((startScale - _maxScale).abs() < 0.01 || startScale > _maxScale) {
-      _controller.updateMultiple(scale: _minScale, position: Offset.zero);
-      _scaleStateController.scaleState = PhotoViewScaleState.initial;
-      return;
-    }
+    final double next = (now < fillW * .95)
+        ? fillW
+        : (now < _maxScale / 2)
+            ? (now * _zoomFactor)
+            : _minScale;
 
-    final double fillWidthScale = startScale / _minScale;
+    final centre = size.center(Offset.zero);
+    final delta = (centre - tap) * (next / now);
 
-    double endScale;
-    if (startScale < fillWidthScale) {
-      endScale = fillWidthScale;
-    } else {
-      endScale = (startScale * _zoomFactor).clamp(_minScale, _maxScale);
-    }
-
-    final double ratio = endScale / startScale;
-
-    final Offset endOffset =
-        center - tap * ratio + startOffset * ratio + pivot * (ratio - 1);
-
-    final scaleTween = Tween(begin: startScale, end: endScale);
-    final positionTween = Tween(begin: startOffset, end: endOffset);
-
-    void listener() {
-      _controller.updateMultiple(
-        scale: scaleTween.evaluate(_animationController),
-        position: positionTween.evaluate(_animationController),
-      );
-    }
-
-    void statusListener(AnimationStatus status) {
-      if (status == AnimationStatus.completed ||
-          status == AnimationStatus.dismissed) {
-        _animationController.removeListener(listener);
-        _animationController.removeStatusListener(statusListener);
-      }
-    }
-
-    _animationController
-      ..reset()
-      ..addListener(listener)
-      ..addStatusListener(statusListener)
-      ..forward();
+    _controller.updateMultiple(
+      scale: next.clamp(_minScale, _maxScale),
+      position: (_controller.position ?? Offset.zero) + delta,
+    );
   }
 
   void _openSocial(SocialType social, String username) async {
