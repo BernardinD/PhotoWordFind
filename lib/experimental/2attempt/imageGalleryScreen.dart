@@ -589,8 +589,11 @@ class ImageTile extends StatefulWidget {
 class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
   late final PhotoViewController _controller;
   late final PhotoViewScaleStateController _scaleStateController;
+  late final AnimationController _animationController;
 
-  static const double _extraZoomFactor = 2.0;
+  final GlobalKey _photoKey = GlobalKey();
+
+  static const double _zoomFactor = 2.0;
   static const double _minScale = 0.75;
   static const double _maxScale = 3.0;
 
@@ -599,6 +602,10 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
     super.initState();
     _controller = PhotoViewController();
     _scaleStateController = PhotoViewScaleStateController();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
   }
 
   String get _truncatedText {
@@ -612,6 +619,14 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
       return DateFormat.yMd().format(widget.contact.dateFound);
     }
     return widget.identifier;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scaleStateController.dispose();
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -642,7 +657,8 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
               children: [
                 Positioned.fill(
                   child: GestureDetector(
-                    onDoubleTapDown: (d) => _handleDoubleTap(context, d),
+                    key: _photoKey,
+                    onDoubleTapDown: _handleDoubleTap,
                     child: PhotoView(
                       controller: _controller,
                       scaleStateController: _scaleStateController,
@@ -1031,28 +1047,62 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
     }
   }
 
-  void _handleDoubleTap(BuildContext ctx, TapDownDetails d) {
-    final box = ctx.findRenderObject() as RenderBox?;
+  void _handleDoubleTap(TapDownDetails details) {
+    final RenderBox? box =
+        _photoKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final size = box.size;
-    final tap = d.localPosition;
 
-    final currentScale = _controller.scale ?? _minScale;
-    final fillWidthScale = currentScale / _minScale;
+    final Offset tap = details.localPosition;
+    final Size size = box.size;
+    final Offset center = size.center(Offset.zero);
+    final Offset pivot = Alignment.topCenter.alongSize(size);
 
-    final double nextScale = (currentScale < fillWidthScale * .95)
-        ? fillWidthScale
-        : (currentScale < _maxScale / 2)
-            ? currentScale * _extraZoomFactor
-            : _minScale;
+    final double startScale = _controller.scale ?? _minScale;
+    final Offset startOffset = _controller.position ?? Offset.zero;
 
-    final centre = size.center(Offset.zero);
-    final delta = (centre - tap) * (nextScale / currentScale);
+    if ((startScale - _maxScale).abs() < 0.01 || startScale > _maxScale) {
+      _controller.updateMultiple(scale: _minScale, position: Offset.zero);
+      _scaleStateController.scaleState = PhotoViewScaleState.initial;
+      return;
+    }
 
-    _controller.updateMultiple(
-      scale: nextScale.clamp(_minScale, _maxScale),
-      position: (_controller.position ?? Offset.zero) + delta,
-    );
+    final double fillWidthScale = startScale / _minScale;
+
+    double endScale;
+    if (startScale < fillWidthScale) {
+      endScale = fillWidthScale;
+    } else {
+      endScale = (startScale * _zoomFactor).clamp(_minScale, _maxScale);
+    }
+
+    final double ratio = endScale / startScale;
+
+    final Offset endOffset =
+        center - tap * ratio + startOffset * ratio + pivot * (ratio - 1);
+
+    final scaleTween = Tween(begin: startScale, end: endScale);
+    final positionTween = Tween(begin: startOffset, end: endOffset);
+
+    void listener() {
+      _controller.updateMultiple(
+        scale: scaleTween.evaluate(_animationController),
+        position: positionTween.evaluate(_animationController),
+      );
+    }
+
+    void statusListener(AnimationStatus status) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        _animationController.removeListener(listener);
+        _animationController.removeStatusListener(statusListener);
+      }
+    }
+
+    _animationController
+      ..reset()
+      ..addListener(listener)
+      ..addStatusListener(statusListener)
+      ..forward();
   }
 
   void _openSocial(SocialType social, String username) async {
