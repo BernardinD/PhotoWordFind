@@ -1068,18 +1068,12 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
 
     final pos = details.localPosition;
     final current = state.gestureDetails?.totalScale ?? _minScale;
-    final zoomToWidth =
-        state.extendedImageInfo!.image.width / state.size.width;
-    double target;
+    final minScale = state.gestureConfig?.minScale ?? _minScale;
+    final maxScale = state.gestureConfig?.maxScale ?? _maxScale;
 
-    if (current < zoomToWidth) {
-      target = zoomToWidth;
-    } else if (current < state.gestureConfig!.maxScale) {
-      target =
-          (current * 2).clamp(zoomToWidth, state.gestureConfig!.maxScale);
-    } else {
-      target = state.gestureConfig!.minScale;
-    }
+    final target = (current < (minScale + maxScale) / 2)
+        ? maxScale
+        : minScale;
 
     state.handleDoubleTap(scale: target, doubleTapPosition: pos);
   }
