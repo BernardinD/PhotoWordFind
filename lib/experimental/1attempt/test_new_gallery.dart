@@ -1,6 +1,6 @@
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:flutter/material.dart';
-import 'package:photo_view/photo_view.dart';
+import 'package:extended_image/extended_image.dart';
 
 import 'package:PhotoWordFind/main.dart';
 
@@ -32,11 +32,17 @@ class ImageListScreen extends StatelessWidget {
           Container(
             width: 200, // Set the width for each image card
             height: 200, // Set height for the image display
-            child: PhotoView(
-              imageProvider:
-                  AssetImage(imagewidget.srcImage.path),
-              minScale: PhotoViewComputedScale.contained * 0.8,
-              maxScale: PhotoViewComputedScale.covered * 2,
+            child: ExtendedImage(
+              image: AssetImage(imagewidget.srcImage.path),
+              mode: ExtendedImageMode.gesture,
+              initGestureConfigHandler: (state) {
+                return GestureConfig(
+                  minScale: 0.8,
+                  maxScale: 2,
+                  initialScale: 0.8,
+                  inPageView: false,
+                );
+              },
             ),
           ),
           SizedBox(height: 10), // Space between image and text
