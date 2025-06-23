@@ -587,8 +587,6 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
-  final GlobalKey<ExtendedImageGestureState> _imageKey =
-      GlobalKey<ExtendedImageGestureState>();
   late final AnimationController _animationController;
 
   static const double _minScale = 1.0;
@@ -649,23 +647,20 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: GestureDetector(
-                    onDoubleTapDown: _handleDoubleTap,
-                    child: ExtendedImage(
-                      key: _imageKey,
-                      image: FileImage(File(widget.imagePath)),
-                      mode: ExtendedImageMode.gesture,
-                      initGestureConfigHandler: (state) {
-                        return GestureConfig(
-                          minScale: _minScale,
-                          maxScale: _maxScale,
-                          initialScale: _minScale,
-                          inPageView: false,
-                          initialAlignment: Alignment.topCenter,
-                        );
-                      },
-                      handleLoadingProgress: true,
-                    ),
+                  child: ExtendedImage(
+                    image: FileImage(File(widget.imagePath)),
+                    mode: ExtendedImageMode.gesture,
+                    initGestureConfigHandler: (state) {
+                      return GestureConfig(
+                        minScale: _minScale,
+                        maxScale: _maxScale,
+                        initialScale: _minScale,
+                        inPageView: false,
+                        initialAlignment: Alignment.topCenter,
+                      );
+                    },
+                    onDoubleTap: _onImageDoubleTap,
+                    handleLoadingProgress: true,
                   ),
                 ),
                 Positioned(
@@ -1062,18 +1057,13 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
     }
   }
 
-  void _handleDoubleTap(TapDownDetails details) {
-    final state = _imageKey.currentState;
-    if (state == null) return;
-
-    final pos = details.localPosition;
+  void _onImageDoubleTap(ExtendedImageGestureState state) {
+    final pos = state.pointerDownPosition ?? Offset.zero;
     final current = state.gestureDetails?.totalScale ?? _minScale;
     final minScale = state.gestureConfig?.minScale ?? _minScale;
     final maxScale = state.gestureConfig?.maxScale ?? _maxScale;
 
-    final target = (current < (minScale + maxScale) / 2)
-        ? maxScale
-        : minScale;
+    final target = (current < (minScale + maxScale) / 2) ? maxScale : minScale;
 
     state.handleDoubleTap(scale: target, doubleTapPosition: pos);
   }

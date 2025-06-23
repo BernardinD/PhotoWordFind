@@ -5,7 +5,6 @@ import 'package:extended_image/extended_image.dart';
 import 'package:PhotoWordFind/main.dart';
 
 class ImageListScreen extends StatelessWidget {
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,7 +78,8 @@ class ImageListScreen extends StatelessWidget {
   void _showPopupMenu(BuildContext context, int index) {
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(100, 100, 0, 0), // Customize position as needed
+      position:
+          RelativeRect.fromLTRB(100, 100, 0, 0), // Customize position as needed
       items: ["test1", "test2"].map((String option) {
         return PopupMenuItem<String>(
           value: option,
