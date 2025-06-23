@@ -593,6 +593,9 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
 
   final GlobalKey _photoKey = GlobalKey();
 
+  double? _initialScaleValue;
+  double? _coverScale;
+
   static const double _zoomFactor = 2.0;
   static const double _minScale = 0.75;
   static const double _maxScale = 3.0;
@@ -606,6 +609,13 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initialScaleValue = _controller.scale;
+      if (_initialScaleValue != null) {
+        _coverScale = _initialScaleValue! / _minScale;
+      }
+    });
   }
 
   String get _truncatedText {
@@ -665,11 +675,12 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                       imageProvider: FileImage(File(widget.imagePath)),
                       backgroundDecoration:
                           const BoxDecoration(color: Colors.white),
-                      scaleBoundaries: ScaleBoundaries(
-                        PhotoViewComputedScale.covered * _minScale,
-                        PhotoViewComputedScale.covered * _maxScale,
-                        PhotoViewComputedScale.covered * _minScale,
-                      ),
+                      initialScale:
+                          PhotoViewComputedScale.covered * _minScale,
+                      minScale:
+                          PhotoViewComputedScale.covered * _minScale,
+                      maxScale:
+                          PhotoViewComputedScale.covered * _maxScale,
                       basePosition: Alignment.topCenter,
                       enablePanAlways: true,
                       scaleStateCycle: (s) => s,
@@ -1072,19 +1083,21 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
     final tap = d.localPosition;
     final now = _controller.scale ?? _minScale;
 
-    final fillW = _controller.value?.scaleBoundaries.coveredScale ?? now;
+    final fillW = _coverScale ?? now;
+    final minVal = _initialScaleValue ?? _minScale;
+    final maxVal = (_coverScale ?? 1.0) * _maxScale;
 
     final double next = (now < fillW * .95)
         ? fillW
-        : (now < _maxScale / 2)
+        : (now < maxVal / 2)
             ? (now * _zoomFactor)
-            : _minScale;
+            : (_initialScaleValue ?? _minScale);
 
     final centre = size.center(Offset.zero);
     final delta = (centre - tap) * (next / now);
 
     _controller.updateMultiple(
-      scale: next.clamp(_minScale, _maxScale),
+      scale: next.clamp(minVal, maxVal),
       position: (_controller.position ?? Offset.zero) + delta,
     );
   }
