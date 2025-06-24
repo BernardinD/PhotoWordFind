@@ -649,6 +649,7 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: ExtendedImage(
                     image: FileImage(File(widget.imagePath)),
+                    fit: BoxFit.cover,
                     mode: ExtendedImageMode.gesture,
                     initGestureConfigHandler: (state) {
                       return GestureConfig(
@@ -918,6 +919,7 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
               constraints: BoxConstraints(maxHeight: 300),
               child: ExtendedImage(
                 image: FileImage(File(widget.imagePath)),
+                fit: BoxFit.cover,
                 mode: ExtendedImageMode.gesture,
                 initGestureConfigHandler: (state) {
                   return GestureConfig(

@@ -33,6 +33,7 @@ class ImageListScreen extends StatelessWidget {
             height: 200, // Set height for the image display
             child: ExtendedImage(
               image: AssetImage(imagewidget.srcImage.path),
+              fit: BoxFit.cover,
               mode: ExtendedImageMode.gesture,
               initGestureConfigHandler: (state) {
                 return GestureConfig(
