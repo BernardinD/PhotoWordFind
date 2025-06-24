@@ -656,7 +656,7 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                         maxScale: _maxScale,
                         initialScale: _minScale,
                         inPageView: false,
-                        initialAlignment: Alignment.topCenter,
+                        initialAlignment: InitialAlignment.topCenter,
                       );
                     },
                     onDoubleTap: _onImageDoubleTap,
@@ -925,7 +925,7 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
                     maxScale: _maxScale * 2.5 / 3.0,
                     initialScale: _minScale,
                     inPageView: false,
-                    initialAlignment: Alignment.topCenter,
+                    initialAlignment: InitialAlignment.topCenter,
                   );
                 },
               ),
@@ -1059,11 +1059,22 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
 
   void _onImageDoubleTap(ExtendedImageGestureState state) {
     final pos = state.pointerDownPosition ?? Offset.zero;
-    final current = state.gestureDetails?.totalScale ?? _minScale;
     final minScale = state.gestureConfig?.minScale ?? _minScale;
     final maxScale = state.gestureConfig?.maxScale ?? _maxScale;
+    final current = state.gestureDetails?.totalScale ?? minScale;
 
-    final target = (current < (minScale + maxScale) / 2) ? maxScale : minScale;
+    final widthScale = state.extendedImageInfo != null
+        ? state.extendedImageInfo!.image.width / state.size.width
+        : maxScale;
+
+    double target;
+    if (current < widthScale) {
+      target = widthScale;
+    } else if (current < maxScale) {
+      target = (current * 2).clamp(widthScale, maxScale);
+    } else {
+      target = minScale;
+    }
 
     state.handleDoubleTap(scale: target, doubleTapPosition: pos);
   }
