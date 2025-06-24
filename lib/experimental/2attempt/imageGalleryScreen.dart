@@ -7,7 +7,7 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
-import 'package:photo_view/photo_view.dart';
+import 'package:extended_image/extended_image.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -587,35 +587,18 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
-  late final PhotoViewController _controller;
-  late final PhotoViewScaleStateController _scaleStateController;
   late final AnimationController _animationController;
 
-  final GlobalKey _photoKey = GlobalKey();
-
-  double? _initialScaleValue;
-  double? _coverScale;
-
-  static const double _zoomFactor = 2.0;
-  static const double _minScale = 0.75;
+  static const double _minScale = 1.0;
   static const double _maxScale = 3.0;
 
   @override
   void initState() {
     super.initState();
-    _controller = PhotoViewController();
-    _scaleStateController = PhotoViewScaleStateController();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initialScaleValue = _controller.scale;
-      if (_initialScaleValue != null) {
-        _coverScale = _initialScaleValue! / _minScale;
-      }
-    });
   }
 
   String get _truncatedText {
@@ -633,8 +616,6 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _controller.dispose();
-    _scaleStateController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -666,25 +647,21 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: GestureDetector(
-                    key: _photoKey,
-                    onDoubleTapDown: _handleDoubleTap,
-                    child: PhotoView(
-                      controller: _controller,
-                      scaleStateController: _scaleStateController,
-                      imageProvider: FileImage(File(widget.imagePath)),
-                      backgroundDecoration:
-                          const BoxDecoration(color: Colors.white),
-                      initialScale:
-                          PhotoViewComputedScale.covered * _minScale,
-                      minScale:
-                          PhotoViewComputedScale.covered * _minScale,
-                      maxScale:
-                          PhotoViewComputedScale.covered * _maxScale,
-                      basePosition: Alignment.topCenter,
-                      enablePanAlways: true,
-                      scaleStateCycle: (s) => s,
-                    ),
+                  child: ExtendedImage(
+                    image: FileImage(File(widget.imagePath)),
+                    fit: BoxFit.cover,
+                    mode: ExtendedImageMode.gesture,
+                    initGestureConfigHandler: (state) {
+                      return GestureConfig(
+                        minScale: _minScale,
+                        maxScale: _maxScale,
+                        initialScale: _minScale,
+                        inPageView: false,
+                        initialAlignment: InitialAlignment.topCenter,
+                      );
+                    },
+                    onDoubleTap: _onImageDoubleTap,
+                    handleLoadingProgress: true,
                   ),
                 ),
                 Positioned(
@@ -940,11 +917,19 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
           children: [
             Container(
               constraints: BoxConstraints(maxHeight: 300),
-              child: PhotoView(
-                imageProvider: FileImage(File(widget.imagePath)),
-                backgroundDecoration: BoxDecoration(color: Colors.white),
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: PhotoViewComputedScale.covered * 2.5,
+              child: ExtendedImage(
+                image: FileImage(File(widget.imagePath)),
+                fit: BoxFit.cover,
+                mode: ExtendedImageMode.gesture,
+                initGestureConfigHandler: (state) {
+                  return GestureConfig(
+                    minScale: _minScale,
+                    maxScale: _maxScale * 2.5 / 3.0,
+                    initialScale: _minScale,
+                    inPageView: false,
+                    initialAlignment: InitialAlignment.topCenter,
+                  );
+                },
               ),
             ),
             Padding(
@@ -1074,32 +1059,26 @@ class _ImageTileState extends State<ImageTile> with TickerProviderStateMixin {
     }
   }
 
-  void _handleDoubleTap(TapDownDetails d) {
-    final RenderBox? box =
-        _photoKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
+  void _onImageDoubleTap(ExtendedImageGestureState state) {
+    final pos = state.pointerDownPosition ?? Offset.zero;
+    final minScale = state.gestureConfig?.minScale ?? _minScale;
+    final maxScale = state.gestureConfig?.maxScale ?? _maxScale;
+    final current = state.gestureDetails?.totalScale ?? minScale;
 
-    final size = box.size;
-    final tap = d.localPosition;
-    final now = _controller.scale ?? _minScale;
+    final widthScale = state.extendedImageInfo != null
+        ? state.extendedImageInfo!.image.width / state.size.width
+        : maxScale;
 
-    final fillW = _coverScale ?? now;
-    final minVal = _initialScaleValue ?? _minScale;
-    final maxVal = (_coverScale ?? 1.0) * _maxScale;
+    double target;
+    if (current < widthScale) {
+      target = widthScale;
+    } else if (current < maxScale) {
+      target = (current * 2).clamp(widthScale, maxScale);
+    } else {
+      target = minScale;
+    }
 
-    final double next = (now < fillW * .95)
-        ? fillW
-        : (now < maxVal / 2)
-            ? (now * _zoomFactor)
-            : (_initialScaleValue ?? _minScale);
-
-    final centre = size.center(Offset.zero);
-    final delta = (centre - tap) * (next / now);
-
-    _controller.updateMultiple(
-      scale: next.clamp(minVal, maxVal),
-      position: (_controller.position ?? Offset.zero) + delta,
-    );
+    state.handleDoubleTap(scale: target, doubleTapPosition: pos);
   }
 
   void _openSocial(SocialType social, String username) async {
