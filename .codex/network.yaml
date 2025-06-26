@@ -1,0 +1,5 @@
+allow:
+  # pub.dev metadata + package tarballs
+  - GET https://pub.dev/**
+  # Flutter tool downloads and some package mirrors
+  - GET https://storage.googleapis.com/**
