@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
@@ -8,7 +7,6 @@ import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
@@ -467,27 +465,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       type: RequestType.image,
       hasAll: true,
     );
+    final dirName = path.basename(_importDirPath!);
     for (final p in paths) {
-      final String? rel = p.relativePath;
-      if (rel != null && _importDirPath!.endsWith(rel)) {
+      if (p.name == dirName) {
         return p;
       }
     }
     return null;
   }
 
-  /// Delegate to limit the picker to a specific album
-  class _ImportDelegate extends AssetPickerDelegate {
-    _ImportDelegate(this.album);
-    final AssetPathEntity album;
-
-    @override
-    Future<List<AssetPathEntity>> loadPathEntities({
-      required List<AssetPathEntity> preloaded,
-    }) async {
-      return [album];
-    }
-  }
 
   Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
@@ -672,11 +658,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     List<AssetEntity>? assets;
     final album = await _getImportAlbum();
     if (album != null) {
-      assets = await AssetPicker.pickAssetsWithDelegate(
-        context,
-        pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
-        delegate: _ImportDelegate(album),
-      );
+      final ps = await PhotoManager.requestPermissionExtend();
+      if (ps == PermissionState.authorized || ps == PermissionState.limited) {
+        assets = await AssetPicker.pickAssetsWithDelegate<AssetEntity,
+            AssetPathEntity, _ImportProvider>(
+          context,
+          delegate: _ImportDelegate(album, ps),
+        );
+      } else {
+        return;
+      }
     } else {
       assets = await AssetPicker.pickAssets(
         context,
@@ -746,6 +737,33 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       await _applyFiltersAndSort();
     }
   }
+}
+
+/// Provider that limits the picker to a specific album
+class _ImportProvider extends DefaultAssetPickerProvider {
+  _ImportProvider(this.album);
+  final AssetPathEntity album;
+
+  @override
+  Future<void> getPaths() async {
+    paths = [PathWrapper<AssetPathEntity>(path: album)];
+    currentPath = paths.first;
+    await getThumbnailFromPath(currentPath!);
+    totalAssetsCount = await album.assetCountAsync;
+    hasAssetsToDisplay = totalAssetsCount != 0;
+    isAssetsEmpty = totalAssetsCount == 0;
+  }
+}
+
+/// Delegate to limit the picker to a specific album
+class _ImportDelegate extends DefaultAssetPickerBuilderDelegate {
+  _ImportDelegate(this.album, PermissionState permission)
+      : super(
+          provider: _ImportProvider(album),
+          initialPermission: permission,
+        );
+
+  final AssetPathEntity album;
 }
 
 // Updated ImageGallery Widget
