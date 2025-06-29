@@ -561,7 +561,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     } else {
       assets = await AssetPicker.pickAssets(
         pickerContext,
-        pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
+        pickerConfig: const AssetPickerConfig(
+          requestType: RequestType.image,
+          textDelegate: EnglishAssetPickerTextDelegate(),
+        ),
       );
     }
     if (assets == null || assets.isEmpty) {
@@ -658,6 +661,7 @@ class _ImportDelegate extends DefaultAssetPickerBuilderDelegate {
       : super(
           provider: provider,
           initialPermission: permission,
+          textDelegate: const EnglishAssetPickerTextDelegate(),
         );
 
   final _ImportProvider provider;
