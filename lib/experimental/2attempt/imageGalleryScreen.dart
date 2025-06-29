@@ -179,7 +179,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 child: Icon(Icons.move_to_inbox),
               )
             : FloatingActionButton(
-                onPressed: _importImages,
+                onPressed: () => _importImages(context),
                 tooltip: 'Import Images',
                 child: Icon(Icons.add),
               ),
@@ -526,10 +526,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _pageController.jumpToPage(0);
   }
 
-  Future<void> _importImages() async {
+  Future<void> _importImages(BuildContext pickerContext) async {
     if (_importDirPath == null) {
       await _changeImportDir();
-      if (_importDirPath == null) return;
+      if (_importDirPath == null) {
+        ScaffoldMessenger.of(pickerContext).showSnackBar(
+          const SnackBar(content: Text('No directory selected')),
+        );
+        return;
+      }
     }
     List<AssetEntity>? assets;
     final album = await _getImportAlbum();
@@ -540,19 +545,27 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         await provider.getPaths();
         assets = await AssetPicker.pickAssetsWithDelegate<AssetEntity,
             AssetPathEntity, _ImportProvider>(
-          context,
+          pickerContext,
           delegate: _ImportDelegate(provider, ps),
         );
       } else {
+        ScaffoldMessenger.of(pickerContext).showSnackBar(
+          const SnackBar(content: Text('Permission not granted')),
+        );
         return;
       }
     } else {
       assets = await AssetPicker.pickAssets(
-        context,
+        pickerContext,
         pickerConfig: const AssetPickerConfig(requestType: RequestType.image),
       );
     }
-    if (assets == null || assets.isEmpty) return;
+    if (assets == null || assets.isEmpty) {
+      ScaffoldMessenger.of(pickerContext).showSnackBar(
+        const SnackBar(content: Text('No images selected')),
+      );
+      return;
+    }
 
     final baseDir = _importDirPath ?? '/storage/emulated/0/DCIM';
     final destDir = Directory(path.join(baseDir, 'Comb'));
