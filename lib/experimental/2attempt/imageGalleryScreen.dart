@@ -502,6 +502,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return null;
   }
 
+  /// Build a filter that restricts the picker to [_importDirPath].
+  PMFilter? _buildImportFilter() {
+    final dir = _importDirPath;
+    if (dir == null) return null;
+    if (Platform.isAndroid) {
+      const prefix = '/storage/emulated/0/';
+      var relative =
+          dir.startsWith(prefix) ? dir.substring(prefix.length) : dir;
+      if (!relative.endsWith('/')) relative += '/';
+      relative = relative.replaceAll("'", "''");
+      return CustomFilter.sql(
+        where: "${CustomColumns.android.relativePath} LIKE '$relative%'",
+      );
+    }
+    return null;
+  }
+
   Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
         (await SearchService.searchEntriesWithOcr(allImages, searchQuery))
@@ -687,33 +704,25 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         return;
       }
     }
-    List<AssetEntity>? assets;
-    final album = await _getImportAlbum();
-    if (album != null) {
-      final ps = await PhotoManager.requestPermissionExtend();
-      if (ps == PermissionState.authorized || ps == PermissionState.limited) {
-        final provider = _ImportProvider(album);
-        await provider.getPaths();
-        assets = await AssetPicker.pickAssetsWithDelegate<AssetEntity,
-            AssetPathEntity, _ImportProvider>(
-          pickerContext,
-          delegate: _ImportDelegate(provider, ps),
-        );
-      } else {
-        ScaffoldMessenger.of(pickerContext).showSnackBar(
-          const SnackBar(content: Text('Permission not granted')),
-        );
-        return;
-      }
-    } else {
-      assets = await AssetPicker.pickAssets(
-        pickerContext,
-        pickerConfig: const AssetPickerConfig(
-          requestType: RequestType.image,
-          textDelegate: EnglishAssetPickerTextDelegate(),
-        ),
+    final filter = _buildImportFilter();
+    final ps = await PhotoManager.requestPermissionExtend();
+    if (ps != PermissionState.authorized && ps != PermissionState.limited) {
+      ScaffoldMessenger.of(pickerContext).showSnackBar(
+        const SnackBar(content: Text('Permission not granted')),
       );
+      return;
     }
+
+    final config = AssetPickerConfig(
+      requestType: RequestType.image,
+      filterOptions: filter,
+      textDelegate: const EnglishAssetPickerTextDelegate(),
+    );
+
+    final List<AssetEntity>? assets = await AssetPicker.pickAssets(
+      pickerContext,
+      pickerConfig: config,
+    );
     if (assets == null || assets.isEmpty) {
       ScaffoldMessenger.of(pickerContext).showSnackBar(
         const SnackBar(content: Text('No images selected')),
@@ -782,36 +791,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       await _applyFiltersAndSort();
     }
   }
-}
-
-/// Provider that limits the picker to a specific album
-class _ImportProvider extends DefaultAssetPickerProvider {
-  _ImportProvider(this.album) : super.forTest();
-
-  final AssetPathEntity album;
-
-  @override
-  Future<void> getPaths(
-      {bool keepPreviousCount = false, bool onlyAll = false}) async {
-    paths = [PathWrapper<AssetPathEntity>(path: album)];
-    currentPath = paths.first;
-    await getThumbnailFromPath(currentPath!);
-    totalAssetsCount = await album.assetCountAsync;
-    hasAssetsToDisplay = totalAssetsCount != 0;
-    isAssetsEmpty = totalAssetsCount == 0;
-  }
-}
-
-/// Delegate to limit the picker to a specific album
-class _ImportDelegate extends DefaultAssetPickerBuilderDelegate {
-  _ImportDelegate(this.provider, PermissionState permission)
-      : super(
-          provider: provider,
-          initialPermission: permission,
-          textDelegate: const EnglishAssetPickerTextDelegate(),
-        );
-
-  final _ImportProvider provider;
 }
 
 // Updated ImageGallery Widget
