@@ -474,17 +474,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   /// Build a filter that restricts the picker to [_importDirPath].
-  PMFilter? _buildImportFilter() {
-    final dir = _importDirPath;
-    if (dir == null) return null;
+  Future<PMFilter?> _buildImportFilter() async {
+    if (_importDirPath == null) return null;
+    final album = await _getImportAlbum();
+    if (album == null) return null;
     if (Platform.isAndroid) {
-      const prefix = '/storage/emulated/0/';
-      var relative =
-          dir.startsWith(prefix) ? dir.substring(prefix.length) : dir;
-      if (!relative.endsWith('/')) relative += '/';
-      relative = relative.replaceAll("'", "''");
+      final id = album.id.replaceAll("'", "''");
       return CustomFilter.sql(
-        where: "${CustomColumns.android.relativePath} LIKE '$relative%'",
+        where: "${CustomColumns.android.bucketId} = '$id'",
       );
     }
     return null;
@@ -557,7 +554,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         return;
       }
     }
-    final filter = _buildImportFilter();
+    final filter = await _buildImportFilter();
     final ps = await PhotoManager.requestPermissionExtend();
     if (ps != PermissionState.authorized && ps != PermissionState.limited) {
       ScaffoldMessenger.of(pickerContext).showSnackBar(
