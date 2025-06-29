@@ -546,6 +546,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       final ps = await PhotoManager.requestPermissionExtend();
       if (ps == PermissionState.authorized || ps == PermissionState.limited) {
         final provider = _ImportProvider(album);
+        await provider.getPaths();
+        await provider.getAssetsFromCurrentPath();
         assets = await AssetPicker.pickAssetsWithDelegate<AssetEntity,
             AssetPathEntity, _ImportProvider>(
           pickerContext,
@@ -638,12 +640,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
 /// Provider that limits the picker to a specific album
 class _ImportProvider extends DefaultAssetPickerProvider {
-  _ImportProvider(this.album) : super.forTest() {
-    Future<void>.delayed(Duration.zero, () async {
-      await getPaths();
-      await getAssetsFromCurrentPath();
-    });
-  }
+  _ImportProvider(this.album) : super.forTest();
 
   final AssetPathEntity album;
 
