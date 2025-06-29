@@ -134,86 +134,90 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           ],
         );
       },
-      home: Scaffold(
-        appBar: AppBar(title: Text('Image Gallery')),
-        body: LayoutBuilder(builder: (context, constraints) {
-          double screenHeight = constraints.maxHeight;
-          return Column(
-            children: [
-              _buildControls(),
-              Expanded(
-                child: ImageGallery(
-                  images: images,
-                  selectedImages: selectedImages,
-                  sortOption: selectedSortOption,
-                  onImageSelected: (String id) {
-                    setState(() {
-                      if (selectedImages.contains(id)) {
-                        selectedImages.remove(id);
-                      } else {
-                        selectedImages.add(id);
-                      }
-                    });
-                  },
-                  onMenuOptionSelected: (String imagePath, String option) {
-                    // Handle image option
-                  },
-                  galleryHeight: screenHeight,
-                  onPageChanged: (idx) {
-                    setState(() {
-                      currentIndex = idx;
-                    });
-                  },
-                  currentIndex: currentIndex,
+      home: Builder(
+        builder: (navContext) {
+          return Scaffold(
+            appBar: AppBar(title: Text('Image Gallery')),
+            body: LayoutBuilder(builder: (context, constraints) {
+              double screenHeight = constraints.maxHeight;
+              return Column(
+                children: [
+                  _buildControls(),
+                  Expanded(
+                    child: ImageGallery(
+                      images: images,
+                      selectedImages: selectedImages,
+                      sortOption: selectedSortOption,
+                      onImageSelected: (String id) {
+                        setState(() {
+                          if (selectedImages.contains(id)) {
+                            selectedImages.remove(id);
+                          } else {
+                            selectedImages.add(id);
+                          }
+                        });
+                      },
+                      onMenuOptionSelected: (String imagePath, String option) {
+                        // Handle image option
+                      },
+                      galleryHeight: screenHeight,
+                      onPageChanged: (idx) {
+                        setState(() {
+                          currentIndex = idx;
+                        });
+                      },
+                      currentIndex: currentIndex,
+                    ),
+                  ),
+                ],
+              );
+            }),
+            floatingActionButton: selectedImages.isNotEmpty
+                ? FloatingActionButton(
+                    onPressed: () {
+                      // Trigger move operation
+                      // Optionally show confirmation dialog here
+                    },
+                    child: Icon(Icons.move_to_inbox),
+                  )
+                : FloatingActionButton(
+                    onPressed: () => _importImages(navContext),
+                    tooltip: 'Import Images',
+                    child: Icon(Icons.add),
+                  ),
+            persistentFooterButtons: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Container(
+                  width: MediaQuery.of(navContext).size.width * 1.20,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SocialIcon.snapchatIconButton!,
+                      Spacer(),
+                      SocialIcon.galleryIconButton!,
+                      Spacer(),
+                      SocialIcon.bumbleIconButton!,
+                      Spacer(),
+                      FloatingActionButton(
+                        heroTag: null,
+                        tooltip: 'Change current directory',
+                        onPressed: _changeImportDir,
+                        child: Icon(Icons.drive_folder_upload),
+                      ),
+                      Spacer(),
+                      SocialIcon.instagramIconButton!,
+                      Spacer(),
+                      SocialIcon.discordIconButton!,
+                      Spacer(),
+                      SocialIcon.kikIconButton!,
+                    ],
+                  ),
                 ),
               ),
             ],
           );
-        }),
-        floatingActionButton: selectedImages.isNotEmpty
-            ? FloatingActionButton(
-                onPressed: () {
-                  // Trigger move operation
-                  // Optionally show confirmation dialog here
-                },
-                child: Icon(Icons.move_to_inbox),
-              )
-            : FloatingActionButton(
-                onPressed: () => _importImages(context),
-                tooltip: 'Import Images',
-                child: Icon(Icons.add),
-              ),
-        persistentFooterButtons: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 1.20,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SocialIcon.snapchatIconButton!,
-                  Spacer(),
-                  SocialIcon.galleryIconButton!,
-                  Spacer(),
-                  SocialIcon.bumbleIconButton!,
-                  Spacer(),
-                  FloatingActionButton(
-                    heroTag: null,
-                    tooltip: 'Change current directory',
-                    onPressed: _changeImportDir,
-                    child: Icon(Icons.drive_folder_upload),
-                  ),
-                  Spacer(),
-                  SocialIcon.instagramIconButton!,
-                  Spacer(),
-                  SocialIcon.discordIconButton!,
-                  Spacer(),
-                  SocialIcon.kikIconButton!,
-                ],
-              ),
-            ),
-          ),
-        ],
+        },
       ),
     );
   }
