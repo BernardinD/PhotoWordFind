@@ -652,6 +652,7 @@ class _ImportProvider extends DefaultAssetPickerProvider {
     totalAssetsCount = await album.assetCountAsync;
     hasAssetsToDisplay = totalAssetsCount != 0;
     isAssetsEmpty = totalAssetsCount == 0;
+    await getAssetsFromCurrentPath();
   }
 }
 
