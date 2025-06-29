@@ -39,8 +39,8 @@ dependencies:
   #file_picker: ^2.1.7
   file_picker: ^5.2.5
   image_picker: ^0.8.4
-  wechat_assets_picker: ^8.6.0
-  photo_manager: ^2.7.0
+  wechat_assets_picker: ^9.5.1
+  photo_manager: ^3.7.1
 
   flutter_isolate: ^2.0.3
 
