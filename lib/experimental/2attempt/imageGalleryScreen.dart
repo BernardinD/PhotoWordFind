@@ -547,7 +547,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       if (ps == PermissionState.authorized || ps == PermissionState.limited) {
         final provider = _ImportProvider(album);
         await provider.getPaths();
-        await provider.getAssetsFromCurrentPath();
+        await provider.switchPath();
         assets = await AssetPicker.pickAssetsWithDelegate<AssetEntity,
             AssetPathEntity, _ImportProvider>(
           pickerContext,
