@@ -434,7 +434,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   Future<void> _loadImportDirectory() async {
     final prefs = await SharedPreferences.getInstance();
-    _importDirPath = prefs.getString(_importDirKey) ?? '/storage/emulated/0/DCIM';
+    _importDirPath =
+        prefs.getString(_importDirKey) ?? '/storage/emulated/0/DCIM';
   }
 
   Future<void> _saveImportDirectory(String path) async {
@@ -466,7 +467,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     }
     return null;
   }
-
 
   Future<void> _applyFiltersAndSort() async {
     List<ContactEntry> filtered =
@@ -535,10 +535,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (album != null) {
       final ps = await PhotoManager.requestPermissionExtend();
       if (ps == PermissionState.authorized || ps == PermissionState.limited) {
+        final provider = _ImportProvider(album);
+        await provider.getPaths();
         assets = await AssetPicker.pickAssetsWithDelegate<AssetEntity,
             AssetPathEntity, _ImportProvider>(
           context,
-          delegate: _ImportDelegate(album, ps),
+          delegate: _ImportDelegate(provider, ps),
         );
       } else {
         return;
@@ -616,11 +618,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
 /// Provider that limits the picker to a specific album
 class _ImportProvider extends DefaultAssetPickerProvider {
-  _ImportProvider(this.album);
+  _ImportProvider(this.album) : super.forTest();
+
   final AssetPathEntity album;
 
   @override
-  Future<void> getPaths() async {
+  Future<void> getPaths(
+      {bool keepPreviousCount = false, bool onlyAll = false}) async {
     paths = [PathWrapper<AssetPathEntity>(path: album)];
     currentPath = paths.first;
     await getThumbnailFromPath(currentPath!);
@@ -632,13 +636,13 @@ class _ImportProvider extends DefaultAssetPickerProvider {
 
 /// Delegate to limit the picker to a specific album
 class _ImportDelegate extends DefaultAssetPickerBuilderDelegate {
-  _ImportDelegate(this.album, PermissionState permission)
+  _ImportDelegate(this.provider, PermissionState permission)
       : super(
-          provider: _ImportProvider(album),
+          provider: provider,
           initialPermission: permission,
         );
 
-  final AssetPathEntity album;
+  final _ImportProvider provider;
 }
 
 // Updated ImageGallery Widget
@@ -765,9 +769,7 @@ class _ImageTileState extends State<ImageTile> {
         return DateFormat.yMd().format(widget.contact.dateFound);
       case 'Snap Added Date':
         final snapDate = widget.contact.dateAddedOnSnap;
-        return snapDate != null
-            ? DateFormat.yMd().format(snapDate)
-            : 'No date';
+        return snapDate != null ? DateFormat.yMd().format(snapDate) : 'No date';
       case 'Instagram Added Date':
         final instaDate = widget.contact.dateAddedOnInsta;
         return instaDate != null
@@ -890,7 +892,8 @@ class _ImageTileState extends State<ImageTile> {
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                if (widget.contact.snapUsername?.isNotEmpty ?? false)
+                                if (widget.contact.snapUsername?.isNotEmpty ??
+                                    false)
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
@@ -898,10 +901,13 @@ class _ImageTileState extends State<ImageTile> {
                                     constraints: const BoxConstraints.tightFor(
                                         width: 36, height: 36),
                                     onPressed: () => _openSocial(
-                                        SocialType.Snapchat, widget.contact.snapUsername!),
-                                    icon: SocialIcon.snapchatIconButton!.socialIcon,
+                                        SocialType.Snapchat,
+                                        widget.contact.snapUsername!),
+                                    icon: SocialIcon
+                                        .snapchatIconButton!.socialIcon,
                                   ),
-                                if (widget.contact.instaUsername?.isNotEmpty ?? false)
+                                if (widget.contact.instaUsername?.isNotEmpty ??
+                                    false)
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
@@ -909,10 +915,14 @@ class _ImageTileState extends State<ImageTile> {
                                     constraints: const BoxConstraints.tightFor(
                                         width: 36, height: 36),
                                     onPressed: () => _openSocial(
-                                        SocialType.Instagram, widget.contact.instaUsername!),
-                                    icon: SocialIcon.instagramIconButton!.socialIcon,
+                                        SocialType.Instagram,
+                                        widget.contact.instaUsername!),
+                                    icon: SocialIcon
+                                        .instagramIconButton!.socialIcon,
                                   ),
-                                if (widget.contact.discordUsername?.isNotEmpty ?? false)
+                                if (widget
+                                        .contact.discordUsername?.isNotEmpty ??
+                                    false)
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
@@ -920,8 +930,10 @@ class _ImageTileState extends State<ImageTile> {
                                     constraints: const BoxConstraints.tightFor(
                                         width: 36, height: 36),
                                     onPressed: () => _openSocial(
-                                        SocialType.Discord, widget.contact.discordUsername!),
-                                    icon: SocialIcon.discordIconButton!.socialIcon,
+                                        SocialType.Discord,
+                                        widget.contact.discordUsername!),
+                                    icon: SocialIcon
+                                        .discordIconButton!.socialIcon,
                                   ),
                                 IconButton(
                                   iconSize: 22,
@@ -932,7 +944,9 @@ class _ImageTileState extends State<ImageTile> {
                                   icon: const Icon(Icons.note_alt_outlined),
                                   onPressed: () async {
                                     await showNoteDialog(
-                                        context, widget.contact.identifier, widget.contact,
+                                        context,
+                                        widget.contact.identifier,
+                                        widget.contact,
                                         existingNotes: widget.contact.notes);
                                   },
                                 ),
@@ -952,7 +966,8 @@ class _ImageTileState extends State<ImageTile> {
                                   constraints: const BoxConstraints.tightFor(
                                       width: 36, height: 36),
                                   icon: const Icon(Icons.more_vert),
-                                  onPressed: () => _showPopupMenu(context, widget.imagePath),
+                                  onPressed: () =>
+                                      _showPopupMenu(context, widget.imagePath),
                                 ),
                               ],
                             ),
