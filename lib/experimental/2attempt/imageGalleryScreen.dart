@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
+import 'package:PhotoWordFind/experimental/2attempt/settings_screen.dart';
 import 'package:intl/intl.dart';
 
 final PageController _pageController =
@@ -137,7 +138,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       home: Builder(
         builder: (navContext) {
           return Scaffold(
-            appBar: AppBar(title: Text('Image Gallery')),
+            appBar: AppBar(
+              title: Text('Image Gallery'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () {
+                    Navigator.of(navContext).push(
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(
+                          onResetImportDir: _resetImportDir,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
             body: LayoutBuilder(builder: (context, constraints) {
               double screenHeight = constraints.maxHeight;
               return Column(
@@ -456,6 +473,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       });
       await _saveImportDirectory(dir);
     }
+  }
+
+  Future<void> _resetImportDir() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_importDirKey);
+    setState(() {
+      _importDirPath = '/storage/emulated/0/DCIM';
+    });
   }
 
   Future<AssetPathEntity?> _getImportAlbum() async {
