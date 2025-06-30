@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Future<void> Function() onResetImportDir;
+  final Future<void> Function() onChangeImportDir;
 
-  const SettingsScreen({Key? key, required this.onResetImportDir})
-      : super(key: key);
+  const SettingsScreen({
+    Key? key,
+    required this.onResetImportDir,
+    required this.onChangeImportDir,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -13,9 +17,17 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
+            leading: const Icon(Icons.folder_open),
+            title: const Text('Change Import Directory'),
+            subtitle: const Text('Select a new directory for imports'),
+            onTap: () async {
+              await onChangeImportDir();
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.restore),
             title: const Text('Reset Import Directory'),
-            subtitle: const Text('Set import directory back to default'),
+            subtitle: const Text('Clear saved import directory'),
             onTap: () async {
               await onResetImportDir();
               if (context.mounted) {
