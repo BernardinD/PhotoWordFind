@@ -148,6 +148,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       MaterialPageRoute(
                         builder: (_) => SettingsScreen(
                           onResetImportDir: _resetImportDir,
+                          onChangeImportDir: _changeImportDir,
                         ),
                       ),
                     );
@@ -456,8 +457,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   Future<void> _loadImportDirectory() async {
     final prefs = await SharedPreferences.getInstance();
-    _importDirPath =
-        prefs.getString(_importDirKey) ?? '/storage/emulated/0/DCIM';
+    _importDirPath = prefs.getString(_importDirKey);
   }
 
   Future<void> _saveImportDirectory(String path) async {
@@ -479,7 +479,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_importDirKey);
     setState(() {
-      _importDirPath = '/storage/emulated/0/DCIM';
+      _importDirPath = null;
     });
   }
 
