@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
+import 'package:PhotoWordFind/experimental/2attempt/settings_screen.dart';
 import 'package:intl/intl.dart';
 
 final PageController _pageController =
@@ -142,7 +143,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       home: Builder(
         builder: (navContext) {
           return Scaffold(
-            appBar: AppBar(title: Text('Image Gallery')),
+            appBar: AppBar(
+              title: Text('Image Gallery'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () {
+                    Navigator.of(navContext).push(
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(
+                          onResetImportDir: _resetImportDir,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
             body: LayoutBuilder(
               builder: (context, constraints) {
                 final screenHeight = constraints.maxHeight;
@@ -165,7 +182,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         },
                         onMenuOptionSelected: _onMenuOptionSelected,
                         galleryHeight: screenHeight,
-                        onPageChanged: (idx) => setState(() => currentIndex = idx),
+                        onPageChanged: (idx) =>
+                            setState(() => currentIndex = idx),
                         currentIndex: currentIndex,
                       ),
                     ),
@@ -459,6 +477,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       });
       await _saveImportDirectory(dir);
     }
+  }
+
+  Future<void> _resetImportDir() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_importDirKey);
+    setState(() {
+      _importDirPath = '/storage/emulated/0/DCIM';
+    });
   }
 
   Future<AssetPathEntity?> _getImportAlbum() async {
@@ -932,200 +958,207 @@ class _ImageTileState extends State<ImageTile> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _showDetailsDialog(context),
-      onLongPress: () => widget.onSelected(widget.identifier),
-      child: LayoutBuilder(builder: (context, constraints) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          width: constraints.maxWidth * 0.8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: widget.isSelected
-                ? Border.all(color: Colors.blueAccent, width: 3)
-                : null,
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 4),
+        onTap: () => _showDetailsDialog(context),
+        onLongPress: () => widget.onSelected(widget.identifier),
+        child: LayoutBuilder(builder: (context, constraints) {
+          return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              width: constraints.maxWidth * 0.8,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: widget.isSelected
+                    ? Border.all(color: Colors.blueAccent, width: 3)
+                    : null,
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 6,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: PhotoView(
-                    imageProvider: FileImage(File(widget.imagePath)),
-                    backgroundDecoration:
-                        const BoxDecoration(color: Colors.white),
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: PhotoViewComputedScale.covered * 2.5,
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ConstrainedBox(
-                        constraints:
-                            BoxConstraints(maxWidth: constraints.maxWidth - 50),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 2, horizontal: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            _displayLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      GestureDetector(
-                        onTap: () => widget.onSelected(widget.identifier),
-                        child: Icon(
-                          widget.isSelected
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: widget.isSelected
-                              ? Colors.blueAccent
-                              : Colors.grey,
-                          size: 28,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    height: 56,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black54],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: PhotoView(
+                        imageProvider: FileImage(File(widget.imagePath)),
+                        backgroundDecoration:
+                            const BoxDecoration(color: Colors.white),
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: PhotoViewComputedScale.covered * 2.5,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Text(
-                          _truncatedText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        Flexible(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                if (widget.contact.snapUsername?.isNotEmpty ??
-                                    false)
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 36, height: 36),
-                                    onPressed: () => _openSocial(
-                                        SocialType.Snapchat,
-                                        widget.contact.snapUsername!),
-                                    icon: SocialIcon
-                                        .snapchatIconButton!.socialIcon,
-                                  ),
-                                if (widget.contact.instaUsername?.isNotEmpty ??
-                                    false)
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 36, height: 36),
-                                    onPressed: () => _openSocial(
-                                        SocialType.Instagram,
-                                        widget.contact.instaUsername!),
-                                    icon: SocialIcon
-                                        .instagramIconButton!.socialIcon,
-                                  ),
-                                if (widget
-                                        .contact.discordUsername?.isNotEmpty ??
-                                    false)
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 36, height: 36),
-                                    onPressed: () => _openSocial(
-                                        SocialType.Discord,
-                                        widget.contact.discordUsername!),
-                                    icon: SocialIcon
-                                        .discordIconButton!.socialIcon,
-                                  ),
-                                IconButton(
-                                  iconSize: 22,
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                                maxWidth: constraints.maxWidth - 50),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 2, horizontal: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                _displayLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
                                   color: Colors.white,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(
-                                      width: 36, height: 36),
-                                  icon: const Icon(Icons.note_alt_outlined),
-                                  onPressed: () async {
-                                    await showNoteDialog(
-                                        context,
-                                        widget.contact.identifier,
-                                        widget.contact,
-                                        existingNotes: widget.contact.notes);
-                                  },
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                IconButton(
-                                  iconSize: 22,
-                                  color: Colors.white,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(
-                                      width: 36, height: 36),
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () => _editUsernames(context),
-                                ),
-                                IconButton(
-                                  iconSize: 22,
-                                  color: Colors.white,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints.tightFor(
-                                      width: 36, height: 36),
-                                  icon: const Icon(Icons.more_vert),
-                                  onPressed: () =>
-                                      _showPopupMenu(context, widget.imagePath),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () => widget.onSelected(widget.identifier),
+                            child: Icon(
+                              widget.isSelected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: widget.isSelected
+                                  ? Colors.blueAccent
+                                  : Colors.grey,
+                              size: 28,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black54],
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              _truncatedText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            Flexible(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    if (widget
+                                            .contact.snapUsername?.isNotEmpty ??
+                                        false)
+                                      IconButton(
+                                        iconSize: 22,
+                                        color: Colors.white,
+                                        padding: EdgeInsets.zero,
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                                width: 36, height: 36),
+                                        onPressed: () => _openSocial(
+                                            SocialType.Snapchat,
+                                            widget.contact.snapUsername!),
+                                        icon: SocialIcon
+                                            .snapchatIconButton!.socialIcon,
+                                      ),
+                                    if (widget.contact.instaUsername
+                                            ?.isNotEmpty ??
+                                        false)
+                                      IconButton(
+                                        iconSize: 22,
+                                        color: Colors.white,
+                                        padding: EdgeInsets.zero,
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                                width: 36, height: 36),
+                                        onPressed: () => _openSocial(
+                                            SocialType.Instagram,
+                                            widget.contact.instaUsername!),
+                                        icon: SocialIcon
+                                            .instagramIconButton!.socialIcon,
+                                      ),
+                                    if (widget.contact.discordUsername
+                                            ?.isNotEmpty ??
+                                        false)
+                                      IconButton(
+                                        iconSize: 22,
+                                        color: Colors.white,
+                                        padding: EdgeInsets.zero,
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                                width: 36, height: 36),
+                                        onPressed: () => _openSocial(
+                                            SocialType.Discord,
+                                            widget.contact.discordUsername!),
+                                        icon: SocialIcon
+                                            .discordIconButton!.socialIcon,
+                                      ),
+                                    IconButton(
+                                      iconSize: 22,
+                                      color: Colors.white,
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                              width: 36, height: 36),
+                                      icon: const Icon(Icons.note_alt_outlined),
+                                      onPressed: () async {
+                                        await showNoteDialog(
+                                            context,
+                                            widget.contact.identifier,
+                                            widget.contact,
+                                            existingNotes:
+                                                widget.contact.notes);
+                                      },
+                                    ),
+                                    IconButton(
+                                      iconSize: 22,
+                                      color: Colors.white,
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                              width: 36, height: 36),
+                                      icon: const Icon(Icons.edit),
+                                      onPressed: () => _editUsernames(context),
+                                    ),
+                                    IconButton(
+                                      iconSize: 22,
+                                      color: Colors.white,
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                              width: 36, height: 36),
+                                      icon: const Icon(Icons.more_vert),
+                                      onPressed: () => _showPopupMenu(
+                                          context, widget.imagePath),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        );
-      }),
-    );
+              )); // closes LayoutBuilder
+        })); // closes GestureDetector
   }
 
   void _showPopupMenu(BuildContext context, String imagePath) {
