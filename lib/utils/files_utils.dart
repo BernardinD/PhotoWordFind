@@ -15,6 +15,8 @@ import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
+
 Future<Map<String, dynamic>> extractProfileData(String filePath,
     {bool crop = true, ui.Size? size}) async {
   print("Entering runOCR()...");
@@ -224,50 +226,14 @@ Future<ContactEntry?> createOCRJob(
   } else {
     if (useChatGPT) {
       result = ChatGPTService.processImage(imageFile: File(srcFile.path))
-          .then((onValue) async {
+          .then((onValue) {
         debugPrint(json.encode(onValue));
-        originalValues = originalValues ?? ContactEntry.fromJson(key, srcFile.path, {});
+        originalValues =
+            originalValues ?? ContactEntry.fromJson(key, srcFile.path, {});
 
-        // Avoid overriding sensitive info
-        if (originalValues!.location != null &&
-            onValue?[SubKeys.Location] != null) {
-          onValue?.remove(SubKeys.Location);
+        if (onValue != null) {
+          postProcessChatGptResult(originalValues!, onValue, save: true);
         }
-
-        // Validate timezone identifier
-        if (onValue?[SubKeys.Location] is Map) {
-          try {
-            tz.getLocation(onValue?[SubKeys.Location]
-                ["timezone"]); // Replace with real mapping logic
-          } catch (e) {
-            print(
-                "❌ Failed to validate time zone: ${onValue?[SubKeys.Location]["timezone"]}");
-            throw ("❌ Message: $e");
-          }
-        }
-
-        if (originalValues!.sections != null &&
-            onValue?[SubKeys.Sections] != null) {
-          List<Map<String, String>> originalSections =
-              originalValues!.sections
-                  !.map((item) => Map<String, String>.from(item as Map))
-                  .toList();
-          List<Map<String, String>> newSections =
-              (onValue?[SubKeys.Sections] as List)
-                  .map((item) => Map<String, String>.from(item as Map))
-                  .toList();
-
-          for (var newSection in newSections) {
-            originalSections.removeWhere((originalSection) =>
-                originalSection["title"] == newSection["title"]);
-          }
-
-          newSections.addAll(originalSections);
-          onValue?[SubKeys.Sections].addAll(originalSections);
-        }
-
-        originalValues!.mergeFromJson(onValue ?? {}, true);
-        // await StorageUtils.save(key, asMap: originalValues, backup: replacing);
 
         return originalValues;
       });
@@ -315,7 +281,8 @@ Map<String, dynamic> postProcessOCR(String ocr) {
 }
 
 @pragma('vm:entry-point')
-Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async {
+Future<Map<String, dynamic>?> ocrThread(
+    Map<String, dynamic> receivedData) async {
   String filePath = receivedData["f"];
   ui.Size size = ui.Size(
       receivedData['width'].toDouble(), receivedData['height'].toDouble());
