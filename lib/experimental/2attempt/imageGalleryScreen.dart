@@ -6,6 +6,7 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -727,8 +728,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       return;
     }
 
-    final baseDir = _importDirPath ?? '/storage/emulated/0/DCIM';
-    final destDir = Directory(path.join(baseDir, 'Comb'));
+    final destDir = Directory('/storage/emulated/0/DCIM/Comb');
     await destDir.create(recursive: true);
 
     List<ContactEntry> newEntries = [];
@@ -767,7 +767,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         final result =
             await ChatGPTService.processImage(imageFile: File(destPath));
         if (result != null) {
-          entry.mergeFromJson(result, false);
+          postProcessChatGptResult(entry, result, save: false);
         }
 
         await StorageUtils.save(entry, backup: false);
