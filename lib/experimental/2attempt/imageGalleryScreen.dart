@@ -728,6 +728,33 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       return;
     }
 
+    // Show a simple progress dialog while importing
+    final total = assets.length;
+    int processed = 0;
+    late void Function(void Function()) dialogSetState;
+    showDialog(
+      context: pickerContext,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            dialogSetState = setState;
+            return AlertDialog(
+              title: const Text('Importing images'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: processed / total),
+                  const SizedBox(height: 16),
+                  Text('$processed of $total'),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
     final destDir = Directory('/storage/emulated/0/DCIM/Comb');
     await destDir.create(recursive: true);
 
@@ -773,10 +800,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         await StorageUtils.save(entry, backup: false);
         StorageUtils.filePaths[id] = destPath;
         newEntries.add(entry);
+        processed++;
+        dialogSetState(() {});
       } catch (e) {
         debugPrint('Failed to import ${asset.id}: $e');
       }
     }
+
+    Navigator.of(pickerContext, rootNavigator: true).pop();
 
     await StorageUtils.writeJson(StorageUtils.filePaths);
 
