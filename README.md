@@ -19,6 +19,7 @@ The app can't confirm whether a friend request was ever accepted. When removing 
 
 ### Todos
 - [ ] Add photos to gallery in batches (requires async functionality)
+- [ ] Switch ChatGPT requests in the new UI from sequential to asynchronous so each request starts immediately; the app's ChatGPT service handles rate limiting
 - [x] Minimize code into services approach
 - [x] Give selection text background color and highlight color
 - [ ] Change Snap detection to checking all text on one line
