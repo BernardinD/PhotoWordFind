@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:intl/intl.dart';
+import 'package:PhotoWordFind/utils/cloud_utils.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -61,11 +62,18 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void initState() {
     super.initState();
-    if (useJsonFileForLoading) {
-      _loadImagesFromJsonFile();
-    } else {
-      _loadImagesFromPreferences();
-    }
+    // Attempt to sign in and sync the local storage with the cloud backup
+    CloudUtils.firstSignIn().then((signedIn) async {
+      if (signedIn) {
+        // Merge the cloud backup into Hive before loading images
+        await CloudUtils.getCloudJson();
+      }
+      if (useJsonFileForLoading) {
+        _loadImagesFromJsonFile();
+      } else {
+        _loadImagesFromPreferences();
+      }
+    });
   }
 
   Future<void> _loadImagesFromPreferences() async {
