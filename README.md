@@ -31,3 +31,6 @@ The app can't confirm whether a friend request was ever accepted. When removing 
 
 ## Find Operation
 The legacy interface includes a **Find** command which scans a directory of images using OCR. The logic lives in `lib/utils/operations_utils.dart` and processes each file through `ocrParallel`, adding results to the gallery once text extraction is finished. The new interface does not yet trigger this operation directly.
+
+## Shared Debug Keystore
+To avoid Android uninstalling the app when switching development machines, place a shared debug keystore at `android/app/debug.keystore`. The Gradle configuration signs both debug and release builds with this keystore so installations from different PCs share the same signature. The repository does not include the keystore itself so each team can provide their own. Running `flutter run` from any machine will update the existing installation without removing its persistent data.
