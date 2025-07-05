@@ -47,7 +47,8 @@ gcloud secrets versions access latest --secret=photowordfind-debug-keystore \
 ```
 
 The `scripts/bootstrap.ps1` script installs `gcloud`, signs in to your Google
-account, and can download this keystore automatically on Windows.
+account, downloads the keystore, and registers its fingerprint with Firebase
+automatically on Windows.
 
 ### Recommended storage
 Keep the keystore in Secret Manager so it can be fetched securely from any
@@ -59,8 +60,11 @@ On Windows, run the included PowerShell script to install the Google Cloud SDK
 and retrieve the debug keystore:
 
 ```powershell
-scripts\bootstrap.ps1 -ProjectId <YOUR_GCP_PROJECT> -FirebaseAppId <APP_ID>
+scripts\bootstrap.ps1 -ProjectId <YOUR_GCP_PROJECT>
 ```
 
-If a Firebase app id is supplied, the script will register the keystore's SHA-1
-fingerprint with that app so OAuth-based services work on the new machine.
+The script registers the keystore's SHA-1 fingerprint with the Firebase app
+`1:1082599556322:android:66fb03c1d8192758440abb` if it has not already been
+added. It also writes a `.bootstrap_complete` file in the project root. The
+Android build checks for this file and runs the script automatically when
+missing.

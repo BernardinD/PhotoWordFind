@@ -1,8 +1,10 @@
 param(
     [string]$ProjectId,
-    [string]$FirebaseAppId,
     [string]$SecretName = "photowordfind-debug-keystore"
 )
+
+# Firebase app id used for automatic SHA-1 registration
+$FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
 
 # Install gcloud using winget if necessary
 if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
@@ -33,10 +35,15 @@ $keytool = (Get-Command keytool).Source
 $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugkey -storepass android -keypass android |
     Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
 
-if ($FirebaseAppId) {
-    Write-Host "Registering SHA-1 fingerprint with Firebase..."
-    gcloud firebase apps android sha create $FirebaseAppId $fingerprint
+Write-Host "Checking Firebase app for existing fingerprint..."
+$existing = gcloud firebase apps android sha list $FirebaseAppId --format="value(shaHash)" 2>$null
+if ($existing -contains $fingerprint) {
+    Write-Host "Fingerprint already registered." -ForegroundColor Green
 } else {
-    Write-Host "SHA-1 fingerprint: $fingerprint"
-    Write-Host "Add this fingerprint to your OAuth credentials or Firebase app if required."
+    Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
+    gcloud firebase apps android sha create $FirebaseAppId $fingerprint
 }
+
+# Mark bootstrap complete
+$flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
+Set-Content -Path $flagPath -Value 'ok'

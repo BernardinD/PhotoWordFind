@@ -37,6 +37,18 @@ def fetchDebugKeystore = tasks.register('fetchDebugKeystore') {
     }
 }
 
+def bootstrapFlag = rootProject.file('.bootstrap_complete')
+def runBootstrap = tasks.register('runBootstrap') {
+    doLast {
+        if (!bootstrapFlag.exists()) {
+            println 'Running bootstrap script...'
+            exec {
+                commandLine 'powershell', '-ExecutionPolicy', 'Bypass', "${rootProject.rootDir}/scripts/bootstrap.ps1"
+            }
+        }
+    }
+}
+
 android {
     compileSdk 34
 
@@ -89,4 +101,5 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
 
+preBuild.dependsOn(runBootstrap)
 preBuild.dependsOn(fetchDebugKeystore)
