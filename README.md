@@ -36,13 +36,31 @@ The legacy interface includes a **Find** command which scans a directory of imag
 To avoid Android uninstalling the app when switching development machines, all builds are signed with the same debug keystore. Copy the team's keystore to `android/app/debug.keystore` before running the app so installations from different PCs share the same signature.
 
 ### Retrieving the keystore
-1. Request access to the private file share or repository containing `debug.keystore.enc` from a project maintainer.
-2. Download the encrypted file and decrypt it with:
-   ```bash
-   gpg --decrypt debug.keystore.enc > android/app/debug.keystore
-   ```
-   The passphrase is stored in the team password manager.
-3. Verify the file's checksum if one is provided.
+The debug keystore is stored in Google Secret Manager so that every machine can
+use the same signing key. You must be authenticated with the Google Cloud SDK
+and have access to the `photowordfind-debug-keystore` secret.
+
+Fetch the file with:
+```bash
+gcloud secrets versions access latest --secret=photowordfind-debug-keystore \
+  > android/app/debug.keystore
+```
+
+The `scripts/bootstrap.ps1` script installs `gcloud`, signs in to your Google
+account, and can download this keystore automatically on Windows.
 
 ### Recommended storage
-Keep the encrypted keystore in a private location that supports access controls and versioning (for example a private Git repository or internal cloud storage bucket). Avoid emailing or directly copying the raw file between machines. Instead, share the encrypted file and passphrase separately using a password manager.
+Keep the keystore in Secret Manager so it can be fetched securely from any
+development machine. Avoid copying the raw file between PCs; instead rely on the
+commands above or the bootstrap script.
+
+## Bootstrap setup
+On Windows, run the included PowerShell script to install the Google Cloud SDK
+and retrieve the debug keystore:
+
+```powershell
+scripts\bootstrap.ps1 -ProjectId <YOUR_GCP_PROJECT> -FirebaseAppId <APP_ID>
+```
+
+If a Firebase app id is supplied, the script will register the keystore's SHA-1
+fingerprint with that app so OAuth-based services work on the new machine.
