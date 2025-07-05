@@ -33,4 +33,16 @@ The app can't confirm whether a friend request was ever accepted. When removing 
 The legacy interface includes a **Find** command which scans a directory of images using OCR. The logic lives in `lib/utils/operations_utils.dart` and processes each file through `ocrParallel`, adding results to the gallery once text extraction is finished. The new interface does not yet trigger this operation directly.
 
 ## Shared Debug Keystore
-To avoid Android uninstalling the app when switching development machines, place a shared debug keystore at `android/app/debug.keystore`. The Gradle configuration signs both debug and release builds with this keystore so installations from different PCs share the same signature. The repository does not include the keystore itself so each team can provide their own. Running `flutter run` from any machine will update the existing installation without removing its persistent data.
+To avoid Android uninstalling the app when switching development machines, all builds are signed with the same debug keystore. Copy the team's keystore to `android/app/debug.keystore` before running the app so installations from different PCs share the same signature.
+
+### Retrieving the keystore
+1. Request access to the private file share or repository containing `debug.keystore.enc` from a project maintainer.
+2. Download the encrypted file and decrypt it with:
+   ```bash
+   gpg --decrypt debug.keystore.enc > android/app/debug.keystore
+   ```
+   The passphrase is stored in the team password manager.
+3. Verify the file's checksum if one is provided.
+
+### Recommended storage
+Keep the encrypted keystore in a private location that supports access controls and versioning (for example a private Git repository or internal cloud storage bucket). Avoid emailing or directly copying the raw file between machines. Instead, share the encrypted file and passphrase separately using a password manager.
