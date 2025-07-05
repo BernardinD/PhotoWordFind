@@ -1,7 +1,9 @@
 param(
-    [string]$ProjectId,
     [string]$SecretName = "photowordfind-debug-keystore"
 )
+
+# Google Cloud project used for authentication and secrets
+$ProjectId = 'pwfapp-f314d'
 
 # Firebase app id used for automatic SHA-1 registration
 $FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
@@ -19,9 +21,7 @@ if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
 # Sign in to Google Cloud
 Write-Host "Authenticating with Google Cloud..."
 gcloud auth login
-if ($ProjectId) {
-    gcloud config set project $ProjectId
-}
+gcloud config set project $ProjectId
 
 # Fetch debug keystore
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
