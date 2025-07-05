@@ -60,10 +60,11 @@ On Windows, run the included PowerShell script to install the Google Cloud SDK
 and retrieve the debug keystore:
 
 ```powershell
-scripts\bootstrap.ps1 -ProjectId <YOUR_GCP_PROJECT>
+scripts\bootstrap.ps1
 ```
 
-The script registers the keystore's SHA-1 fingerprint with the Firebase app
+The script sets the project to `pwfapp-f314d` and registers the keystore's
+SHA-1 fingerprint with the Firebase app
 `1:1082599556322:android:66fb03c1d8192758440abb` if it has not already been
 added. It also writes a `.bootstrap_complete` file in the project root. The
 Android build checks for this file and runs the script automatically when
