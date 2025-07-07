@@ -43,7 +43,7 @@ the Firebase CLI and have access to the `photowordfind.keystore` config value.
 Fetch the file with:
 ```bash
 firebase functions:config:get photowordfind.keystore --project=pwfapp-f314d \
-  | jq -r '.photowordfind.keystore' | base64 --decode > android/app/debug.keystore
+  | base64 --decode > android/app/debug.keystore
 ```
 
 The `scripts/bootstrap.ps1` script installs the Firebase CLI using `winget`,
