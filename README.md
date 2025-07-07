@@ -65,7 +65,10 @@ powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1
 ```
 
 The script sets the project to `pwfapp-f314d`, ensures Eclipse Temurin JDK 17 is
-installed and available on `PATH`, then registers the keystore's SHA‑1
+installed and makes its path persistent for future terminals without altering
+existing JDK setups. The JDK location is stored in the `PWF_JAVA_HOME`
+environment variable and added to your user `PATH`. The current session's
+`JAVA_HOME` is set accordingly so Gradle can find `keytool`. It then registers the keystore's SHA‑1
 fingerprint with the Firebase app
 `1:1082599556322:android:66fb03c1d8192758440abb` if it has not already been
 added. It also writes a `.bootstrap_complete` file in the project root. The
