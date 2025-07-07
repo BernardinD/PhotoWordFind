@@ -43,7 +43,7 @@ def runBootstrap = tasks.register('runBootstrap') {
         if (!bootstrapFlag.exists()) {
             println 'Running bootstrap script...'
             exec {
-                commandLine 'powershell', '-ExecutionPolicy', 'Bypass', "${rootProject.rootDir}/scripts/bootstrap.ps1"
+                commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', "${rootProject.rootDir}/scripts/bootstrap.ps1"
             }
         }
     }

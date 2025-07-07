@@ -8,24 +8,34 @@ $ProjectId = 'pwfapp-f314d'
 # Firebase app id used for automatic SHA-1 registration
 $FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
 
+# Refreshes the PATH for the current session so newly installed CLIs are
+# immediately available.
+function Refresh-SessionPath {
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $userPath    = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $env:Path    = "$machinePath;$userPath"
+}
+
 # Ensure JDK 17 is installed and available
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $needJdk = $true
 if (Get-Command java -ErrorAction SilentlyContinue) {
     $verLine = (& java -version 2>&1)[0]
-    if ($verLine -match '"(\d+)') {
+    if ($verLine -match '"(\d+)") {
         if ([int]$Matches[1] -eq 17) { $needJdk = $false }
     }
 }
 if ($needJdk) {
     Write-Host "Installing JDK 17 via winget..."
     winget install -e --id $jdkPackage
+    Refresh-SessionPath
 }
 
 # Ensure Android Studio and command line tools are installed
 if (-not (Get-Command studio64.exe -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Android Studio via winget..."
     winget install -e --id Google.AndroidStudio
+    Refresh-SessionPath
 }
 
 $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
@@ -65,12 +75,12 @@ if ($jdkDir) {
 if (-not (Get-Command firebase -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Firebase CLI via winget..."
     winget install -e --id Google.FirebaseCLI
+    Refresh-SessionPath
 }
 
 # Sign in to Firebase
 Write-Host "Authenticating with Firebase..."
 firebase login
-firebase use $ProjectId
 
 # Fetch debug keystore
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
@@ -86,7 +96,7 @@ $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugke
     Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
 
 Write-Host "Checking Firebase app for existing fingerprint..."
-$existingJson = firebase apps:android:sha:list $FirebaseAppId --json 2>$null
+$existingJson = firebase apps:android:sha:list $FirebaseAppId --project $ProjectId --json 2>$null
 $existing = @()
 if ($LASTEXITCODE -eq 0 -and $existingJson) {
     $existing = ($existingJson | ConvertFrom-Json).result | ForEach-Object { $_.shaHash }
@@ -96,7 +106,7 @@ if ($existing -contains $fingerprint) {
     Write-Host "Fingerprint already registered." -ForegroundColor Green
 } else {
     Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
-    firebase apps:android:sha:create $FirebaseAppId $fingerprint
+    firebase apps:android:sha:create $FirebaseAppId $fingerprint --project $ProjectId
 }
 
 # Mark bootstrap complete

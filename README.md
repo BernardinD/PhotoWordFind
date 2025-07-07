@@ -58,21 +58,21 @@ commands above or the bootstrap script.
 ## Bootstrap setup
 On Windows, run the included PowerShell script to install the Firebase CLI via
 `winget` and the required JDK before retrieving the debug keystore. Set the
-execution policy for the current process and then run the script:
+execution policy for the current process and then run the script with
+`-ExecutionPolicy Bypass -File`:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-./scripts/bootstrap.ps1
+powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap.ps1
 ```
 
-The script sets the project to `pwfapp-f314d`, ensures Eclipse Temurin JDK 17 is
-installed and makes its path persistent for future terminals without altering
-existing JDK setups. It also installs Android Studio via `winget` and uses
-`sdkmanager` to download the latest command-line tools so the Android SDK is
-ready. The JDK location is stored in the `PWF_JAVA_HOME` environment variable and
-added to your user `PATH`. The current session's `JAVA_HOME` is set accordingly
-so Gradle can find `keytool`. It then registers the keystore's SHA‑1 fingerprint
-with the Firebase app `1:1082599556322:android:66fb03c1d8192758440abb` using the
-Firebase CLI if it has not already been added. It also writes a
-`.bootstrap_complete` file in the project root. The Android build checks for this
-file and runs the script automatically when missing.
+The script installs Eclipse Temurin JDK 17 and Android Studio via `winget`,
+refreshing the current `PATH` after each installation so new commands are
+available immediately. The JDK location is persisted in `PWF_JAVA_HOME` and
+prepended to your user `PATH` without affecting other JDK versions. Every
+Firebase CLI command includes `--project=pwfapp-f314d`, so no `firebase use`
+state is required. The script downloads the common debug keystore, registers its
+SHA‑1 fingerprint with Firebase app
+`1:1082599556322:android:66fb03c1d8192758440abb` if missing and finally writes a
+`.bootstrap_complete` file. The Android build checks for this file and runs the
+script automatically when absent.
