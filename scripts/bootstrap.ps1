@@ -22,6 +22,21 @@ if ($needJdk) {
     winget install -e --id $jdkPackage
 }
 
+# Ensure Android Studio and command line tools are installed
+if (-not (Get-Command studio64.exe -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing Android Studio via winget..."
+    winget install -e --id Google.AndroidStudio
+}
+
+$sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
+if (-not (Test-Path $sdkManager)) {
+    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\tools\bin\sdkmanager.bat"
+}
+if (Test-Path $sdkManager) {
+    Write-Host "Ensuring Android cmdline tools installed..."
+    & $sdkManager --install "cmdline-tools;latest" | Out-Null
+}
+
 $jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' | Sort-Object Name -Descending | Select-Object -First 1
 if ($jdkDir) {
     $env:PWF_JAVA_HOME = $jdkDir.FullName
