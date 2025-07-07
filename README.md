@@ -57,10 +57,11 @@ commands above or the bootstrap script.
 
 ## Bootstrap setup
 On Windows, run the included PowerShell script to install the Google Cloud SDK
-and retrieve the debug keystore:
+and retrieve the debug keystore. You must pass `-ExecutionPolicy Bypass -File`
+so PowerShell allows the script to run:
 
 ```powershell
-scripts\bootstrap.ps1
+powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1
 ```
 
 The script sets the project to `pwfapp-f314d` and registers the keystore's
