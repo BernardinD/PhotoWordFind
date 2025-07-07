@@ -25,14 +25,20 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
+import groovy.json.JsonSlurper
+
 def fetchDebugKeystore = tasks.register('fetchDebugKeystore') {
     doLast {
         def ks = file('debug.keystore')
         if (!ks.exists()) {
+            def output = new ByteArrayOutputStream()
             exec {
-                commandLine 'firebase', 'functions:secrets:versions:access', 'photowordfind-debug-keystore', '--project=pwfapp-f314d'
-                standardOutput = new FileOutputStream(ks)
+                commandLine 'firebase', 'functions:config:get', 'photowordfind.keystore', '--project=pwfapp-f314d'
+                standardOutput = output
             }
+            def json = new JsonSlurper().parseText(output.toString())
+            def base64 = json.photowordfind.keystore
+            ks.bytes = base64.decodeBase64()
         }
     }
 }

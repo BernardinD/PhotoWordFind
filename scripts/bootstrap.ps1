@@ -1,8 +1,8 @@
 param(
-    [string]$SecretName = "photowordfind-debug-keystore"
+    [string]$ConfigPath = "photowordfind.keystore"
 )
 
-# Firebase project used for authentication and secrets
+# Firebase project used for authentication and configs
 $ProjectId = 'pwfapp-f314d'
 
 # Firebase app id used for automatic SHA-1 registration
@@ -85,9 +85,15 @@ firebase login
 # Fetch debug keystore
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
 if (-not (Test-Path $keystorePath)) {
-    Write-Host "Downloading debug keystore from Secret Manager..."
-    firebase functions:secrets:versions:access $SecretName --project $ProjectId |
-        Out-File -Encoding byte $keystorePath
+    Write-Host "Downloading debug keystore from Functions config..."
+    $cfgJson = firebase functions:config:get $ConfigPath --project $ProjectId
+    if ($LASTEXITCODE -eq 0 -and $cfgJson) {
+        $cfg = $cfgJson | ConvertFrom-Json
+        $base64 = $cfg.photowordfind.keystore
+        if ($base64) {
+            [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($base64))
+        }
+    }
 }
 
 # Calculate SHA-1 fingerprint and add to Firebase if app id provided
