@@ -74,12 +74,12 @@ $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugke
     Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
 
 Write-Host "Checking Firebase app for existing fingerprint..."
-$existing = gcloud firebase apps android sha list $FirebaseAppId --format="value(shaHash)" 2>$null
+$existing = gcloud firebase apps android sha list --app=$FirebaseAppId --format="value(shaHash)" 2>$null
 if ($existing -contains $fingerprint) {
     Write-Host "Fingerprint already registered." -ForegroundColor Green
 } else {
     Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
-    gcloud firebase apps android sha create $FirebaseAppId $fingerprint
+    gcloud firebase apps android sha create --app=$FirebaseAppId $fingerprint
 }
 
 # Mark bootstrap complete
