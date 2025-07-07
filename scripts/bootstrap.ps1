@@ -48,8 +48,8 @@ if ($jdkDir) {
 
 # Install Firebase CLI if missing
 if (-not (Get-Command firebase -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing firebase-tools via npm..."
-    npm install -g firebase-tools
+    Write-Host "Installing Firebase CLI via winget..."
+    winget install -e --id Google.FirebaseCLI
 }
 
 # Sign in to Firebase
