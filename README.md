@@ -36,24 +36,24 @@ The legacy interface includes a **Find** command which scans a directory of imag
 To avoid Android uninstalling the app when switching development machines, all builds are signed with the same debug keystore. Copy the team's keystore to `android/app/debug.keystore` before running the app so installations from different PCs share the same signature.
 
 ### Retrieving the keystore
-The debug keystore is stored in Google Secret Manager so that every machine can
-use the same signing key. You must be authenticated with the Firebase CLI and
-have access to the `photowordfind-debug-keystore` secret.
+The debug keystore is stored in Firebase Functions config as a Base64 string so
+each machine can retrieve the same signing key. You must be authenticated with
+the Firebase CLI and have access to the `photowordfind.keystore` config value.
 
 Fetch the file with:
 ```bash
-firebase functions:secrets:versions:access photowordfind-debug-keystore \
-  --project=pwfapp-f314d > android/app/debug.keystore
+firebase functions:config:get photowordfind.keystore --project=pwfapp-f314d \
+  | jq -r '.photowordfind.keystore' | base64 --decode > android/app/debug.keystore
 ```
 
 The `scripts/bootstrap.ps1` script installs the Firebase CLI using `winget`,
-signs in, downloads the keystore, and registers its fingerprint with Firebase
-automatically on Windows.
+signs in, downloads the keystore from this config value, and registers its
+fingerprint with Firebase automatically on Windows.
 
 ### Recommended storage
-Keep the keystore in Secret Manager so it can be fetched securely from any
-development machine. Avoid copying the raw file between PCs; instead rely on the
-commands above or the bootstrap script.
+Keep the keystore in your Firebase project's function config so it can be
+fetched securely from any development machine. Avoid copying the raw file
+between PCs; instead rely on the commands above or the bootstrap script.
 
 ## Bootstrap setup
 On Windows, run the included PowerShell script to install the Firebase CLI via
