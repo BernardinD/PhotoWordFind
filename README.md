@@ -57,15 +57,16 @@ commands above or the bootstrap script.
 
 ## Bootstrap setup
 On Windows, run the included PowerShell script to install the Google Cloud SDK
-and retrieve the debug keystore. You must pass `-ExecutionPolicy Bypass -File`
-so PowerShell allows the script to run:
+and required JDK before retrieving the debug keystore. You must pass
+`-ExecutionPolicy Bypass -File` so PowerShell allows the script to run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1
 ```
 
-The script sets the project to `pwfapp-f314d` and registers the keystore's
-SHA-1 fingerprint with the Firebase app
+The script sets the project to `pwfapp-f314d`, ensures Eclipse Temurin JDK 17 is
+installed and available on `PATH`, then registers the keystore's SHA‑1
+fingerprint with the Firebase app
 `1:1082599556322:android:66fb03c1d8192758440abb` if it has not already been
 added. It also writes a `.bootstrap_complete` file in the project root. The
 Android build checks for this file and runs the script automatically when
