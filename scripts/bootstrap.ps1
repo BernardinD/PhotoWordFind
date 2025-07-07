@@ -8,6 +8,27 @@ $ProjectId = 'pwfapp-f314d'
 # Firebase app id used for automatic SHA-1 registration
 $FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
 
+# Ensure JDK 17 is installed and added to PATH for keytool
+$jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
+$needJdk = $true
+if (Get-Command java -ErrorAction SilentlyContinue) {
+    $verLine = (& java -version 2>&1)[0]
+    if ($verLine -match '"(\d+)') {
+        if ([int]$Matches[1] -eq 17) { $needJdk = $false }
+    }
+}
+if ($needJdk) {
+    Write-Host "Installing JDK 17 via winget..."
+    winget install -e --id $jdkPackage
+}
+$jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' | Sort-Object Name -Descending | Select-Object -First 1
+if ($jdkDir) {
+    $env:JAVA_HOME = $jdkDir.FullName
+    if ($env:Path -notlike "$($jdkDir.FullName)\bin*") {
+        $env:Path = "$($jdkDir.FullName)\bin;" + $env:Path
+    }
+}
+
 # Install gcloud using winget if necessary
 if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
