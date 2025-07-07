@@ -37,18 +37,18 @@ To avoid Android uninstalling the app when switching development machines, all b
 
 ### Retrieving the keystore
 The debug keystore is stored in Google Secret Manager so that every machine can
-use the same signing key. You must be authenticated with the Google Cloud SDK
-and have access to the `photowordfind-debug-keystore` secret.
+use the same signing key. You must be authenticated with the Firebase CLI and
+have access to the `photowordfind-debug-keystore` secret.
 
 Fetch the file with:
 ```bash
-gcloud secrets versions access latest --secret=photowordfind-debug-keystore \
-  > android/app/debug.keystore
+firebase functions:secrets:versions:access photowordfind-debug-keystore \
+  --project=pwfapp-f314d > android/app/debug.keystore
 ```
 
-The `scripts/bootstrap.ps1` script installs `gcloud` and the Firebase CLI,
-signs in to both services, downloads the keystore, and registers its
-fingerprint with Firebase automatically on Windows.
+The `scripts/bootstrap.ps1` script installs the Firebase CLI, signs in,
+downloads the keystore, and registers its fingerprint with Firebase
+automatically on Windows.
 
 ### Recommended storage
 Keep the keystore in Secret Manager so it can be fetched securely from any
@@ -56,8 +56,8 @@ development machine. Avoid copying the raw file between PCs; instead rely on the
 commands above or the bootstrap script.
 
 ## Bootstrap setup
-On Windows, run the included PowerShell script to install the Google Cloud SDK
-and required JDK before retrieving the debug keystore. You must pass
+On Windows, run the included PowerShell script to install the Firebase CLI and
+required JDK before retrieving the debug keystore. You must pass
 `-ExecutionPolicy Bypass -File` so PowerShell allows the script to run:
 
 ```powershell
