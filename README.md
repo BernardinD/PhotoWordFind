@@ -46,8 +46,8 @@ firebase functions:secrets:versions:access photowordfind-debug-keystore \
   --project=pwfapp-f314d > android/app/debug.keystore
 ```
 
-The `scripts/bootstrap.ps1` script installs the Firebase CLI, signs in,
-downloads the keystore, and registers its fingerprint with Firebase
+The `scripts/bootstrap.ps1` script installs the Firebase CLI using `winget`,
+signs in, downloads the keystore, and registers its fingerprint with Firebase
 automatically on Windows.
 
 ### Recommended storage
@@ -56,8 +56,8 @@ development machine. Avoid copying the raw file between PCs; instead rely on the
 commands above or the bootstrap script.
 
 ## Bootstrap setup
-On Windows, run the included PowerShell script to install the Firebase CLI and
-required JDK before retrieving the debug keystore. You must pass
+On Windows, run the included PowerShell script to install the Firebase CLI via
+`winget` and the required JDK before retrieving the debug keystore. You must pass
 `-ExecutionPolicy Bypass -File` so PowerShell allows the script to run:
 
 ```powershell
