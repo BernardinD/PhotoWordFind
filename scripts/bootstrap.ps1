@@ -8,7 +8,7 @@ $ProjectId = 'pwfapp-f314d'
 # Firebase app id used for automatic SHA-1 registration
 $FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
 
-# Ensure JDK 17 is installed and added to PATH for keytool
+# Ensure JDK 17 is installed and available
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $needJdk = $true
 if (Get-Command java -ErrorAction SilentlyContinue) {
@@ -21,11 +21,28 @@ if ($needJdk) {
     Write-Host "Installing JDK 17 via winget..."
     winget install -e --id $jdkPackage
 }
+
 $jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' | Sort-Object Name -Descending | Select-Object -First 1
 if ($jdkDir) {
-    $env:JAVA_HOME = $jdkDir.FullName
-    if ($env:Path -notlike "$($jdkDir.FullName)\bin*") {
-        $env:Path = "$($jdkDir.FullName)\bin;" + $env:Path
+    $env:PWF_JAVA_HOME = $jdkDir.FullName
+    $env:JAVA_HOME = $env:PWF_JAVA_HOME
+
+    $persistHome = [Environment]::GetEnvironmentVariable('PWF_JAVA_HOME', 'User')
+    if (-not $persistHome -or $persistHome -ne $env:PWF_JAVA_HOME) {
+        Write-Host "Persisting PWF_JAVA_HOME..."
+        setx PWF_JAVA_HOME $env:PWF_JAVA_HOME | Out-Null
+    }
+
+    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $jdkPathEntry = "$env:PWF_JAVA_HOME\bin"
+    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $jdkPathEntry })) {
+        Write-Host "Adding JDK 17 to user PATH..."
+        $newPath = "$jdkPathEntry;" + $persistPath
+        setx Path $newPath | Out-Null
+    }
+
+    if ($env:Path -notlike "$jdkPathEntry*") {
+        $env:Path = "$jdkPathEntry;" + $env:Path
     }
 }
 
