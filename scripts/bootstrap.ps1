@@ -2,7 +2,7 @@ param(
     [string]$SecretName = "photowordfind-debug-keystore"
 )
 
-# Google Cloud project used for authentication and secrets
+# Firebase project used for authentication and secrets
 $ProjectId = 'pwfapp-f314d'
 
 # Firebase app id used for automatic SHA-1 registration
@@ -46,36 +46,23 @@ if ($jdkDir) {
     }
 }
 
-# Install gcloud using winget if necessary
-if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "winget not found. Install winget first." -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "Installing Google Cloud SDK via winget..."
-    winget install -e --id Google.CloudSDK
-}
-
 # Install Firebase CLI if missing
 if (-not (Get-Command firebase -ErrorAction SilentlyContinue)) {
     Write-Host "Installing firebase-tools via npm..."
     npm install -g firebase-tools
 }
 
-# Sign in to Google Cloud
-Write-Host "Authenticating with Google Cloud..."
-gcloud auth login
-gcloud config set project $ProjectId
-
 # Sign in to Firebase
 Write-Host "Authenticating with Firebase..."
 firebase login
+firebase use $ProjectId
 
 # Fetch debug keystore
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
 if (-not (Test-Path $keystorePath)) {
     Write-Host "Downloading debug keystore from Secret Manager..."
-    gcloud secrets versions access latest --secret=$SecretName | Out-File -Encoding byte $keystorePath
+    firebase functions:secrets:versions:access $SecretName --project $ProjectId |
+        Out-File -Encoding byte $keystorePath
 }
 
 # Calculate SHA-1 fingerprint and add to Firebase if app id provided

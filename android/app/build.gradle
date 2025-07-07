@@ -30,7 +30,7 @@ def fetchDebugKeystore = tasks.register('fetchDebugKeystore') {
         def ks = file('debug.keystore')
         if (!ks.exists()) {
             exec {
-                commandLine 'gcloud', 'secrets', 'versions', 'access', 'latest', '--secret=photowordfind-debug-keystore'
+                commandLine 'firebase', 'functions:secrets:versions:access', 'photowordfind-debug-keystore', '--project=pwfapp-f314d'
                 standardOutput = new FileOutputStream(ks)
             }
         }
