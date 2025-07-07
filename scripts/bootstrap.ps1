@@ -21,7 +21,7 @@ $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $needJdk = $true
 if (Get-Command java -ErrorAction SilentlyContinue) {
     $verLine = (& java -version 2>&1)[0]
-    if ($verLine -match '"(\d+)") {
+    if ($verLine -match '"(\d+)"') {
         if ([int]$Matches[1] -eq 17) { $needJdk = $false }
     }
 }
