@@ -46,9 +46,9 @@ gcloud secrets versions access latest --secret=photowordfind-debug-keystore \
   > android/app/debug.keystore
 ```
 
-The `scripts/bootstrap.ps1` script installs `gcloud`, signs in to your Google
-account, downloads the keystore, and registers its fingerprint with Firebase
-automatically on Windows.
+The `scripts/bootstrap.ps1` script installs `gcloud` and the Firebase CLI,
+signs in to both services, downloads the keystore, and registers its
+fingerprint with Firebase automatically on Windows.
 
 ### Recommended storage
 Keep the keystore in Secret Manager so it can be fetched securely from any
@@ -70,7 +70,7 @@ existing JDK setups. The JDK location is stored in the `PWF_JAVA_HOME`
 environment variable and added to your user `PATH`. The current session's
 `JAVA_HOME` is set accordingly so Gradle can find `keytool`. It then registers the keystore's SHA‑1
 fingerprint with the Firebase app
-`1:1082599556322:android:66fb03c1d8192758440abb` if it has not already been
-added. It also writes a `.bootstrap_complete` file in the project root. The
+`1:1082599556322:android:66fb03c1d8192758440abb` using the Firebase CLI if it has
+not already been added. It also writes a `.bootstrap_complete` file in the project root. The
 Android build checks for this file and runs the script automatically when
 missing.

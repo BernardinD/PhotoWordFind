@@ -56,10 +56,20 @@ if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
     winget install -e --id Google.CloudSDK
 }
 
+# Install Firebase CLI if missing
+if (-not (Get-Command firebase -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing firebase-tools via npm..."
+    npm install -g firebase-tools
+}
+
 # Sign in to Google Cloud
 Write-Host "Authenticating with Google Cloud..."
 gcloud auth login
 gcloud config set project $ProjectId
+
+# Sign in to Firebase
+Write-Host "Authenticating with Firebase..."
+firebase login
 
 # Fetch debug keystore
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
@@ -74,12 +84,17 @@ $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugke
     Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
 
 Write-Host "Checking Firebase app for existing fingerprint..."
-$existing = gcloud firebase apps android sha list --app=$FirebaseAppId --format="value(shaHash)" 2>$null
+$existingJson = firebase apps:android:sha:list $FirebaseAppId --json 2>$null
+$existing = @()
+if ($LASTEXITCODE -eq 0 -and $existingJson) {
+    $existing = ($existingJson | ConvertFrom-Json).result | ForEach-Object { $_.shaHash }
+}
+
 if ($existing -contains $fingerprint) {
     Write-Host "Fingerprint already registered." -ForegroundColor Green
 } else {
     Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
-    gcloud firebase apps android sha create --app=$FirebaseAppId $fingerprint
+    firebase apps:android:sha:create $FirebaseAppId $fingerprint
 }
 
 # Mark bootstrap complete
