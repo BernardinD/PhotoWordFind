@@ -86,10 +86,17 @@ firebase login
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
 if (-not (Test-Path $keystorePath)) {
     Write-Host "Downloading debug keystore from Functions config..."
-    $cfgJson = firebase functions:config:get $ConfigPath --project $ProjectId
-    if ($LASTEXITCODE -eq 0 -and $cfgJson) {
-        $cfg = $cfgJson | ConvertFrom-Json
-        $base64 = $cfg.photowordfind.keystore
+    $cfgOut = firebase functions:config:get $ConfigPath --project $ProjectId
+    if ($LASTEXITCODE -eq 0 -and $cfgOut) {
+        $trim = $cfgOut.Trim()
+        $base64 = $trim
+        if ($trim.StartsWith('{') -or $trim.StartsWith('[')) {
+            try {
+                $cfg = $trim | ConvertFrom-Json
+                foreach ($seg in $ConfigPath -split '\\.') { $cfg = $cfg.$seg }
+                $base64 = $cfg
+            } catch {}
+        }
         if ($base64) {
             [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($base64))
         }
