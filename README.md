@@ -43,7 +43,7 @@ the Firebase CLI and have access to the `photowordfind.keystore` config value.
 Fetch the file with:
 ```bash
 firebase functions:config:get photowordfind.keystore --project=pwfapp-f314d \
-  | base64 --decode > android/app/debug.keystore
+  | tr -d '"' | base64 --decode > android/app/debug.keystore
 ```
 
 The `scripts/bootstrap.ps1` script installs the Firebase CLI using `winget`,
@@ -71,8 +71,9 @@ refreshing the current `PATH` after each installation so new commands are
 available immediately. The JDK location is persisted in `PWF_JAVA_HOME` and
 prepended to your user `PATH` without affecting other JDK versions. Every
 Firebase CLI command includes `--project=pwfapp-f314d`, so no `firebase use`
-state is required. The script downloads the common debug keystore, registers its
-SHA‑1 fingerprint with Firebase app
-`1:1082599556322:android:66fb03c1d8192758440abb` if missing and finally writes a
+state is required. It prints progress messages for each step—including when
+downloading the keystore, parsing the Firebase Functions config value and
+registering the SHA‑1 fingerprint with Firebase app
+`1:1082599556322:android:66fb03c1d8192758440abb` if missing—and finally writes a
 `.bootstrap_complete` file. The Android build checks for this file and runs the
 script automatically when absent.
