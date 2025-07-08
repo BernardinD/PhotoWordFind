@@ -75,5 +75,6 @@ state is required. It prints progress messages for each step—including when
 downloading the keystore, parsing the Firebase Functions config value and
 registering the SHA‑1 fingerprint with Firebase app
 `1:1082599556322:android:66fb03c1d8192758440abb` if missing—and finally writes a
-`.bootstrap_complete` file. The Android build checks for this file and runs the
-script automatically when absent.
+`.bootstrap_complete` file in the repository root. Because Gradle executes from
+the `android` subdirectory it looks for this flag relative to the parent
+directory and runs the script automatically when it is absent.

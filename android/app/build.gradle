@@ -43,7 +43,8 @@ def fetchDebugKeystore = tasks.register('fetchDebugKeystore') {
     }
 }
 
-def bootstrapFlag = rootProject.file('.bootstrap_complete')
+def repoRoot = rootProject.projectDir.parentFile
+def bootstrapFlag = new File(repoRoot, '.bootstrap_complete')
 def runBootstrap = tasks.register('runBootstrap') {
     doLast {
         if (!bootstrapFlag.exists()) {
@@ -51,7 +52,7 @@ def runBootstrap = tasks.register('runBootstrap') {
             println 'Running bootstrap script...'
             exec {
                 commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File',
-                        new File(rootProject.rootDir, 'scripts/bootstrap.ps1').absolutePath
+                        new File(repoRoot, 'scripts/bootstrap.ps1').absolutePath
             }
         } else {
             println "Bootstrap already completed: ${bootstrapFlag.absolutePath}"
