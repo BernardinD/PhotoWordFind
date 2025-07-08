@@ -2,6 +2,8 @@ param(
     [string]$ConfigPath = "photowordfind.keystore"
 )
 
+Write-Host "Starting PhotoWordFind bootstrap..."
+
 # Firebase project used for authentication and configs
 $ProjectId = 'pwfapp-f314d'
 
@@ -11,6 +13,7 @@ $FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
 # Refreshes the PATH for the current session so newly installed CLIs are
 # immediately available.
 function Refresh-SessionPath {
+    Write-Host "Refreshing session PATH..."
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath    = [Environment]::GetEnvironmentVariable('Path', 'User')
     $env:Path    = "$machinePath;$userPath"
@@ -19,7 +22,13 @@ function Refresh-SessionPath {
 # Ensure JDK 17 is installed and available
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $needJdk = $true
-if (Get-Command java -ErrorAction SilentlyContinue) {
+$verCheck = Get-Command java -ErrorAction SilentlyContinue
+if ($verCheck) {
+    Write-Host "Existing Java detected: $($verCheck.Source)"
+} else {
+    Write-Host "No Java installation detected in PATH."
+}
+if ($verCheck) {
     $verLine = (& java -version 2>&1)[0]
     if ($verLine -match '"(\d+)"') {
         if ([int]$Matches[1] -eq 17) { $needJdk = $false }
@@ -29,6 +38,8 @@ if ($needJdk) {
     Write-Host "Installing JDK 17 via winget..."
     winget install -e --id $jdkPackage
     Refresh-SessionPath
+} else {
+    Write-Host "Compatible JDK already present." -ForegroundColor Green
 }
 
 # Ensure Android Studio and command line tools are installed
@@ -36,6 +47,8 @@ if (-not (Get-Command studio64.exe -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Android Studio via winget..."
     winget install -e --id Google.AndroidStudio
     Refresh-SessionPath
+} else {
+    Write-Host "Android Studio already installed." -ForegroundColor Green
 }
 
 $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
@@ -88,25 +101,44 @@ if (-not (Test-Path $keystorePath)) {
     Write-Host "Downloading debug keystore from Functions config..."
     $cfgOut = firebase functions:config:get $ConfigPath --project $ProjectId
     if ($LASTEXITCODE -eq 0 -and $cfgOut) {
+        Write-Host "Raw config output: $cfgOut"
         $trim = $cfgOut.Trim()
-        $base64 = $trim
+        $base64 = $null
         if ($trim.StartsWith('{') -or $trim.StartsWith('[')) {
             try {
+                Write-Host "Parsing JSON config..."
                 $cfg = $trim | ConvertFrom-Json
                 foreach ($seg in $ConfigPath -split '\\.') { $cfg = $cfg.$seg }
                 $base64 = $cfg
-            } catch {}
+            } catch {
+                Write-Host "Failed to parse JSON config" -ForegroundColor Yellow
+            }
+        } else {
+            if ($trim.StartsWith('"') -and $trim.EndsWith('"')) {
+                Write-Host "Stripping quotes from config string..."
+                $base64 = $trim.Trim('"')
+            } else {
+                $base64 = $trim
+            }
         }
         if ($base64) {
+            Write-Host "Writing keystore to $keystorePath"
             [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($base64))
+        } else {
+            Write-Host "No keystore config found" -ForegroundColor Yellow
         }
+    } else {
+        Write-Host "Failed to fetch keystore config" -ForegroundColor Yellow
     }
+} else {
+    Write-Host "Keystore already exists at $keystorePath" -ForegroundColor Green
 }
 
 # Calculate SHA-1 fingerprint and add to Firebase if app id provided
 $keytool = (Get-Command keytool).Source
 $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugkey -storepass android -keypass android |
     Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
+Write-Host "Keystore SHA-1 fingerprint is $fingerprint"
 
 Write-Host "Checking Firebase app for existing fingerprint..."
 $existingJson = firebase apps:android:sha:list $FirebaseAppId --project $ProjectId --json 2>$null
@@ -120,8 +152,14 @@ if ($existing -contains $fingerprint) {
 } else {
     Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
     firebase apps:android:sha:create $FirebaseAppId $fingerprint --project $ProjectId
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "SHA-1 fingerprint registered successfully." -ForegroundColor Green
+    } else {
+        Write-Host "Failed to register fingerprint." -ForegroundColor Yellow
+    }
 }
 
 # Mark bootstrap complete
 $flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
+Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
 Set-Content -Path $flagPath -Value 'ok'
