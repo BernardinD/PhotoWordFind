@@ -47,10 +47,14 @@ def bootstrapFlag = rootProject.file('.bootstrap_complete')
 def runBootstrap = tasks.register('runBootstrap') {
     doLast {
         if (!bootstrapFlag.exists()) {
+            println "Bootstrap flag not found at ${bootstrapFlag.absolutePath}"
             println 'Running bootstrap script...'
             exec {
-                commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', "${rootProject.rootDir}/scripts/bootstrap.ps1"
+                commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File',
+                        new File(rootProject.rootDir, 'scripts/bootstrap.ps1').absolutePath
             }
+        } else {
+            println "Bootstrap already completed: ${bootstrapFlag.absolutePath}"
         }
     }
 }
