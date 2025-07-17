@@ -62,6 +62,7 @@ def runBootstrap = tasks.register('runBootstrap') {
 
 android {
     compileSdk 34
+    namespace 'com.example.PhotoWordFind'
 
     signingConfigs {
         debug {
