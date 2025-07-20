@@ -78,3 +78,5 @@ registering the SHA‑1 fingerprint with Firebase app
 `.bootstrap_complete` file in the repository root. Because Gradle executes from
 the `android` subdirectory it looks for this flag relative to the parent
 directory and runs the script automatically when it is absent.
+
+When building Android modules manually, ensure `android/local.properties` defines `sdk.dir` pointing to your Android SDK installation. Gradle fails early with "SDK location not found" if this file is missing.
