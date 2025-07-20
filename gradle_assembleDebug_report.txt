@@ -1,21 +1,133 @@
-Running `gradle assembleDebug --stacktrace` in `android/`.
-Initial attempt with `downloadJdk` in build.gradle failed:
-  Could not set unknown property 'downloadJdk' for DefaultToolchainSpec.
-Changing to `autoDownload` produced the same error:
-  Could not set unknown property 'autoDownload' for DefaultToolchainSpec.
-After removing the property, Gradle proceeded but produced many deprecation warnings.
-No network requests for JDK downloads were observed in the log, so required domains could not be determined.
+Initialized native services in: /root/.gradle/native
+Initialized jansi services in: /root/.gradle/native
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Starting process 'Gradle build daemon'. Working directory: /root/.gradle/daemon/8.14 Command: /usr/lib/jvm/java-21-openjdk-amd64/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED -Xmx1536M -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -cp /opt/gradle/lib/gradle-daemon-main-8.14.jar -javaagent:/opt/gradle/lib/agents/gradle-instrumentation-agent-8.14.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.14
+Successfully started process 'Gradle build daemon'
+An attempt to start the daemon took 1.212 secs.
+The client will now receive all logging from the daemon (pid: 10754). The daemon log file: /root/.gradle/daemon/8.14/daemon-10754.out.log
 Daemon will be stopped at the end of the build 
+Using 5 worker leases.
+Received JVM installation metadata from '/usr/lib/jvm/java-21-openjdk-amd64': {JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64, JAVA_VERSION=21.0.7, JAVA_VENDOR=Ubuntu, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.7+6-Ubuntu-0ubuntu124.04, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.7+6-Ubuntu-0ubuntu124.04, VM_VENDOR=Ubuntu, OS_ARCH=amd64}
+Watching the file system is configured to be enabled if available
+Now considering [/workspace/PhotoWordFind/android] as hierarchies to watch
+File system watching is active
+Starting Build
+Resolved plugin [id: 'org.gradle.toolchains.foojay-resolver-convention', version: '1.0.0']
 You are applying Flutter's app_plugin_loader Gradle plugin imperatively using the apply script method, which is deprecated and will be removed in a future release. Migrate to applying Gradle plugins with the declarative plugins block: https://flutter.dev/to/flutter-gradle-plugin-apply
 
+Settings evaluated using settings file '/workspace/PhotoWordFind/android/settings.gradle'.
+Projects loaded. Root project using build file '/workspace/PhotoWordFind/android/build.gradle'.
+Included projects: [root project 'android', project ':app', project ':catcher', project ':connectivity_plus', project ':device_apps', project ':device_info_plus', project ':file_picker', project ':flutter_isolate', project ':flutter_mailer', project ':flutter_plugin_android_lifecycle', project ':fluttertoast', project ':geocoding_android', project ':google_mlkit_commons', project ':google_mlkit_text_recognition', project ':google_sign_in', project ':image_picker_android', project ':package_info_plus', project ':path_provider_android', project ':permission_handler_android', project ':photo_manager', project ':shared_preferences_android', project ':url_launcher_android', project ':video_player_android']
+
+> Configure project :
+Evaluating root project 'android' using build file '/workspace/PhotoWordFind/android/build.gradle'.
 
 > Configure project :app
+Evaluating project ':app' using build file '/workspace/PhotoWordFind/android/app/build.gradle'.
 WARNING: The option 'android.enableR8' is deprecated.
 It was removed in version 7.0 of the Android Gradle plugin.
 Please remove it from `gradle.properties`.
+Using default execution profile
+Using Kotlin Gradle Plugin gradle81 variant
 You are applying Flutter's main Gradle plugin imperatively using the apply script method, which is deprecated and will be removed in a future release. Migrate to applying Gradle plugins with the declarative plugins block: https://flutter.dev/to/flutter-gradle-plugin-apply
 
+Parsed shrinker version: 8.4.22
+
+> Configure project :catcher
+Evaluating project ':catcher' using build file '/root/.pub-cache/hosted/pub.dev/catcher-0.8.0/android/build.gradle'.
+Using default execution profile
+Using Kotlin Gradle Plugin gradle81 variant
+
+> Configure project :connectivity_plus
+Evaluating project ':connectivity_plus' using build file '/root/.pub-cache/hosted/pub.dev/connectivity_plus-3.0.6/android/build.gradle'.
+Using default execution profile
+
+> Configure project :device_apps
+Evaluating project ':device_apps' using build file '/root/.pub-cache/hosted/pub.dev/device_apps-2.2.0/android/build.gradle'.
+Using default execution profile
+
+> Configure project :device_info_plus
+Evaluating project ':device_info_plus' using build file '/root/.pub-cache/hosted/pub.dev/device_info_plus-9.1.2/android/build.gradle'.
+Using default execution profile
+Using Kotlin Gradle Plugin gradle81 variant
+
+> Configure project :file_picker
+Evaluating project ':file_picker' using build file '/root/.pub-cache/hosted/pub.dev/file_picker-5.5.0/android/build.gradle'.
+Using default execution profile
+
+> Configure project :flutter_isolate
+Evaluating project ':flutter_isolate' using build file '/root/.pub-cache/hosted/pub.dev/flutter_isolate-2.0.4/android/build.gradle'.
+Using default execution profile
+
+> Configure project :flutter_mailer
+Evaluating project ':flutter_mailer' using build file '/root/.pub-cache/hosted/pub.dev/flutter_mailer-2.1.2/android/build.gradle'.
+Using default execution profile
+
+> Configure project :flutter_plugin_android_lifecycle
+Evaluating project ':flutter_plugin_android_lifecycle' using build file '/root/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.18/android/build.gradle'.
+Using default execution profile
+
+> Configure project :fluttertoast
+Evaluating project ':fluttertoast' using build file '/root/.pub-cache/hosted/pub.dev/fluttertoast-8.2.5/android/build.gradle'.
+Using default execution profile
+Using Kotlin Gradle Plugin gradle81 variant
+
+> Configure project :geocoding_android
+Evaluating project ':geocoding_android' using build file '/root/.pub-cache/hosted/pub.dev/geocoding_android-3.3.1/android/build.gradle'.
+Using default execution profile
+
+> Configure project :google_mlkit_commons
+Evaluating project ':google_mlkit_commons' using build file '/root/.pub-cache/hosted/pub.dev/google_mlkit_commons-0.3.0/android/build.gradle'.
+Using default execution profile
+
+> Configure project :google_mlkit_text_recognition
+Evaluating project ':google_mlkit_text_recognition' using build file '/root/.pub-cache/hosted/pub.dev/google_mlkit_text_recognition-0.6.0/android/build.gradle'.
+Using default execution profile
+
+> Configure project :google_sign_in
+Evaluating project ':google_sign_in' using build file '/root/.pub-cache/hosted/pub.dev/google_sign_in-5.2.3/android/build.gradle'.
+Using default execution profile
+
+> Configure project :image_picker_android
+Evaluating project ':image_picker_android' using build file '/root/.pub-cache/hosted/pub.dev/image_picker_android-0.8.9+5/android/build.gradle'.
+Using default execution profile
+
+> Configure project :package_info_plus
+Evaluating project ':package_info_plus' using build file '/root/.pub-cache/hosted/pub.dev/package_info_plus-4.2.0/android/build.gradle'.
+Using default execution profile
+Using Kotlin Gradle Plugin gradle81 variant
+
+> Configure project :path_provider_android
+Evaluating project ':path_provider_android' using build file '/root/.pub-cache/hosted/pub.dev/path_provider_android-2.2.3/android/build.gradle'.
+Using default execution profile
+
+> Configure project :permission_handler_android
+Evaluating project ':permission_handler_android' using build file '/root/.pub-cache/hosted/pub.dev/permission_handler_android-10.3.6/android/build.gradle'.
+Using default execution profile
+
+> Configure project :photo_manager
+Evaluating project ':photo_manager' using build file '/root/.pub-cache/hosted/pub.dev/photo_manager-3.7.1/android/build.gradle'.
+Using default execution profile
+Using Kotlin Gradle Plugin gradle81 variant
+
+> Configure project :shared_preferences_android
+Evaluating project ':shared_preferences_android' using build file '/root/.pub-cache/hosted/pub.dev/shared_preferences_android-2.2.1/android/build.gradle'.
+Using default execution profile
+
+> Configure project :url_launcher_android
+Evaluating project ':url_launcher_android' using build file '/root/.pub-cache/hosted/pub.dev/url_launcher_android-6.3.0/android/build.gradle'.
+Using default execution profile
+
+> Configure project :video_player_android
+Evaluating project ':video_player_android' using build file '/root/.pub-cache/hosted/pub.dev/video_player_android-2.7.16/android/build.gradle'.
+Using default execution profile
+All projects evaluated.
+Task name matched 'assembleDebug'
+Selected primary task 'assembleDebug' from project :
+Path for java installation '/usr/lib/jvm/openjdk-21' (Common Linux Locations) auto-detected does not contain a java executable
+Starting process 'command '/root/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2/bin/java''. Working directory: /root/.gradle/.tmp/tmp-jvm4677769605450016705probe Command: /root/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2/bin/java -Xmx32m -Xms32m -cp . JavaProbe
+Successfully started process 'command '/root/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2/bin/java''
+Received JVM installation metadata from '/root/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2': {JAVA_HOME=/root/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2, JAVA_VERSION=17.0.16, JAVA_VENDOR=Eclipse Adoptium, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=17.0.16+8, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=17.0.16+8, VM_VENDOR=Eclipse Adoptium, OS_ARCH=amd64}
 
 [Incubating] Problems report is available at: file:///workspace/PhotoWordFind/build/reports/problems/problems-report.html
 
@@ -26,7 +138,7 @@ Could not determine the dependencies of task ':app:compileDebugJavaWithJavac'.
 > SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable or by setting the sdk.dir path in your project's local properties file at '/workspace/PhotoWordFind/android/local.properties'.
 
 * Try:
-> Run with --info or --debug option to get more log output.
+> Run with --debug option to get more log output.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
@@ -225,4 +337,4 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 28s
+BUILD FAILED in 19s

@@ -1,5 +1,4 @@
 import org.gradle.jvm.toolchain.JavaLanguageVersion
-import org.gradle.jvm.toolchain.JvmVendorSpec
 
 buildscript {
     ext.kotlin_version = '1.9.20'
@@ -14,9 +13,7 @@ buildscript {
     }
 }
 
-plugins {
-    id 'java'
-}
+apply plugin: 'java'
 
 allprojects {
     repositories {
@@ -33,18 +30,6 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-gradle.settingsEvaluated { settings ->
-    def svc = settings.gradle.sharedServices
-        .registerIfAbsent("java17Launcher", org.gradle.jvm.toolchain.JavaToolchainService) { spec -> }
-        .flatMap {
-            it.launcherFor {
-                languageVersion = JavaLanguageVersion.of(17)
-                vendor = JvmVendorSpec.AMAZON
-            }
-        }
-
-    settings.gradle.startParameter.javaHome = svc.get().metadata.installationPath.asFile
-}
 
 subprojects { subproject ->
     subproject.plugins.withId('com.android.library') {
@@ -61,6 +46,5 @@ subprojects { subproject ->
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
-        vendor = JvmVendorSpec.AMAZON
     }
 }
