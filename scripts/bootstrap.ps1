@@ -82,6 +82,24 @@ if ($jdkDir) {
     if ($env:Path -notlike "$jdkPathEntry*") {
         $env:Path = "$jdkPathEntry;" + $env:Path
     }
+
+    $gradleProps = Join-Path $PSScriptRoot "..\android\gradle.properties"
+    if (Test-Path $gradleProps) {
+        $props = Get-Content $gradleProps
+        $newLine = "org.gradle.java.home=$env:PWF_JAVA_HOME"
+        $updated = $false
+        $props = $props | ForEach-Object {
+            if ($_ -match '^\s*#?\s*org\.gradle\.java\.home=') {
+                $updated = $true
+                $newLine
+            } else {
+                $_
+            }
+        }
+        if (-not $updated) { $props += $newLine }
+        Set-Content $gradleProps $props
+        Write-Host "Set org.gradle.java.home in gradle.properties" -ForegroundColor Green
+    }
 }
 
 # Install Firebase CLI if missing
