@@ -57,7 +57,7 @@ if (-not (Test-Path $sdkManager)) {
 }
 if (Test-Path $sdkManager) {
     Write-Host "Ensuring Android cmdline tools installed..."
-    & $sdkManager --install "cmdline-tools;latest" | Out-Null
+    & $sdkManager --install "cmdline-tools;latest" "platform-tools" | Out-Null
 }
 
 $jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' | Sort-Object Name -Descending | Select-Object -First 1
@@ -99,6 +99,18 @@ if ($jdkDir) {
         if (-not $updated) { $props += $newLine }
         Set-Content $gradleProps $props
         Write-Host "Set org.gradle.java.home in gradle.properties" -ForegroundColor Green
+    }
+}
+
+$adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
+if (Test-Path $adbPathEntry) {
+    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $adbPathEntry })) {
+        Write-Host "Adding Android platform-tools to user PATH..."
+        setx Path "$adbPathEntry;" + $persistPath | Out-Null
+    }
+    if ($env:Path -notlike "$adbPathEntry*") {
+        $env:Path = "$adbPathEntry;" + $env:Path
     }
 }
 
