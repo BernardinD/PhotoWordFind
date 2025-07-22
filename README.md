@@ -68,7 +68,8 @@ powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap.ps1
 
 The script installs Eclipse Temurin JDK 17 and Android Studio via `winget`,
 refreshing the current `PATH` after each installation so new commands are
-available immediately. The JDK location is persisted in `PWF_JAVA_HOME` and
+available immediately. Android platform-tools are installed as well so `adb`
+works without extra steps. The JDK location is persisted in `PWF_JAVA_HOME` and
 prepended to your user `PATH` without affecting other JDK versions. The
 path is also written to `android/gradle.properties` as `org.gradle.java.home`
 so Gradle can locate the JDK automatically. Every
