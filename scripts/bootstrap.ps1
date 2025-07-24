@@ -50,15 +50,42 @@ if (-not (Get-Command studio64.exe -ErrorAction SilentlyContinue)) {
 } else {
     Write-Host "Android Studio already installed." -ForegroundColor Green
 }
+# Guarantee studio64.exe is reachable from PATH
+$studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
+if (-not $studioCmd) {
+    $searchDirs = @(
+        "$env:LOCALAPPDATA\Programs\Android\Android Studio\bin",
+        "$env:ProgramFiles\Android\Android Studio\bin",
+        "$env:ProgramFiles\Google\Android Studio\bin"
+    )
+    foreach ($d in $searchDirs) {
+        $candidate = Join-Path $d 'studio64.exe'
+        if (Test-Path $candidate) { $studioCmd = @{ Source = $candidate }; break }
+    }
+}
+if ($studioCmd) {
+    $studioDir = Split-Path $studioCmd.Source
+    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $studioDir })) {
+        Write-Host "Adding Android Studio to user PATH..."
+        setx Path "$studioDir;" + $persistPath | Out-Null
+    }
+    if ($env:Path -notlike "$studioDir*") { $env:Path = "$studioDir;" + $env:Path }
+} else {
+    Write-Host "Android Studio executable not found" -ForegroundColor Yellow
+}
 
 $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
 if (-not (Test-Path $sdkManager)) {
     $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\tools\bin\sdkmanager.bat"
 }
+$needStudioSetup = $false
 if (Test-Path $sdkManager) {
-    Write-Host "Ensuring Android cmdline tools installed..."
-    & $sdkManager --install "cmdline-tools;latest" "platform-tools" | Out-Null
+    Write-Host "Found Android cmdline tools." -ForegroundColor Green
+} else {
+    $needStudioSetup = $true
 }
+$studioProcess = $null
 
 $jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' | Sort-Object Name -Descending | Select-Object -First 1
 if ($jdkDir) {
@@ -83,24 +110,26 @@ if ($jdkDir) {
         $env:Path = "$jdkPathEntry;" + $env:Path
     }
 
-    $gradleProps = Join-Path $PSScriptRoot "..\android\gradle.properties"
-    if (Test-Path $gradleProps) {
-        $props = Get-Content $gradleProps
-        $newLine = "org.gradle.java.home=$env:PWF_JAVA_HOME"
-        $updated = $false
-        $props = $props | ForEach-Object {
-            if ($_ -match '^\s*#?\s*org\.gradle\.java\.home=') {
-                $updated = $true
-                $newLine
-            } else {
-                $_
-            }
-        }
-        if (-not $updated) { $props += $newLine }
-        Set-Content $gradleProps $props
-        Write-Host "Set org.gradle.java.home in gradle.properties" -ForegroundColor Green
-    }
 }
+    $gradleHome = $env:GRADLE_USER_HOME
+    if (-not $gradleHome) { $gradleHome = Join-Path $Env:USERPROFILE '.gradle' }
+    if (-not (Test-Path $gradleHome)) { New-Item -ItemType Directory -Path $gradleHome | Out-Null }
+    $gradleProps = Join-Path $gradleHome 'gradle.properties'
+    $props = @()
+    if (Test-Path $gradleProps) { $props = Get-Content $gradleProps }
+    $newLine = "org.gradle.java.home=$env:PWF_JAVA_HOME"
+    $updated = $false
+    $props = $props | ForEach-Object {
+        if ($_ -match '^\s*#?\s*org\.gradle\.java\.home=') {
+            $updated = $true
+            $newLine
+        } else {
+            $_
+        }
+    }
+    if (-not $updated) { $props += $newLine }
+    Set-Content $gradleProps $props
+    Write-Host "Set org.gradle.java.home in user gradle.properties" -ForegroundColor Green
 
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
 if (Test-Path $adbPathEntry) {
@@ -124,6 +153,13 @@ if (-not (Get-Command firebase -ErrorAction SilentlyContinue)) {
 # Sign in to Firebase
 Write-Host "Authenticating with Firebase..."
 firebase login
+
+# Launch Android Studio setup wizard if cmdline tools are missing
+if ($needStudioSetup -and $studioCmd) {
+    Write-Host "Starting Android Studio to complete SDK setup..."
+    Write-Host "Please finish the wizard while the script continues running."
+    $studioProcess = Start-Process -FilePath $studioCmd.Source -PassThru
+}
 
 # Fetch debug keystore
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
@@ -186,6 +222,20 @@ if ($existing -contains $fingerprint) {
         Write-Host "SHA-1 fingerprint registered successfully." -ForegroundColor Green
     } else {
         Write-Host "Failed to register fingerprint." -ForegroundColor Yellow
+    }
+}
+
+# Wait for Android Studio wizard if it was started
+if ($studioProcess) {
+    Write-Host "Waiting for Android Studio setup to finish..."
+    Wait-Process -Id $studioProcess.Id
+    Refresh-SessionPath
+    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
+    if (Test-Path $sdkManager) {
+        Write-Host "Installing Android cmdline tools..."
+        & $sdkManager --install "cmdline-tools;latest" "platform-tools" | Out-Null
+    } else {
+        Write-Host "SDK manager still not found" -ForegroundColor Yellow
     }
 }
 
