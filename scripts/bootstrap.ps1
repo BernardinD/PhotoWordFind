@@ -27,16 +27,22 @@ function Is-WingetPackageInstalled($id) {
 
 # Ensure JDK 17 is installed and available
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
-if (-not (Is-WingetPackageInstalled $jdkPackage)) {
-    Write-Host "Installing JDK 17 via winget..."
-    winget install -e --id $jdkPackage
-    Refresh-SessionPath
+$javaCmd = Get-Command java -ErrorAction SilentlyContinue
+if (-not $javaCmd) {
+    if (-not (Is-WingetPackageInstalled $jdkPackage)) {
+        Write-Host "Installing JDK 17 via winget..."
+        winget install -e --id $jdkPackage
+        Refresh-SessionPath
+    } else {
+        Write-Host "JDK package already installed." -ForegroundColor Green
+    }
+    $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 } else {
-    Write-Host "JDK package already installed." -ForegroundColor Green
+    Write-Host "JDK already installed." -ForegroundColor Green
 }
 # Check if installed JDK is version 17
 $needJdk = $true
-$verCheck = Get-Command java -ErrorAction SilentlyContinue
+$verCheck = $javaCmd
 if ($verCheck) {
     $verLine = (& java -version 2>&1)[0]
     if ($verLine -match '"(\d+)"') {
@@ -49,25 +55,29 @@ if ($needJdk) {
 
 # Ensure Android Studio and command line tools are installed
 $studioPackage = 'Google.AndroidStudio'
-if (-not (Is-WingetPackageInstalled $studioPackage)) {
-    Write-Host "Installing Android Studio via winget..."
-    winget install -e --id $studioPackage
-    Refresh-SessionPath
-} else {
-    Write-Host "Android Studio already installed." -ForegroundColor Green
-}
-# Guarantee studio64.exe is reachable from PATH
 $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 if (-not $studioCmd) {
-    $searchDirs = @(
-        "$env:LOCALAPPDATA\Programs\Android\Android Studio\bin",
-        "$env:ProgramFiles\Android\Android Studio\bin",
-        "$env:ProgramFiles\Google\Android Studio\bin"
-    )
-    foreach ($d in $searchDirs) {
-        $candidate = Join-Path $d 'studio64.exe'
-        if (Test-Path $candidate) { $studioCmd = @{ Source = $candidate }; break }
+    if (-not (Is-WingetPackageInstalled $studioPackage)) {
+        Write-Host "Installing Android Studio via winget..."
+        winget install -e --id $studioPackage
+        Refresh-SessionPath
+    } else {
+        Write-Host "Android Studio package already installed." -ForegroundColor Green
     }
+    $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
+    if (-not $studioCmd) {
+        $searchDirs = @(
+            "$env:LOCALAPPDATA\Programs\Android\Android Studio\bin",
+            "$env:ProgramFiles\Android\Android Studio\bin",
+            "$env:ProgramFiles\Google\Android Studio\bin"
+        )
+        foreach ($d in $searchDirs) {
+            $candidate = Join-Path $d 'studio64.exe'
+            if (Test-Path $candidate) { $studioCmd = @{ Source = $candidate }; break }
+        }
+    }
+} else {
+    Write-Host "Android Studio already installed." -ForegroundColor Green
 }
 if ($studioCmd) {
     $studioDir = Split-Path $studioCmd.Source
@@ -151,24 +161,29 @@ if (Test-Path $adbPathEntry) {
 
 # Ensure Flutter is installed and on PATH
 $flutterPackage = 'Flutter.Flutter'
-if (-not (Is-WingetPackageInstalled $flutterPackage)) {
-    Write-Host "Installing Flutter via winget..."
-    winget install -e --id $flutterPackage
-    Refresh-SessionPath
-} else {
-    Write-Host "Flutter already installed." -ForegroundColor Green
-}
 $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
 if (-not $flutterCmd) {
-    $searchDirs = @(
-        "$env:LOCALAPPDATA\Programs\flutter\bin",
-        "$env:ProgramFiles\flutter\bin",
-        "$env:ProgramFiles(x86)\flutter\bin"
-    )
-    foreach ($d in $searchDirs) {
-        $candidate = Join-Path $d 'flutter.bat'
-        if (Test-Path $candidate) { $flutterCmd = @{ Source = $candidate }; break }
+    if (-not (Is-WingetPackageInstalled $flutterPackage)) {
+        Write-Host "Installing Flutter via winget..."
+        winget install -e --id $flutterPackage
+        Refresh-SessionPath
+    } else {
+        Write-Host "Flutter package already installed." -ForegroundColor Green
     }
+    $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
+    if (-not $flutterCmd) {
+        $searchDirs = @(
+            "$env:LOCALAPPDATA\Programs\flutter\bin",
+            "$env:ProgramFiles\flutter\bin",
+            "$env:ProgramFiles(x86)\flutter\bin"
+        )
+        foreach ($d in $searchDirs) {
+            $candidate = Join-Path $d 'flutter.bat'
+            if (Test-Path $candidate) { $flutterCmd = @{ Source = $candidate }; break }
+        }
+    }
+} else {
+    Write-Host "Flutter already installed." -ForegroundColor Green
 }
 if ($flutterCmd) {
     $flutterBin = Split-Path $flutterCmd.Source
@@ -188,10 +203,16 @@ if ($flutterCmd) {
 
 # Install Firebase CLI if missing
 $firebasePackage = 'Google.FirebaseCLI'
-if (-not (Is-WingetPackageInstalled $firebasePackage)) {
-    Write-Host "Installing Firebase CLI via winget..."
-    winget install -e --id $firebasePackage
-    Refresh-SessionPath
+$firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
+if (-not $firebaseCmd) {
+    if (-not (Is-WingetPackageInstalled $firebasePackage)) {
+        Write-Host "Installing Firebase CLI via winget..."
+        winget install -e --id $firebasePackage
+        Refresh-SessionPath
+    }
+    $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
+} else {
+    Write-Host "Firebase CLI already installed." -ForegroundColor Green
 }
 
 # Sign in to Firebase
