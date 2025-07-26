@@ -315,5 +315,5 @@ Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
 Set-Content -Path $flagPath -Value 'ok'
 
 # Open Windows Developer Mode settings for convenience
-Write-Host "Opening Developer Mode settings..."
+Write-Host "Opening Developer Mode settings..." -ForegroundColor Cyan
 Start-Process "ms-settings:developers"
