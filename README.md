@@ -71,13 +71,14 @@ refreshing the current `PATH` after each installation so new commands are
 available immediately. Android platform-tools are installed as well so `adb`
 works without extra steps. The JDK location is persisted in `PWF_JAVA_HOME` and
 prepended to your user `PATH` without affecting other JDK versions. The
-path is also written to `android/gradle.properties` as `org.gradle.java.home`
-so Gradle can locate the JDK automatically. Every
+path is written to `android/gradle.properties` as `org.gradle.java.home` using
+escaped Windows separators so Gradle can locate the JDK automatically. Every
 Firebase CLI command includes `--project=pwfapp-f314d`, so no `firebase use`
 state is required. It prints progress messages for each step—including when
 downloading the keystore, parsing the Firebase Functions config value and
 registering the SHA‑1 fingerprint with Firebase app
 `1:1082599556322:android:66fb03c1d8192758440abb` if missing—and finally writes a
-`.bootstrap_complete` file in the repository root. Because Gradle executes from
-the `android` subdirectory it looks for this flag relative to the parent
+`.bootstrap_complete` file in the repository root and opens the Windows Developer
+Mode settings for convenience. Because Gradle executes from the `android`
+subdirectory it looks for this flag relative to the parent
 directory and runs the script automatically when it is absent.
