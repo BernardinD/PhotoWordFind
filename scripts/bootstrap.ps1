@@ -128,25 +128,27 @@ if ($jdkDir) {
     }
 
 }
-    $gradleHome = $env:GRADLE_USER_HOME
-    if (-not $gradleHome) { $gradleHome = Join-Path $Env:USERPROFILE '.gradle' }
-    if (-not (Test-Path $gradleHome)) { New-Item -ItemType Directory -Path $gradleHome | Out-Null }
-    $gradleProps = Join-Path $gradleHome 'gradle.properties'
-    $props = @()
-    if (Test-Path $gradleProps) { $props = Get-Content $gradleProps }
-    $newLine = "org.gradle.java.home=$env:PWF_JAVA_HOME"
-    $updated = $false
-    $props = $props | ForEach-Object {
-        if ($_ -match '^\s*#?\s*org\.gradle\.java\.home=') {
-            $updated = $true
-            $newLine
-        } else {
-            $_
+
+    # Update project Gradle properties so Gradle can locate the JDK
+    $projectGradleProps = Join-Path $PSScriptRoot '..\android\gradle.properties'
+    if ($env:PWF_JAVA_HOME -and (Test-Path $projectGradleProps)) {
+        $escapedHome = $env:PWF_JAVA_HOME -replace '\\', '\\\\'
+        $props = @()
+        if (Test-Path $projectGradleProps) { $props = Get-Content $projectGradleProps }
+        $newLine = "org.gradle.java.home=$escapedHome"
+        $updated = $false
+        $props = $props | ForEach-Object {
+            if ($_ -match '^\s*#?\s*org\.gradle\.java\.home=') {
+                $updated = $true
+                $newLine
+            } else {
+                $_
+            }
         }
+        if (-not $updated) { $props += $newLine }
+        Set-Content $projectGradleProps $props
+        Write-Host "Set org.gradle.java.home in project gradle.properties" -ForegroundColor Green
     }
-    if (-not $updated) { $props += $newLine }
-    Set-Content $gradleProps $props
-    Write-Host "Set org.gradle.java.home in user gradle.properties" -ForegroundColor Green
 
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
 if (Test-Path $adbPathEntry) {
@@ -311,3 +313,7 @@ if ($studioProcess) {
 $flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
 Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
 Set-Content -Path $flagPath -Value 'ok'
+
+# Open Windows Developer Mode settings for convenience
+Write-Host "Opening Developer Mode settings..."
+Start-Process "ms-settings:developers"
