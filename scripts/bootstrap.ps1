@@ -184,8 +184,14 @@ if ($flutterCmd) {
     }
     if ($env:Path -notlike "$flutterBin*") { $env:Path = "$flutterBin;" + $env:Path }
     Push-Location (Split-Path $flutterBin -Parent)
-    git fetch --tags
-    git checkout 3.24.5
+    $desiredFlutterVersion = "3.24.5"
+    $currentFlutterVersion = (& $flutterCmd.Source --version 2>$null | Select-String -Pattern "^Flutter\s+([0-9\.]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value })[0]
+    if ($currentFlutterVersion -ne $desiredFlutterVersion) {
+        git fetch --tags
+        git checkout $desiredFlutterVersion
+    } else {
+        Write-Host "Flutter $desiredFlutterVersion already checked out." -ForegroundColor Green
+    }
     Pop-Location
 } else {
     Write-Host "Flutter executable not found" -ForegroundColor Yellow
