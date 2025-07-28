@@ -786,6 +786,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       });
       _updateStates(allImages);
       await _applyFiltersAndSort();
+      await StorageUtils.syncLocalAndCloud();
     }
   }
 }
