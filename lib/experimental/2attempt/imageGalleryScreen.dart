@@ -19,6 +19,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/experimental/2attempt/settings_screen.dart';
+import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:intl/intl.dart';
 
 final PageController _pageController =
@@ -61,6 +62,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   bool _controlsExpanded = true; // Tracks whether the controls are minimized
 
+  late Future<bool> _isSignedInFuture; // Tracks Google sign-in status
+
   /// Key for the root [Navigator] so dialogs can use a context that
   /// has navigation and localization available.
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
@@ -68,12 +71,51 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void initState() {
     super.initState();
+    _isSignedInFuture = _ensureSignedIn();
     if (useJsonFileForLoading) {
       _loadImagesFromJsonFile();
     } else {
       _loadImagesFromPreferences();
     }
     _loadImportDirectory();
+  }
+
+  Future<bool> _ensureSignedIn() async {
+    bool signed = await CloudUtils.isSignedin();
+    if (!signed) {
+      signed = await CloudUtils.firstSignIn();
+    }
+    return signed;
+  }
+
+  Future<void> _forceSync() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+        content: Text('Syncing…'), duration: Duration(seconds: 1)));
+    try {
+      await CloudUtils.updateCloudJson();
+      messenger.showSnackBar(const SnackBar(content: Text('Sync complete')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+    }
+  }
+
+  Future<void> _toggleSignInOut() async {
+    bool signed = await CloudUtils.isSignedin();
+    if (!signed) {
+      await CloudUtils.firstSignIn();
+    } else {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => ConfirmationDialog(message: 'Sign out?'),
+      );
+      if (confirm == true) {
+        await CloudUtils.possibleSignOut();
+      }
+    }
+    setState(() {
+      _isSignedInFuture = CloudUtils.isSignedin();
+    });
   }
 
   Future<void> _loadImagesFromPreferences() async {
@@ -145,18 +187,48 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         builder: (navContext) {
           return Scaffold(
             appBar: AppBar(
-              title: Text('Image Gallery'),
+              title: const Text('Image Gallery'),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () {
-                    Navigator.of(navContext).push(
-                      MaterialPageRoute(
-                        builder: (_) => SettingsScreen(
-                          onResetImportDir: _resetImportDir,
-                          onChangeImportDir: _changeImportDir,
+                FutureBuilder<bool>(
+                  future: _isSignedInFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                      ),
+                      );
+                    }
+                    final signedIn = snapshot.data ?? false;
+                    return Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.sync),
+                          tooltip: 'Sync',
+                          onPressed: signedIn ? _forceSync : null,
+                        ),
+                        IconButton(
+                          icon: Icon(signedIn ? Icons.logout : Icons.login),
+                          tooltip: signedIn ? 'Sign out' : 'Sign in',
+                          onPressed: _toggleSignInOut,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.settings),
+                          onPressed: () {
+                            Navigator.of(navContext).push(
+                              MaterialPageRoute(
+                                builder: (_) => SettingsScreen(
+                                  onResetImportDir: _resetImportDir,
+                                  onChangeImportDir: _changeImportDir,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     );
                   },
                 ),
