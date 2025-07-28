@@ -52,6 +52,9 @@ Future<void> initializeApp() async {
 
   await StorageUtils.init();
 
+  // Ensure cloud backup is synced when the app starts
+  await CloudUtils.firstSignIn();
+
   // await StorageUtils.resetImagePaths();
 }
 
