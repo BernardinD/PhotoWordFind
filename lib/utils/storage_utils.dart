@@ -265,14 +265,30 @@ class StorageUtils {
     // await box.clear();
     await migrateSharedPrefsToHive();
 
+    // Enable legacy path searching when merging old cloud data
+    bool _originalLegacySearch = enableLegacyImagePathSearch;
+    enableLegacyImagePathSearch = true;
+
     List<Exception> mismatches = [];
     for (String key in cloud.keys) {
       String? localValueStr = box.get(key);
       if (localValueStr == null) {
         var returned = convertValueToMap(cloud[key], enforceMapOutput: true);
-        final entry = ContactEntry.fromJson2(key, returned!);
-        await save(entry, backup: false);
-        debugPrint("Saving...");
+        if (returned != null &&
+            returned.containsKey('imagePath') &&
+            returned['imagePath'] != null) {
+          final entry = ContactEntry.fromJson2(key, returned);
+          await save(entry, backup: false);
+          debugPrint("Saving new format...");
+        } else {
+          await box.put(key, cloud[key]);
+          // Use `get` to load and convert the entry so it now includes
+          // an imagePath before saving in the newer format
+          final entry = await get(key);
+          if (entry != null) {
+            await save(entry, backup: false);
+          }
+        }
       } else {
         if (localValueStr != cloud[key] && isJSON(localValueStr)) {
           mismatches.add(Exception(
@@ -280,6 +296,8 @@ class StorageUtils {
         }
       }
     }
+
+    enableLegacyImagePathSearch = _originalLegacySearch;
     debugPrint("Leaving merge()...");
     if (mismatches.isNotEmpty) {
       throw Exception(mismatches);

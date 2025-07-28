@@ -169,6 +169,21 @@ mixin _$ContactEntry on _ContactEntry, Store {
     });
   }
 
+  late final _$stateAtom = Atom(name: '_ContactEntry.state', context: context);
+
+  @override
+  String? get state {
+    _$stateAtom.reportRead();
+    return super.state;
+  }
+
+  @override
+  set state(String? value) {
+    _$stateAtom.reportWrite(value, super.state, () {
+      super.state = value;
+    });
+  }
+
   late final _$previousHandlesAtom =
       Atom(name: '_ContactEntry.previousHandles', context: context);
 
@@ -347,6 +362,7 @@ dateAddedOnDiscord: ${dateAddedOnDiscord},
 addedOnSnap: ${addedOnSnap},
 addedOnInsta: ${addedOnInsta},
 addedOnDiscord: ${addedOnDiscord},
+state: ${state},
 previousHandles: ${previousHandles},
 notes: ${notes},
 socialMediaHandles: ${socialMediaHandles},
