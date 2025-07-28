@@ -9,7 +9,6 @@ import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
-import 'package:PhotoWordFind/widgets/settings_screen.dart';
 import 'package:catcher/catcher.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -141,106 +140,11 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List<File> _images = [];
   List<String> _results = [];
-  late Future<bool> _isSignedInFuture;
-  bool _isSyncing = false;
 
   // TODO: Delete after testing
   void debugPrintLargeString(String message, {int chunkSize = 1000}) {
     final pattern = RegExp('.{1,$chunkSize}', dotAll: true);
     pattern.allMatches(message).forEach((match) => debugPrint(match.group(0)));
-  }
-
-  /// Ensures user is signed in before performing operations
-  Future<bool> _ensureSignedIn() async {
-    bool isSignedIn = await CloudUtils.isSignedin();
-    if (!isSignedIn) {
-      isSignedIn = await CloudUtils.firstSignIn();
-    }
-    return isSignedIn;
-  }
-
-  /// Forces sync with cloud storage
-  Future<void> _forceSync() async {
-    if (_isSyncing) return;
-    
-    setState(() {
-      _isSyncing = true;
-    });
-
-    try {
-      // Ensure we're signed in
-      bool signedIn = await _ensureSignedIn();
-      if (!signedIn) {
-        throw Exception("Sign-in failed");
-      }
-
-      MyApp.pr.show(max: 2);
-      MyApp.pr.update(value: 0, msg: "Downloading from cloud...");
-      
-      // Download from cloud
-      bool foundCloudData = await CloudUtils.getCloudJson();
-      MyApp.pr.update(value: 1, msg: "Uploading to cloud...");
-      
-      // Upload current data to cloud
-      await CloudUtils.updateCloudJson();
-      MyApp.pr.update(value: 2, msg: "Sync complete!");
-      
-      Toasts.showToast(true, (_) => "Cloud sync completed successfully");
-    } catch (e) {
-      debugPrint("Sync error: $e");
-      Toasts.showToast(false, (_) => "Sync failed: ${e.toString()}");
-    } finally {
-      MyApp.pr.close();
-      setState(() {
-        _isSyncing = false;
-      });
-    }
-  }
-
-  /// Toggles sign in/out status
-  Future<void> _toggleSignInOut() async {
-    bool isSignedIn = await CloudUtils.isSignedin();
-    
-    if (isSignedIn) {
-      // Sign out
-      bool confirmed = await showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return ConfirmationDialog(
-              message: "Are you sure you want to sign out?");
-        },
-      );
-
-      if (confirmed) {
-        await CloudUtils.possibleSignOut();
-        setState(() {
-          _isSignedInFuture = Future.value(false);
-        });
-      }
-    } else {
-      // Sign in
-      bool success = await CloudUtils.firstSignIn();
-      setState(() {
-        _isSignedInFuture = Future.value(success);
-      });
-    }
-  }
-
-  /// Navigate to settings screen
-  void _navigateToSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SettingsScreen(
-          currentDirectory: _directoryPath,
-          onDirectoryChanged: (String? newDirectory) {
-            setState(() {
-              _directoryPath = newDirectory;
-            });
-          },
-        ),
-      ),
-    );
   }
 
   Future<void> _sendToChatGPT() async {
@@ -314,9 +218,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     MyApp.updateFrame = setState;
-    
-    // Initialize sign-in state
-    _isSignedInFuture = CloudUtils.isSignedin();
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
@@ -330,9 +231,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
         CloudUtils.firstSignIn()
             .then((bool signedIn) {
-              setState(() {
-                _isSignedInFuture = Future.value(signedIn);
-              });
               if(!signedIn){
                 throw Exception("Sign-in failed");
               }
@@ -362,67 +260,45 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title!),
-        leading: FutureBuilder<bool>(
-          future: _isSignedInFuture,
+        leading: FutureBuilder(
+          future: CloudUtils.isSignedin(),
           builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-            if (snapshot.hasError) {
-              return Icon(Icons.error_outline, color: Colors.red);
-            }
+            if (snapshot.hasError) throw Exception(snapshot.error);
             if (!snapshot.hasData) {
               debugPrint("Sign-in hasn't finished. Skipping...");
               return Icon(Icons.sync_disabled_rounded);
             }
-            
-            bool isSignedIn = snapshot.data == true;
-            return (!isSignedIn)
+            return (!snapshot.data!)
                 ? ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
                     child: IconButton(
                       onPressed: null,
                       icon: Icon(Icons.cloud_upload_rounded),
                     ),
-                    onPressed: _toggleSignInOut,
+                    onPressed: () => CloudUtils.firstSignIn()
+                        .then((value) => MyApp.updateFrame(() => null)),
                   )
                 : ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
-                    onPressed: _toggleSignInOut,
+                    onPressed: () async {
+                      bool result = await showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return ConfirmationDialog(
+                              message: "Are you sure you want to sign out?");
+                        },
+                      );
+
+                      if (!result) return;
+                      CloudUtils.possibleSignOut()
+                          .then((value) => MyApp.updateFrame(() => null));
+                    },
                     child: IconButton(
                       onPressed: null,
                       icon: Icon(Icons.logout),
                     ));
           },
         ),
-        actions: [
-          // Sync button - only enabled when signed in
-          FutureBuilder<bool>(
-            future: _isSignedInFuture,
-            builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-              bool isSignedIn = snapshot.data == true;
-              return IconButton(
-                onPressed: (isSignedIn && !_isSyncing) ? _forceSync : null,
-                icon: _isSyncing 
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        Icons.sync,
-                        color: isSignedIn ? null : Colors.grey,
-                      ),
-                tooltip: isSignedIn 
-                    ? (_isSyncing ? 'Syncing...' : 'Sync with cloud') 
-                    : 'Sign in to sync',
-              );
-            },
-          ),
-          // Settings button
-          IconButton(
-            onPressed: _navigateToSettings,
-            icon: Icon(Icons.settings),
-            tooltip: 'Settings',
-          ),
-        ],
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
