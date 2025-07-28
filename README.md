@@ -71,7 +71,7 @@ refreshing the current `PATH` after each installation so new commands are
 available immediately. Android platform-tools are installed as well so `adb`
 works without extra steps. The JDK location is persisted in `PWF_JAVA_HOME` and
 prepended to your user `PATH` without affecting other JDK versions. The script
-creates a `.jdk` symlink in the repository root pointing to this path and
+creates a `.jdk` junction in the repository root pointing to this path and
 `android/gradle.properties` always contains `org.gradle.java.home=../.jdk`, so
 Gradle can locate the JDK without modifying the file per-machine. Every
 Firebase CLI command includes `--project=pwfapp-f314d`, so no `firebase use`
