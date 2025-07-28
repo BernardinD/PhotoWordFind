@@ -40,8 +40,8 @@ void main() {
       // Verify sync button exists
       expect(find.byIcon(Icons.sync), findsOneWidget);
       
-      // Verify sign in/out button exists (should be either login or logout icon)
-      expect(find.byType(IconButton), findsAtLeastNWidgets(3)); // settings, sync, sign in/out
+      // The sign in/out button should be in the leading position as an ElevatedButton
+      expect(find.byType(ElevatedButton), findsAtLeastNWidgets(1));
     });
 
     testWidgets('Find, Display, and Move buttons exist', (WidgetTester tester) async {
@@ -75,8 +75,11 @@ void main() {
       // Wait for the app to load
       await tester.pumpAndSettle();
 
-      // Tap the settings button
-      await tester.tap(find.byIcon(Icons.settings));
+      // Find and tap the settings button in the AppBar actions
+      final settingsButton = find.byIcon(Icons.settings);
+      expect(settingsButton, findsOneWidget);
+      
+      await tester.tap(settingsButton);
       await tester.pumpAndSettle();
 
       // Verify we navigated to settings screen

@@ -226,6 +226,23 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  /// Navigate to settings screen
+  void _navigateToSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          currentDirectory: _directoryPath,
+          onDirectoryChanged: (String? newDirectory) {
+            setState(() {
+              _directoryPath = newDirectory;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _sendToChatGPT() async {
     MyApp.pr.show(max: _images.length);
 
@@ -337,23 +354,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /// Navigate to settings screen
-  void _navigateToSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SettingsScreen(
-          currentDirectory: _directoryPath,
-          onDirectoryChanged: (String? newDirectory) {
-            setState(() {
-              _directoryPath = newDirectory;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -362,24 +362,48 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title!),
+        leading: FutureBuilder<bool>(
+          future: _isSignedInFuture,
+          builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+            if (snapshot.hasError) {
+              return Icon(Icons.error_outline, color: Colors.red);
+            }
+            if (!snapshot.hasData) {
+              debugPrint("Sign-in hasn't finished. Skipping...");
+              return Icon(Icons.sync_disabled_rounded);
+            }
+            
+            bool isSignedIn = snapshot.data == true;
+            return (!isSignedIn)
+                ? ElevatedButton(
+                    key: ValueKey(snapshot.data.toString()),
+                    child: IconButton(
+                      onPressed: null,
+                      icon: Icon(Icons.cloud_upload_rounded),
+                    ),
+                    onPressed: _toggleSignInOut,
+                  )
+                : ElevatedButton(
+                    key: ValueKey(snapshot.data.toString()),
+                    onPressed: _toggleSignInOut,
+                    child: IconButton(
+                      onPressed: null,
+                      icon: Icon(Icons.logout),
+                    ));
+          },
+        ),
         actions: [
-          // Settings button
-          IconButton(
-            onPressed: _navigateToSettings,
-            icon: Icon(Icons.settings),
-            tooltip: 'Settings',
-          ),
-          // Sync button
+          // Sync button - only enabled when signed in
           FutureBuilder<bool>(
             future: _isSignedInFuture,
             builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-              bool isSignedIn = snapshot.hasData && snapshot.data == true;
+              bool isSignedIn = snapshot.data == true;
               return IconButton(
                 onPressed: (isSignedIn && !_isSyncing) ? _forceSync : null,
                 icon: _isSyncing 
                     ? SizedBox(
-                        width: 20,
-                        height: 20,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(
@@ -392,33 +416,11 @@ class _MyHomePageState extends State<MyHomePage> {
               );
             },
           ),
-          // Sign in/out button
-          FutureBuilder<bool>(
-            future: _isSignedInFuture,
-            builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-              if (snapshot.hasError) {
-                return IconButton(
-                  onPressed: null,
-                  icon: Icon(Icons.error_outline, color: Colors.red),
-                  tooltip: 'Sign-in error',
-                );
-              }
-              
-              if (!snapshot.hasData) {
-                return SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                );
-              }
-              
-              bool isSignedIn = snapshot.data == true;
-              return IconButton(
-                onPressed: _toggleSignInOut,
-                icon: Icon(isSignedIn ? Icons.logout : Icons.login),
-                tooltip: isSignedIn ? 'Sign out' : 'Sign in',
-              );
-            },
+          // Settings button
+          IconButton(
+            onPressed: _navigateToSettings,
+            icon: Icon(Icons.settings),
+            tooltip: 'Settings',
           ),
         ],
       ),
