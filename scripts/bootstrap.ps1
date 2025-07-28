@@ -276,17 +276,25 @@ $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugke
 Write-Host "Keystore SHA-1 fingerprint is $fingerprint"
 
 Write-Host "Checking Firebase app for existing fingerprint..."
+# Normalize fingerprint: remove colons and lowercase
+$normFingerprint = ($fingerprint -replace ':','').ToLower()
+# Fetch existing SHA hashes and normalize
 $existingJson = firebase apps:android:sha:list $FirebaseAppId --project $ProjectId --json 2>$null
 $existing = @()
 if ($LASTEXITCODE -eq 0 -and $existingJson) {
-    $existing = ($existingJson | ConvertFrom-Json).result | ForEach-Object { $_.shaHash }
+    try {
+        $convertedJson = $existingJson | ConvertFrom-Json
+        $existing = $convertedJson.result | ForEach-Object { $_.shaHash.ToLower() }
+    } catch {
+        Write-Host "Failed to parse Firebase JSON response." -ForegroundColor Yellow
+    }
 }
 
-if ($existing -contains $fingerprint) {
+if ($existing -contains $normFingerprint) {
     Write-Host "Fingerprint already registered." -ForegroundColor Green
 } else {
     Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
-    firebase apps:android:sha:create $FirebaseAppId $fingerprint --project $ProjectId
+    firebase apps:android:sha:create $FirebaseAppId $normFingerprint --project $ProjectId
     if ($LASTEXITCODE -eq 0) {
         Write-Host "SHA-1 fingerprint registered successfully." -ForegroundColor Green
     } else {
