@@ -44,3 +44,4 @@ android/app/google-services.json
 lib/apiSecretKeys.dart
 android/app/debug.keystore
 .bootstrap_complete
+.jdk/

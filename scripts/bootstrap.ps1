@@ -127,28 +127,15 @@ if ($jdkDir) {
         $env:Path = "$jdkPathEntry;" + $env:Path
     }
 
+    $jdkLink = Join-Path $PSScriptRoot '..\.jdk'
+    if (Test-Path $jdkLink) { Remove-Item $jdkLink }
+    New-Item -ItemType SymbolicLink -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
+    Write-Host "Linked .jdk -> $env:PWF_JAVA_HOME" -ForegroundColor Green
+} else {
+    Write-Warning "Unable to locate a Temurin JDK 17 under $Env:ProgramFiles. Android Studio may not have been run yet."
 }
 
-    # Update project Gradle properties so Gradle can locate the JDK
-    $projectGradleProps = Join-Path $PSScriptRoot '..\android\gradle.properties'
-    if ($env:PWF_JAVA_HOME -and (Test-Path $projectGradleProps)) {
-        $escapedHome = $env:PWF_JAVA_HOME -replace '\\', '\\\\'
-        $props = @()
-        if (Test-Path $projectGradleProps) { $props = Get-Content $projectGradleProps }
-        $newLine = "org.gradle.java.home=$escapedHome"
-        $updated = $false
-        $props = $props | ForEach-Object {
-            if ($_ -match '^\s*#?\s*org\.gradle\.java\.home=') {
-                $updated = $true
-                $newLine
-            } else {
-                $_
-            }
-        }
-        if (-not $updated) { $props += $newLine }
-        Set-Content $projectGradleProps $props
-        Write-Host "Set org.gradle.java.home in project gradle.properties" -ForegroundColor Green
-    }
+
 
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
 if (Test-Path $adbPathEntry) {
