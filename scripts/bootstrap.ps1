@@ -128,12 +128,15 @@ if ($jdkDir) {
     }
 
     $jdkLink = Join-Path $PSScriptRoot '..\.jdk'
-    if (Test-Path $jdkLink) { Remove-Item $jdkLink }
-    # Use a junction instead of a symbolic link so admin privileges aren't
-    # required. This still allows Gradle to locate the project's JDK without
-    # modifying global paths.
-    New-Item -ItemType Junction -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
-    Write-Host "Linked .jdk -> $env:PWF_JAVA_HOME" -ForegroundColor Green
+    if (-not (Test-Path $jdkLink)) {
+        # Use a junction instead of a symbolic link so admin privileges aren't
+        # required. This still allows Gradle to locate the project's JDK without
+        # modifying global paths.
+        New-Item -ItemType Junction -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
+        Write-Host "Linked .jdk -> $env:PWF_JAVA_HOME" -ForegroundColor Green
+    } else {
+        Write-Host "JDK link already exists at $jdkLink" -ForegroundColor Yellow
+    }
 } else {
     Write-Warning "Unable to locate a Temurin JDK 17 under $Env:ProgramFiles. Android Studio may not have been run yet."
 }
@@ -310,6 +313,21 @@ $flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
 Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
 Set-Content -Path $flagPath -Value 'ok'
 
-# Open Windows Developer Mode settings for convenience
-Write-Host "Opening Developer Mode settings..." -ForegroundColor Cyan
-Start-Process "ms-settings:developers"
+# Ensure Windows Developer Mode is enabled for Flutter deployment
+$devModeRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+$devModeEnabled = $false
+try {
+    $reg = Get-ItemProperty -Path $devModeRegPath -ErrorAction Stop
+    if ($reg -and $reg.AllowDevelopmentWithoutDevLicense -eq 1) {
+        $devModeEnabled = $true
+    }
+} catch {
+    # Key may not exist if never enabled
+}
+if (-not $devModeEnabled) {
+    Write-Host "Windows Developer Mode is not enabled. Opening Developer Mode settings..." -ForegroundColor Cyan
+    Start-Process "ms-settings:developers"
+    Write-Host "Please enable Developer Mode in the settings window for Flutter deployment."
+} else {
+    Write-Host "Windows Developer Mode is already enabled." -ForegroundColor Green
+}
