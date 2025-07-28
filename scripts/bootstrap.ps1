@@ -129,7 +129,10 @@ if ($jdkDir) {
 
     $jdkLink = Join-Path $PSScriptRoot '..\.jdk'
     if (Test-Path $jdkLink) { Remove-Item $jdkLink }
-    New-Item -ItemType SymbolicLink -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
+    # Use a junction instead of a symbolic link so admin privileges aren't
+    # required. This still allows Gradle to locate the project's JDK without
+    # modifying global paths.
+    New-Item -ItemType Junction -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
     Write-Host "Linked .jdk -> $env:PWF_JAVA_HOME" -ForegroundColor Green
 } else {
     Write-Warning "Unable to locate a Temurin JDK 17 under $Env:ProgramFiles. Android Studio may not have been run yet."
