@@ -121,7 +121,8 @@ class CloudUtils {
   }
 
   static Future<AuthClient?> _getAuthClient() async {
-    handleSignIn();
+    bool signedIn = await handleSignIn();
+    if (!signedIn) return null;
     return await _googleSignIn.authenticatedClient();
   }
 
@@ -190,17 +191,17 @@ class CloudUtils {
       List<ContactEntry> images = [];
       List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb"];
       cloudLocalJson.forEach((String key, dynamic value) {
-        String? dir=null;
+        String? dir = null;
         dirs.forEach((_dir) {
           if (File("/storage/emulated/0/DCIM/$_dir/$key.jpg").existsSync()) {
             dir = _dir;
           }
         });
-        if(dir == null){
+        if (dir == null) {
           return;
         }
-        images.add(ContactEntry.fromJson(key,
-            "/storage/emulated/0/DCIM/$dir/$key.jpg", jsonDecode(value)));
+        images.add(ContactEntry.fromJson(
+            key, "/storage/emulated/0/DCIM/$dir/$key.jpg", jsonDecode(value)));
       });
 
       StorageUtils.merge(cloudLocalJson)
@@ -246,9 +247,10 @@ class CloudUtils {
 
   static Future _useDriveAPI(Function callback) async {
     if (!(await _googleSignIn.isSignedIn())) {
-      throw Exception();
+      throw Exception('Not signed in');
     }
-    final AuthClient client = (await _getAuthClient())!;
+    final AuthClient? client = await _getAuthClient();
+    if (client == null) throw Exception('Authentication failed');
 
     // Initialize DriveAPI
     // developer.log("getting DriveApi");
