@@ -66,20 +66,38 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap.ps1
 ```
 
-The script installs Eclipse Temurin JDK 17 and Android Studio via `winget`,
-refreshing the current `PATH` after each installation so new commands are
-available immediately. Android platform-tools are installed as well so `adb`
-works without extra steps. The JDK location is persisted in `PWF_JAVA_HOME` and
-prepended to your user `PATH` without affecting other JDK versions. The script
-creates a `.jdk` junction in the repository root pointing to this path and
-`android/gradle.properties` always contains `org.gradle.java.home=../.jdk`, so
-Gradle can locate the JDK without modifying the file per-machine. Every
-Firebase CLI command includes `--project=pwfapp-f314d`, so no `firebase use`
-state is required. It prints progress messages for each step—including when
-downloading the keystore, parsing the Firebase Functions config value and
-registering the SHA‑1 fingerprint with Firebase app
-`1:1082599556322:android:66fb03c1d8192758440abb` if missing—and finally writes a
-`.bootstrap_complete` file in the repository root and opens the Windows Developer
-Mode settings for convenience. Because Gradle executes from the `android`
-subdirectory it looks for this flag relative to the parent
-directory and runs the script automatically when it is absent.
+The enhanced script now provides complete Google Sign-In setup by installing 
+Eclipse Temurin JDK 17, Android Studio, Firebase CLI, and **Google Cloud CLI** 
+via `winget`, refreshing the current `PATH` after each installation so new 
+commands are available immediately. 
+
+### New OAuth 2.0 Setup Features
+The script now handles Google Cloud Platform (GCP) OAuth client registration:
+- ✅ **Google Cloud CLI installation** and authentication
+- ✅ **Required API enablement** (OAuth 2.0, IAP, Cloud Resource Manager)
+- ✅ **google-services.json download** and configuration
+- ✅ **Android build configuration** with Google Services plugin
+- ⚠️ **OAuth consent screen** setup guidance (manual step required)
+- ⚠️ **OAuth client creation** guidance (manual step required)
+
+For complete setup instructions, see:
+- 📋 [Quick Setup Guide](docs/Quick_Setup_Guide.md) - Fast track for developers
+- 📖 [Full OAuth Enhancement Documentation](docs/GCP_OAuth_Enhancement.md) - Detailed technical guide
+
+### What the Script Does Automatically
+Android platform-tools are installed as well so `adb` works without extra steps. 
+The JDK location is persisted in `PWF_JAVA_HOME` and prepended to your user `PATH` 
+without affecting other JDK versions. The script creates a `.jdk` junction in the 
+repository root pointing to this path and `android/gradle.properties` always contains 
+`org.gradle.java.home=../.jdk`, so Gradle can locate the JDK without modifying the 
+file per-machine. Every Firebase CLI command includes `--project=pwfapp-f314d`, so 
+no `firebase use` state is required. 
+
+The script prints progress messages for each step—including when downloading the 
+keystore, parsing the Firebase Functions config value, registering the SHA‑1 
+fingerprint with Firebase app `1:1082599556322:android:66fb03c1d8192758440abb`, 
+enabling Google Cloud APIs, and configuring OAuth settings—and finally writes a 
+`.bootstrap_complete` file in the repository root and opens the Windows Developer 
+Mode settings for convenience. Because Gradle executes from the `android` 
+subdirectory it looks for this flag relative to the parent directory and runs 
+the script automatically when it is absent.
