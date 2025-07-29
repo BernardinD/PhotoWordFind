@@ -63,6 +63,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   bool _controlsExpanded = true; // Tracks whether the controls are minimized
 
   late Future<bool> _isSignedInFuture; // Tracks Google sign-in status
+  bool _isInitializing = true; // Tracks if app is still initializing
+  String? _initializationError; // Stores any initialization error
 
   /// Key for the root [Navigator] so dialogs can use a context that
   /// has navigation and localization available.
@@ -71,13 +73,48 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void initState() {
     super.initState();
-    _isSignedInFuture = _ensureSignedIn();
-    if (useJsonFileForLoading) {
-      _loadImagesFromJsonFile();
-    } else {
-      _loadImagesFromPreferences();
+    _initializeApp();
+  }
+
+  /// Initializes the app in sequential order:
+  /// 1. Sign-in first
+  /// 2. Load images after sign-in is complete
+  /// 3. Load import directory
+  Future<void> _initializeApp() async {
+    try {
+      setState(() {
+        _isInitializing = true;
+        _initializationError = null;
+      });
+
+      // Step 1: Ensure user is signed in first
+      final signedIn = await _ensureSignedIn();
+      
+      if (!signedIn) {
+        setState(() {
+          _initializationError = 'Sign-in failed. Some features may not be available.';
+        });
+      }
+
+      // Step 2: Load images only after sign-in is complete
+      if (useJsonFileForLoading) {
+        await _loadImagesFromJsonFile();
+      } else {
+        await _loadImagesFromPreferences();
+      }
+
+      // Step 3: Load import directory
+      await _loadImportDirectory();
+
+      setState(() {
+        _isInitializing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isInitializing = false;
+        _initializationError = 'Initialization failed: $e';
+      });
     }
-    _loadImportDirectory();
   }
 
   Future<bool> _ensureSignedIn() async {
@@ -103,7 +140,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   Future<void> _toggleSignInOut() async {
     bool signed = await CloudUtils.isSignedin();
     if (!signed) {
-      await CloudUtils.firstSignIn();
+      setState(() {
+        _isInitializing = true;
+      });
+      try {
+        await CloudUtils.firstSignIn();
+      } finally {
+        setState(() {
+          _isInitializing = false;
+        });
+      }
     } else {
       final confirm = await showDialog<bool>(
         context: context,
@@ -114,7 +160,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       }
     }
     setState(() {
-      _isSignedInFuture = CloudUtils.isSignedin();
+      // Trigger UI update to reflect new sign-in state
     });
   }
 
@@ -189,92 +235,126 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             appBar: AppBar(
               title: const Text('Image Gallery'),
               actions: [
-                FutureBuilder<bool>(
-                  future: _isSignedInFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
+                // Show initialization status instead of sign-in status during init
+                _isInitializing
+                    ? const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16.0),
                         child: SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                      );
-                    }
-                    final signedIn = snapshot.data ?? false;
-                    return Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.sync),
-                          tooltip: 'Sync',
-                          onPressed: signedIn ? _forceSync : null,
-                        ),
-                        IconButton(
-                          icon: Icon(signedIn ? Icons.logout : Icons.login),
-                          tooltip: signedIn ? 'Sign out' : 'Sign in',
-                          onPressed: _toggleSignInOut,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.settings),
-                          onPressed: () {
-                            Navigator.of(navContext).push(
-                              MaterialPageRoute(
-                                builder: (_) => SettingsScreen(
-                                  onResetImportDir: _resetImportDir,
-                                  onChangeImportDir: _changeImportDir,
-                                ),
+                      )
+                    : FutureBuilder<bool>(
+                        future: CloudUtils.isSignedin(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16.0),
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             );
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                          }
+                          final signedIn = snapshot.data ?? false;
+                          return Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.sync),
+                                tooltip: 'Sync',
+                                onPressed: signedIn ? _forceSync : null,
+                              ),
+                              IconButton(
+                                icon: Icon(signedIn ? Icons.logout : Icons.login),
+                                tooltip: signedIn ? 'Sign out' : 'Sign in',
+                                onPressed: _toggleSignInOut,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.settings),
+                                onPressed: () {
+                                  Navigator.of(navContext).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => SettingsScreen(
+                                        onResetImportDir: _resetImportDir,
+                                        onChangeImportDir: _changeImportDir,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      ),
               ],
             ),
-            body: LayoutBuilder(
-              builder: (context, constraints) {
-                final screenHeight = constraints.maxHeight;
-                return Column(
-                  children: [
-                    _buildControls(),
-                    Expanded(
-                      child: ImageGallery(
-                        images: images,
-                        selectedImages: selectedImages,
-                        sortOption: selectedSortOption,
-                        onImageSelected: (String id) {
-                          setState(() {
-                            if (selectedImages.contains(id)) {
-                              selectedImages.remove(id);
-                            } else {
-                              selectedImages.add(id);
-                            }
-                          });
-                        },
-                        onMenuOptionSelected: _onMenuOptionSelected,
-                        galleryHeight: screenHeight,
-                        onPageChanged: (idx) =>
-                            setState(() => currentIndex = idx),
-                        currentIndex: currentIndex,
-                      ),
+            body: _isInitializing
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        const Text('Signing in and loading images...'),
+                        if (_initializationError != null) ...[
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Text(
+                              _initializationError!,
+                              style: const TextStyle(color: Colors.orange),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                );
-              },
-            ),
-            floatingActionButton: selectedImages.isNotEmpty
-                ? FloatingActionButton(
-                    onPressed: () => _onMenuOptionSelected('', 'move'),
-                    child: Icon(Icons.move_to_inbox),
                   )
-                : FloatingActionButton(
-                    onPressed: () => _importImages(navContext),
-                    tooltip: 'Import Images',
-                    child: Icon(Icons.add),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final screenHeight = constraints.maxHeight;
+                      return Column(
+                        children: [
+                          _buildControls(),
+                          Expanded(
+                            child: ImageGallery(
+                              images: images,
+                              selectedImages: selectedImages,
+                              sortOption: selectedSortOption,
+                              onImageSelected: (String id) {
+                                setState(() {
+                                  if (selectedImages.contains(id)) {
+                                    selectedImages.remove(id);
+                                  } else {
+                                    selectedImages.add(id);
+                                  }
+                                });
+                              },
+                              onMenuOptionSelected: _onMenuOptionSelected,
+                              galleryHeight: screenHeight,
+                              onPageChanged: (idx) =>
+                                  setState(() => currentIndex = idx),
+                              currentIndex: currentIndex,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
+            floatingActionButton: _isInitializing
+                ? null // Hide FAB during initialization
+                : selectedImages.isNotEmpty
+                    ? FloatingActionButton(
+                        onPressed: () => _onMenuOptionSelected('', 'move'),
+                        child: Icon(Icons.move_to_inbox),
+                      )
+                    : FloatingActionButton(
+                        onPressed: () => _importImages(navContext),
+                        tooltip: 'Import Images',
+                        child: Icon(Icons.add),
+                      ),
             persistentFooterButtons: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
