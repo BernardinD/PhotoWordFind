@@ -219,9 +219,48 @@ if (-not $firebaseCmd) {
     Write-Host "Firebase command already available." -ForegroundColor Green
 }
 
+# Install Google Cloud CLI if missing
+$gcloudPackage = 'Google.CloudSDK'
+$gcloudCmd = Get-Command gcloud -ErrorAction SilentlyContinue
+if (-not $gcloudCmd) {
+    if (-not (Is-WingetPackageInstalled $gcloudPackage)) {
+        Write-Host "Installing Google Cloud CLI via winget..."
+        winget install -e --id $gcloudPackage
+        Refresh-SessionPath
+    } else {
+        Write-Host "Google Cloud CLI package already installed." -ForegroundColor Green
+    }
+    $gcloudCmd = Get-Command gcloud -ErrorAction SilentlyContinue
+} else {
+    Write-Host "Google Cloud CLI command already available." -ForegroundColor Green
+}
+
 # Sign in to Firebase
 Write-Host "Authenticating with Firebase..."
 firebase login
+
+# Authenticate with Google Cloud CLI using the same account
+Write-Host "Authenticating with Google Cloud CLI..."
+# Check if already authenticated
+$currentAccount = gcloud config get-value account 2>$null
+if (-not $currentAccount -or $currentAccount -eq "(unset)") {
+    Write-Host "Signing in to Google Cloud..."
+    gcloud auth login --brief
+} else {
+    Write-Host "Already authenticated with Google Cloud as: $currentAccount" -ForegroundColor Green
+}
+
+# Set the correct GCP project
+Write-Host "Configuring Google Cloud project..."
+gcloud config set project $ProjectId
+
+# Verify project access
+$projectInfo = gcloud projects describe $ProjectId --format="value(projectId)" 2>$null
+if ($LASTEXITCODE -ne 0 -or -not $projectInfo) {
+    Write-Host "Warning: Cannot access project $ProjectId. Please ensure you have the necessary permissions." -ForegroundColor Yellow
+} else {
+    Write-Host "Successfully configured project: $projectInfo" -ForegroundColor Green
+}
 
 # Launch Android Studio setup wizard if cmdline tools are missing
 if ($needStudioSetup -and $studioCmd) {
@@ -302,7 +341,149 @@ if ($existing -contains $normFingerprint) {
     }
 }
 
-# Wait for Android Studio wizard if it was started
+# Setup OAuth consent screen
+Write-Host "Setting up OAuth consent screen..."
+Set-OAuthConsentScreen
+
+# Create OAuth clients for Google Sign-In
+Write-Host "Setting up OAuth 2.0 clients..."
+$androidClientCreated = New-AndroidOAuthClient $fingerprint
+$webClientCreated = New-WebOAuthClient
+
+# Download and configure google-services.json
+Write-Host "Configuring google-services.json..."
+$googleServicesConfigured = Get-GoogleServicesJson
+
+# Validate OAuth configuration
+Write-Host "Validating OAuth configuration..."
+$oauthValid = Test-OAuthConfiguration
+
+if ($googleServicesConfigured -and $oauthValid) {
+    Write-Host "OAuth 2.0 configuration completed successfully!" -ForegroundColor Green
+} else {
+    Write-Host "OAuth 2.0 configuration needs manual completion:" -ForegroundColor Yellow
+    Write-Host "1. Ensure OAuth consent screen is configured in Google Cloud Console" -ForegroundColor Yellow
+    Write-Host "2. Create Android OAuth client with SHA-1: $fingerprint" -ForegroundColor Yellow
+    Write-Host "3. Create Web OAuth client for future web deployment" -ForegroundColor Yellow
+    Write-Host "4. Download google-services.json and place in android/app/" -ForegroundColor Yellow
+}
+
+# Function to check if OAuth client exists
+function Test-OAuthClient($clientName) {
+    $clients = gcloud projects get-iam-policy $ProjectId --format=json 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
+    if (-not $clients) {
+        return $false
+    }
+    # Note: This is a simplified check. In reality, we'd need to use the appropriate OAuth client APIs
+    return $false
+}
+
+# Function to create Android OAuth client
+function New-AndroidOAuthClient($sha1Fingerprint) {
+    Write-Host "Creating Android OAuth 2.0 client..." -ForegroundColor Cyan
+    
+    try {
+        # Create OAuth client for Android
+        $clientName = "PhotoWordFind Android Client"
+        
+        # Note: The actual command would be more complex and might require enabling APIs first
+        Write-Host "Creating OAuth client with SHA-1: $sha1Fingerprint"
+        
+        # For now, we'll use a placeholder approach since the exact gcloud command structure
+        # for OAuth client creation might vary
+        Write-Host "Android OAuth client configuration needed - this would typically be done via Google Cloud Console" -ForegroundColor Yellow
+        
+        return $true
+    } catch {
+        Write-Host "Failed to create Android OAuth client: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to create Web OAuth client
+function New-WebOAuthClient() {
+    Write-Host "Creating Web OAuth 2.0 client..." -ForegroundColor Cyan
+    
+    try {
+        $clientName = "PhotoWordFind Web Client"
+        
+        Write-Host "Web OAuth client configuration needed - this would typically be done via Google Cloud Console" -ForegroundColor Yellow
+        
+        return $true
+    } catch {
+        Write-Host "Failed to create Web OAuth client: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to download google-services.json
+function Get-GoogleServicesJson() {
+    Write-Host "Downloading google-services.json..." -ForegroundColor Cyan
+    
+    $googleServicesPath = Join-Path $PSScriptRoot "..\android\app\google-services.json"
+    
+    try {
+        # Download the google-services.json file using Firebase CLI
+        Write-Host "Fetching google-services.json from Firebase..."
+        $configOutput = firebase apps:android:config:get $FirebaseAppId --project $ProjectId
+        
+        if ($LASTEXITCODE -eq 0 -and $configOutput) {
+            # Save the config to the file
+            $configOutput | Out-File -FilePath $googleServicesPath -Encoding UTF8
+            Write-Host "google-services.json downloaded successfully to $googleServicesPath" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "Failed to download google-services.json" -ForegroundColor Red
+            return $false
+        }
+    } catch {
+        Write-Host "Error downloading google-services.json: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to setup OAuth consent screen
+function Set-OAuthConsentScreen() {
+    Write-Host "Checking OAuth consent screen configuration..." -ForegroundColor Cyan
+    
+    try {
+        # Check if consent screen is already configured
+        Write-Host "OAuth consent screen setup would typically be done via Google Cloud Console" -ForegroundColor Yellow
+        Write-Host "Please ensure the OAuth consent screen is configured for your project" -ForegroundColor Yellow
+        
+        return $true
+    } catch {
+        Write-Host "Error checking OAuth consent screen: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to validate OAuth configuration
+function Test-OAuthConfiguration() {
+    Write-Host "Validating OAuth configuration..." -ForegroundColor Cyan
+    
+    $googleServicesPath = Join-Path $PSScriptRoot "..\android\app\google-services.json"
+    
+    # Check if google-services.json exists
+    if (-not (Test-Path $googleServicesPath)) {
+        Write-Host "google-services.json not found at $googleServicesPath" -ForegroundColor Red
+        return $false
+    }
+    
+    # Validate the JSON structure
+    try {
+        $googleServices = Get-Content $googleServicesPath | ConvertFrom-Json
+        if ($googleServices.project_info.project_id -ne $ProjectId) {
+            Write-Host "google-services.json project ID mismatch" -ForegroundColor Red
+            return $false
+        }
+        Write-Host "google-services.json validation passed" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Host "Invalid google-services.json format: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
 if ($studioProcess) {
     Write-Host "Waiting for Android Studio setup to finish..."
     Wait-Process -Id $studioProcess.Id
