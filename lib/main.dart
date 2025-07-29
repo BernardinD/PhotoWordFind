@@ -45,15 +45,18 @@ void main() {
 }
 
 /// Handles all the inititalization of the app
-Future<void> initializeApp() async {
+Future<void> initializeApp({bool skipSignIn = false}) async {
   ChatGPTService.initialize();
 
   tz.initializeTimeZones();
 
   await StorageUtils.init();
 
-  // Ensure cloud backup is synced when the app starts
-  await CloudUtils.firstSignIn();
+  // Only sign in during global initialization if not using the new UI
+  // The new UI handles sign-in sequentially to prevent multiple auth requests
+  if (!skipSignIn) {
+    await CloudUtils.firstSignIn();
+  }
 
   // await StorageUtils.resetImagePaths();
 }
@@ -63,16 +66,33 @@ class MyRootWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Determine which UI to use and configure initialization accordingly
+    const bool useNewUI = true; // Change this to switch between UIs
+    
     return FutureBuilder(
-      future: initializeApp(),
+      future: initializeApp(skipSignIn: useNewUI), // Skip sign-in for new UI to prevent conflicts
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
           // Swap between UIs here for testing
-          return ImageGalleryScreen();
-          // return MyApp(title: 'Flutter Demo Home Page');
+          if (useNewUI) {
+            return ImageGalleryScreen();
+          } else {
+            return MyApp(title: 'Flutter Demo Home Page');
+          }
         }
         return MaterialApp(
-          home: Scaffold(body: Center(child: CircularProgressIndicator())),
+          home: Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Initializing app...'),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
