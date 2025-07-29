@@ -118,8 +118,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Future<bool> _ensureSignedIn() async {
+    // First check if we're already signed in (from main app initialization)
     bool signed = await CloudUtils.isSignedin();
     if (!signed) {
+      // Only attempt sign-in if not already signed in
       signed = await CloudUtils.firstSignIn();
     }
     return signed;

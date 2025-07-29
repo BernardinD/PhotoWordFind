@@ -39,4 +39,26 @@ void main() {
     expect(find.text('1 / 0'), findsOneWidget);
   });
 
+  testWidgets('ImageGalleryScreen shows loading state during initialization', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
+    
+    // Should show loading state initially
+    expect(find.text('Signing in and loading images...'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    
+    // Should not show floating action button during loading
+    expect(find.byType(FloatingActionButton), findsNothing);
+  });
+
+  testWidgets('ImageGalleryScreen handles initialization error gracefully', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
+    
+    // Let initialization attempt to complete
+    await tester.pump();
+    await tester.pump(Duration(seconds: 1));
+    
+    // Should either show the app content or an error message, but not crash
+    expect(tester.takeException(), isNull);
+  });
+
 }
