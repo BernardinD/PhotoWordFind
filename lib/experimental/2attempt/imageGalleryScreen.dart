@@ -84,6 +84,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     bool signed = await CloudUtils.isSignedin();
     if (!signed) {
       signed = await CloudUtils.firstSignIn();
+      if (!signed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google sign-in failed')),
+        );
+      }
     }
     return signed;
   }
@@ -103,7 +108,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   Future<void> _toggleSignInOut() async {
     bool signed = await CloudUtils.isSignedin();
     if (!signed) {
-      await CloudUtils.firstSignIn();
+      signed = await CloudUtils.firstSignIn();
+      if (!signed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google sign-in failed')),
+        );
+      }
     } else {
       final confirm = await showDialog<bool>(
         context: context,
