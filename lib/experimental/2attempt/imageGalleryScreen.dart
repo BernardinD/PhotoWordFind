@@ -63,6 +63,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   bool _controlsExpanded = true; // Tracks whether the controls are minimized
 
   late Future<bool> _isSignedInFuture; // Tracks Google sign-in status
+  bool _isInitialized = false; // Tracks whether app initialization is complete
 
   /// Key for the root [Navigator] so dialogs can use a context that
   /// has navigation and localization available.
@@ -71,13 +72,38 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void initState() {
     super.initState();
-    _isSignedInFuture = _ensureSignedIn();
-    if (useJsonFileForLoading) {
-      _loadImagesFromJsonFile();
-    } else {
-      _loadImagesFromPreferences();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      // First, ensure sign-in is complete
+      _isSignedInFuture = _ensureSignedIn();
+      await _isSignedInFuture;
+      
+      // Then load images and directory settings
+      if (useJsonFileForLoading) {
+        await _loadImagesFromJsonFile();
+      } else {
+        await _loadImagesFromPreferences();
+      }
+      await _loadImportDirectory();
+      
+      // Mark initialization as complete
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error during app initialization: $e');
+      // Even on error, mark as initialized to prevent blocking UI
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
     }
-    _loadImportDirectory();
   }
 
   Future<bool> _ensureSignedIn() async {
@@ -234,47 +260,60 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 ),
               ],
             ),
-            body: LayoutBuilder(
-              builder: (context, constraints) {
-                final screenHeight = constraints.maxHeight;
-                return Column(
-                  children: [
-                    _buildControls(),
-                    Expanded(
-                      child: ImageGallery(
-                        images: images,
-                        selectedImages: selectedImages,
-                        sortOption: selectedSortOption,
-                        onImageSelected: (String id) {
-                          setState(() {
-                            if (selectedImages.contains(id)) {
-                              selectedImages.remove(id);
-                            } else {
-                              selectedImages.add(id);
-                            }
-                          });
-                        },
-                        onMenuOptionSelected: _onMenuOptionSelected,
-                        galleryHeight: screenHeight,
-                        onPageChanged: (idx) =>
-                            setState(() => currentIndex = idx),
-                        currentIndex: currentIndex,
-                      ),
+            body: !_isInitialized
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Initializing app...'),
+                      ],
                     ),
-                  ],
-                );
-              },
-            ),
-            floatingActionButton: selectedImages.isNotEmpty
-                ? FloatingActionButton(
-                    onPressed: () => _onMenuOptionSelected('', 'move'),
-                    child: Icon(Icons.move_to_inbox),
                   )
-                : FloatingActionButton(
-                    onPressed: () => _importImages(navContext),
-                    tooltip: 'Import Images',
-                    child: Icon(Icons.add),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final screenHeight = constraints.maxHeight;
+                      return Column(
+                        children: [
+                          _buildControls(),
+                          Expanded(
+                            child: ImageGallery(
+                              images: images,
+                              selectedImages: selectedImages,
+                              sortOption: selectedSortOption,
+                              onImageSelected: (String id) {
+                                setState(() {
+                                  if (selectedImages.contains(id)) {
+                                    selectedImages.remove(id);
+                                  } else {
+                                    selectedImages.add(id);
+                                  }
+                                });
+                              },
+                              onMenuOptionSelected: _onMenuOptionSelected,
+                              galleryHeight: screenHeight,
+                              onPageChanged: (idx) =>
+                                  setState(() => currentIndex = idx),
+                              currentIndex: currentIndex,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
+            floatingActionButton: !_isInitialized
+                ? null
+                : selectedImages.isNotEmpty
+                    ? FloatingActionButton(
+                        onPressed: () => _onMenuOptionSelected('', 'move'),
+                        child: Icon(Icons.move_to_inbox),
+                      )
+                    : FloatingActionButton(
+                        onPressed: () => _importImages(navContext),
+                        tooltip: 'Import Images',
+                        child: Icon(Icons.add),
+                      ),
             persistentFooterButtons: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -858,7 +897,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       });
       _updateStates(allImages);
       await _applyFiltersAndSort();
-      await StorageUtils.syncLocalAndCloud();
+      
+      // Only sync to cloud if we're signed in
+      try {
+        final signedIn = await _isSignedInFuture;
+        if (signedIn) {
+          await StorageUtils.syncLocalAndCloud();
+        }
+      } catch (e) {
+        debugPrint('Cloud sync skipped: $e');
+      }
     }
   }
 }
