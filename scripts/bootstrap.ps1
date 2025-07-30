@@ -316,6 +316,113 @@ if ($studioProcess) {
     }
 }
 
+# Install Google Cloud CLI if missing for OAuth client management
+$gcloudPackage = 'Google.CloudSDK'
+$gcloudCmd = Get-Command gcloud -ErrorAction SilentlyContinue
+if (-not $gcloudCmd) {
+    if (-not (Is-WingetPackageInstalled $gcloudPackage)) {
+        Write-Host "Installing Google Cloud CLI via winget..."
+        winget install -e --id $gcloudPackage
+        Refresh-SessionPath
+    } else {
+        Write-Host "Google Cloud CLI package already installed." -ForegroundColor Green
+    }
+    $gcloudCmd = Get-Command gcloud -ErrorAction SilentlyContinue
+} else {
+    Write-Host "Google Cloud CLI already available." -ForegroundColor Green
+}
+
+# Configure GCP project for OAuth with automated client creation
+if ($gcloudCmd) {
+    Write-Host "Configuring GCP project for OAuth..." -ForegroundColor Cyan
+    
+    # Authenticate with Google Cloud if not already signed in
+    Write-Host "Checking Google Cloud authentication..."
+    $authStatus = & gcloud auth list --filter="status:ACTIVE" --format="value(account)" 2>$null
+    if (-not $authStatus -or $LASTEXITCODE -ne 0) {
+        Write-Host "Google Cloud authentication required. Opening browser for sign-in..." -ForegroundColor Yellow
+        & gcloud auth login --project $ProjectId
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Failed to authenticate with Google Cloud. Please run 'gcloud auth login' manually." -ForegroundColor Red
+            return
+        }
+        Write-Host "Google Cloud authentication successful!" -ForegroundColor Green
+    } else {
+        Write-Host "Already authenticated with Google Cloud as: $authStatus" -ForegroundColor Green
+    }
+    
+    Write-Host "Setting project to $ProjectId"
+    & gcloud config set project $ProjectId
+    
+    # Verify project access
+    $projectAccess = & gcloud projects describe $ProjectId --format="value(projectId)" 2>$null
+    if ($LASTEXITCODE -ne 0 -or $projectAccess -ne $ProjectId) {
+        Write-Host "Cannot access project $ProjectId. Please ensure you have proper permissions." -ForegroundColor Red
+        Write-Host "You may need to be added as an owner/editor to the project." -ForegroundColor Yellow
+        return
+    }
+    
+    Write-Host "Enabling required APIs..."
+    & gcloud services enable oauth2.googleapis.com --project $ProjectId
+    & gcloud services enable iap.googleapis.com --project $ProjectId
+    
+    # Check if OAuth consent screen is configured
+    Write-Host "Checking OAuth consent screen configuration..."
+    $consentStatus = & gcloud alpha oauth2 brands list --project $ProjectId --format="value(name)" 2>$null
+    if (-not $consentStatus -or $LASTEXITCODE -ne 0) {
+        Write-Host "OAuth consent screen setup required:" -ForegroundColor Yellow
+        Write-Host "Please complete OAuth consent screen: https://console.cloud.google.com/apis/credentials/consent?project=$ProjectId" -ForegroundColor Yellow
+        Write-Host "Press any key after completing the consent screen setup..."
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    } else {
+        Write-Host "OAuth consent screen already configured." -ForegroundColor Green
+    }
+    
+    # Create or update Android OAuth client with SHA-1 fingerprint
+    $packageName = "com.example.PhotoWordFind"
+    $clientName = "PhotoWordFind-Android-Client"
+    
+    Write-Host "Creating/updating Android OAuth client with SHA-1 fingerprint..."
+    
+    # Check if client already exists
+    $existingClients = & gcloud alpha oauth2 clients list --project $ProjectId --format="value(name,displayName)" 2>$null
+    $clientExists = $false
+    if ($LASTEXITCODE -eq 0 -and $existingClients) {
+        $clientExists = $existingClients | Where-Object { $_ -like "*$clientName*" }
+    }
+    
+    if ($clientExists) {
+        Write-Host "Android OAuth client '$clientName' already exists." -ForegroundColor Green
+        # Note: gcloud doesn't support updating Android clients with SHA-1, so we provide guidance
+        Write-Host "Please verify the client includes SHA-1 fingerprint: $fingerprint" -ForegroundColor Yellow
+        Write-Host "Update at: https://console.cloud.google.com/apis/credentials?project=$ProjectId" -ForegroundColor Yellow
+    } else {
+        # Create new Android OAuth client
+        Write-Host "Creating new Android OAuth client..."
+        $createResult = & gcloud alpha oauth2 clients create android `
+            --project $ProjectId `
+            --display-name $clientName `
+            --package-name $packageName `
+            --sha1-fingerprint $fingerprint 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Android OAuth client created successfully!" -ForegroundColor Green
+            Write-Host "Client includes package: $packageName" -ForegroundColor Green
+            Write-Host "Client includes SHA-1: $fingerprint" -ForegroundColor Green
+        } else {
+            Write-Host "Failed to create OAuth client automatically. Error: $createResult" -ForegroundColor Yellow
+            Write-Host "Manual setup required:" -ForegroundColor Yellow
+            Write-Host "1. Go to: https://console.cloud.google.com/apis/credentials?project=$ProjectId" -ForegroundColor Yellow
+            Write-Host "2. Create OAuth 2.0 Client ID" -ForegroundColor Yellow
+            Write-Host "   - Application type: Android" -ForegroundColor Yellow
+            Write-Host "   - Package name: $packageName" -ForegroundColor Yellow
+            Write-Host "   - SHA-1 fingerprint: $fingerprint" -ForegroundColor Yellow
+        }
+    }
+    
+    Write-Host "OAuth setup complete! No google-services.json needed - your Flutter plugin handles authentication!" -ForegroundColor Green
+}
+
 # Mark bootstrap complete
 $flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
 Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
