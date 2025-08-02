@@ -76,12 +76,21 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _initializeApp();
   }
 
+  
+  Future requestPermissions() async {
+    var status = await Permission.manageExternalStorage.status;
+    if (!status.isGranted) {
+      await Permission.manageExternalStorage.request();
+    }
+  }
+
   /// Initializes the app in sequential order:
   /// 1. Sign-in first
   /// 2. Load images after sign-in is complete
   /// 3. Load import directory
   Future<void> _initializeApp() async {
     try {
+      await requestPermissions();
       setState(() {
         _isInitializing = true;
         _initializationError = null;
