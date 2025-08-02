@@ -21,6 +21,7 @@ import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/experimental/2attempt/settings_screen.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -76,7 +77,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _initializeApp();
   }
 
-  
   Future requestPermissions() async {
     var status = await Permission.manageExternalStorage.status;
     if (!status.isGranted) {
@@ -98,10 +98,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
       // Step 1: Ensure user is signed in first
       final signedIn = await _ensureSignedIn();
-      
+
       if (!signedIn) {
         setState(() {
-          _initializationError = 'Sign-in failed. Some features may not be available.';
+          _initializationError =
+              'Sign-in failed. Some features may not be available.';
         });
       }
 
@@ -137,7 +138,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Future<void> _forceSync() async {
-    final messenger = ScaffoldMessenger.of(context);
+    final ctx = _navigatorKey.currentContext ?? context;
+    final messenger = ScaffoldMessenger.of(ctx);
     messenger.showSnackBar(const SnackBar(
         content: Text('Syncing…'), duration: Duration(seconds: 1)));
     try {
@@ -149,6 +151,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Future<void> _toggleSignInOut() async {
+    final ctx = _navigatorKey.currentContext ?? context;
     bool signed = await CloudUtils.isSignedin();
     if (!signed) {
       setState(() {
@@ -157,19 +160,21 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       try {
         await CloudUtils.firstSignIn();
       } finally {
+        if (!mounted) return;
         setState(() {
           _isInitializing = false;
         });
       }
     } else {
       final confirm = await showDialog<bool>(
-        context: context,
+        context: ctx,
         builder: (_) => ConfirmationDialog(message: 'Sign out?'),
       );
       if (confirm == true) {
         await CloudUtils.possibleSignOut();
       }
     }
+    if (!mounted) return;
     setState(() {
       // Trigger UI update to reflect new sign-in state
     });
@@ -259,13 +264,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     : FutureBuilder<bool>(
                         future: CloudUtils.isSignedin(),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 16.0),
                               child: SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               ),
                             );
                           }
@@ -278,7 +285,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                 onPressed: signedIn ? _forceSync : null,
                               ),
                               IconButton(
-                                icon: Icon(signedIn ? Icons.logout : Icons.login),
+                                icon:
+                                    Icon(signedIn ? Icons.logout : Icons.login),
                                 tooltip: signedIn ? 'Sign out' : 'Sign in',
                                 onPressed: _toggleSignInOut,
                               ),
@@ -312,7 +320,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         if (_initializationError != null) ...[
                           const SizedBox(height: 16),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
                             child: Text(
                               _initializationError!,
                               style: const TextStyle(color: Colors.orange),
