@@ -14,6 +14,7 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
+import 'package:PhotoWordFind/widgets/redo_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -54,8 +55,6 @@ class GalleryCell extends StatefulWidget {
 }
 
 class _GalleryCellState extends State<GalleryCell> {
-  // Used for controlling when to take screenshot
-  GlobalKey? cropBoxKey = new GlobalKey();
   late final Key? cellKey = ValueKey(fileName);
   late final String fileName = widget.f.path.split("/").last;
   late final PhotoView _photo;
@@ -404,77 +403,25 @@ class _GalleryCellState extends State<GalleryCell> {
   }
 
   void showRedoWindow() {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(32.0))),
-            content: AspectRatio(
-              aspectRatio: 1 / 1.5,
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 10,
-                    child: Align(
-                      child: AspectRatio(
-                        aspectRatio: 1 / 1,
-                        child: RepaintBoundary(
-                          key: cropBoxKey,
-                          child: Container(
-                            child: ClipRRect(child: _photo),
-                            // child: ElevatedButton(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton(
-                      child: Text(
-                        "REDO",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      onPressed: redo,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        });
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => RedoOverlay(
+          image: FileImage(widget.srcImage),
+          onCropped: redoFromBytes,
+        ),
+      ),
+    );
   }
 
-  void redo() async {
+  void redoFromBytes(Uint8List pngBytes) async {
     dynamic srcImage = widget.f;
-    // Grab QR code image (ref: https://stackoverflow.com/questions/63312348/how-can-i-save-a-qrimage-in-flutter)
-    RenderRepaintBoundary boundary =
-        cropBoxKey!.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    var image = await boundary.toImage();
-    ByteData byteData = (await image.toByteData(format: ImageByteFormat.png))!;
-    Uint8List pngBytes = byteData.buffer.asUint8List();
-
-    // Create file location for image
     final tempDir = Directory.systemTemp;
-    print("tempDir = ${tempDir.path}");
-    final File? file =
-        await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
-            .create()
-            .catchError((e) {
-      print("file creation failed.");
-      print(e);
-    });
+    final File file =
+        await File('${tempDir.path}/${fileName.split(".").first}.repl.png')
+            .create();
+    await file.writeAsBytes(pngBytes);
 
-    // Save image locally
-    await file!.writeAsBytes(pngBytes).catchError((e) {
-      print("file writing failed.");
-      print(e);
-    });
-    print("image file exists: " + (await file.exists()).toString());
-    print("image file path: " + (file.path));
-
-    // Run OCR
     ocrParallel([file], MediaQuery.of(context).size,
             replace: {widget.listPos(widget): srcImage.path})
         .then((value) => setState(() {}));

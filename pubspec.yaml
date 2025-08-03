@@ -57,6 +57,7 @@ dependencies:
   # For optimizing chatGPT images,
   # and increasing OCR results (testing)
   image: ^4.0.13
+  crop_your_image: ^0.7.5
 
   # For opening snapchat from app
   device_apps: ^2.1.1
