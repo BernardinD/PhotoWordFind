@@ -1465,14 +1465,14 @@ class _ImageTileState extends State<ImageTile> {
   }
 
   Future<void> _redoTextExtraction() async {
-    final newText = await Navigator.of(context).push<String>(
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => RedoCropScreen(imageFile: File(widget.imagePath)),
       ),
     );
-    if (newText != null) {
+    if (result != null) {
       setState(() {
-        widget.contact.extractedText = newText;
+        postProcessChatGptResult(widget.contact, result, save: false);
       });
       await StorageUtils.save(widget.contact, backup: false);
     }
