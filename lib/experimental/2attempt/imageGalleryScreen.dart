@@ -19,7 +19,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/experimental/2attempt/settings_screen.dart';
+import 'package:PhotoWordFind/experimental/2attempt/redo_crop_screen.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -1325,6 +1327,14 @@ class _ImageTileState extends State<ImageTile> {
                 _showDetailsDialog(context);
               },
             ),
+            ListTile(
+              leading: Icon(Icons.refresh),
+              title: Text('Redo text extraction'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await _redoTextExtraction();
+              },
+            ),
             if (widget.contact.snapUsername?.isNotEmpty ?? false)
               ListTile(
                 leading: Icon(Icons.chat_bubble),
@@ -1452,6 +1462,20 @@ class _ImageTileState extends State<ImageTile> {
         );
       },
     );
+  }
+
+  Future<void> _redoTextExtraction() async {
+    final newText = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => RedoCropScreen(imageFile: File(widget.imagePath)),
+      ),
+    );
+    if (newText != null) {
+      setState(() {
+        widget.contact.extractedText = newText;
+      });
+      await StorageUtils.save(widget.contact, backup: false);
+    }
   }
 
   void _showDetailsDialog(BuildContext context) {
