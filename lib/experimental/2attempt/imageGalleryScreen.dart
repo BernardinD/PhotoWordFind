@@ -19,7 +19,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/experimental/2attempt/settings_screen.dart';
+import 'package:PhotoWordFind/experimental/2attempt/redo_crop_screen.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 
 final PageController _pageController =
@@ -76,7 +78,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _initializeApp();
   }
 
-  
   Future requestPermissions() async {
     var status = await Permission.manageExternalStorage.status;
     if (!status.isGranted) {
@@ -98,10 +99,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
       // Step 1: Ensure user is signed in first
       final signedIn = await _ensureSignedIn();
-      
+
       if (!signedIn) {
         setState(() {
-          _initializationError = 'Sign-in failed. Some features may not be available.';
+          _initializationError =
+              'Sign-in failed. Some features may not be available.';
         });
       }
 
@@ -259,13 +261,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     : FutureBuilder<bool>(
                         future: CloudUtils.isSignedin(),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 16.0),
                               child: SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               ),
                             );
                           }
@@ -278,7 +282,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                 onPressed: signedIn ? _forceSync : null,
                               ),
                               IconButton(
-                                icon: Icon(signedIn ? Icons.logout : Icons.login),
+                                icon:
+                                    Icon(signedIn ? Icons.logout : Icons.login),
                                 tooltip: signedIn ? 'Sign out' : 'Sign in',
                                 onPressed: _toggleSignInOut,
                               ),
@@ -312,7 +317,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         if (_initializationError != null) ...[
                           const SizedBox(height: 16),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
                             child: Text(
                               _initializationError!,
                               style: const TextStyle(color: Colors.orange),
@@ -1316,6 +1322,14 @@ class _ImageTileState extends State<ImageTile> {
                 _showDetailsDialog(context);
               },
             ),
+            ListTile(
+              leading: Icon(Icons.refresh),
+              title: Text('Redo text extraction'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await _redoTextExtraction();
+              },
+            ),
             if (widget.contact.snapUsername?.isNotEmpty ?? false)
               ListTile(
                 leading: Icon(Icons.chat_bubble),
@@ -1443,6 +1457,20 @@ class _ImageTileState extends State<ImageTile> {
         );
       },
     );
+  }
+
+  Future<void> _redoTextExtraction() async {
+    final newText = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => RedoCropScreen(imageFile: File(widget.imagePath)),
+      ),
+    );
+    if (newText != null) {
+      setState(() {
+        widget.contact.extractedText = newText;
+      });
+      await StorageUtils.save(widget.contact, backup: false);
+    }
   }
 
   void _showDetailsDialog(BuildContext context) {
