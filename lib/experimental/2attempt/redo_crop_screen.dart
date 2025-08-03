@@ -4,7 +4,7 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:PhotoWordFind/utils/image_utils.dart';
+import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 
 class RedoCropScreen extends StatefulWidget {
   const RedoCropScreen({super.key, required this.imageFile});
@@ -34,9 +34,10 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
     final dir = await getTemporaryDirectory();
     final file = await File('${dir.path}/redo.png').create();
     await file.writeAsBytes(result.croppedImage);
-    final text = await OCR(file.path);
+
+    final response = await ChatGPTService.processImage(imageFile: file);
     if (!mounted) return;
-    Navigator.pop(context, text);
+    Navigator.pop(context, response);
   }
 
   @override
