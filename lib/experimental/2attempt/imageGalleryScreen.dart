@@ -1521,19 +1521,42 @@ class _ImageTileState extends State<ImageTile> {
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        iconSize: 24,
-                        padding: EdgeInsets.all(8),
-                        icon: const Icon(Icons.refresh, color: Colors.white),
-                        tooltip: 'Redo OCR',
-                        onPressed: () async {
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      elevation: 4,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () async {
                           await _redoTextExtraction();
                         },
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF4F8CFF), Color(0xFF8F5CFF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.refresh,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
