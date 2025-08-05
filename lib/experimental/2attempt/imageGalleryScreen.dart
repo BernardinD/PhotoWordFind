@@ -1526,8 +1526,8 @@ class _ImageTileState extends State<ImageTile> {
                           await _redoTextExtraction();
                         },
                         child: Container(
-                          width: 48,
-                          height: 48,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -1548,7 +1548,7 @@ class _ImageTileState extends State<ImageTile> {
                             child: Icon(
                               Icons.refresh,
                               color: Colors.white,
-                              size: 28,
+                              size: 20,
                             ),
                           ),
                         ),
