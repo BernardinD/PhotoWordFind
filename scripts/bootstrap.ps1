@@ -85,7 +85,7 @@ if ($studioCmd) {
     $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     if (-not ($persistPath -split ';' | Where-Object { $_ -eq $studioDir })) {
         Write-Host "Adding Android Studio to user PATH..."
-        setx Path "$studioDir;" + $persistPath | Out-Null
+        setx Path ("$studioDir;" + $persistPath) | Out-Null
     }
     if ($env:Path -notlike "$studioDir*") { $env:Path = "$studioDir;" + $env:Path }
 } else {
@@ -148,7 +148,7 @@ if (Test-Path $adbPathEntry) {
     $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     if (-not ($persistPath -split ';' | Where-Object { $_ -eq $adbPathEntry })) {
         Write-Host "Adding Android platform-tools to user PATH..."
-        setx Path "$adbPathEntry;" + $persistPath | Out-Null
+        setx Path ("$adbPathEntry;" + $persistPath) | Out-Null
     }
     if ($env:Path -notlike "$adbPathEntry*") {
         $env:Path = "$adbPathEntry;" + $env:Path
@@ -186,7 +186,7 @@ if ($flutterCmd) {
     $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     if (-not ($persistPath -split ';' | Where-Object { $_ -eq $flutterBin })) {
         Write-Host "Adding Flutter to user PATH..."
-        setx Path "$flutterBin;" + $persistPath | Out-Null
+        setx Path ("$flutterBin;" + $persistPath) | Out-Null
     }
     if ($env:Path -notlike "$flutterBin*") { $env:Path = "$flutterBin;" + $env:Path }
     Push-Location (Split-Path $flutterBin -Parent)
