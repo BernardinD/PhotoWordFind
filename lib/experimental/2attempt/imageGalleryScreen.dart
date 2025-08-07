@@ -788,9 +788,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       Wrap(
                         spacing: 6,
                         children: [
-                          ...states
-                              .where((s) => s != 'All')
-                              .map(
+                          ...states.where((s) => s != 'All').map(
                                 (s) => ChoiceChip(
                                   label: Text(s),
                                   selected: selected == s,
@@ -906,8 +904,27 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     final destDir = Directory('/storage/emulated/0/DCIM/Comb');
     await destDir.create(recursive: true);
+    final messenger = ScaffoldMessenger.of(pickerContext);
+    final total = assets.length;
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(hours: 1),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(),
+            ),
+            const SizedBox(width: 16),
+            Text('Importing images... 0/$total'),
+          ],
+        ),
+      ),
+    );
 
     List<ContactEntry> newEntries = [];
+    var processed = 0;
 
     for (final asset in assets) {
       try {
@@ -918,7 +935,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         final destPath = path.join(destDir.path, filename);
 
         if (File(destPath).existsSync()) {
-          debugPrint('File already exists at \$destPath, skipping');
+          debugPrint('File already exists at $destPath, skipping');
           continue;
         }
 
@@ -952,6 +969,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       } catch (e) {
         debugPrint('Failed to import ${asset.id}: $e');
       }
+
+      processed++;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            duration: const Duration(hours: 1),
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(),
+                ),
+                const SizedBox(width: 16),
+                Text('Importing images... $processed/$total'),
+              ],
+            ),
+          ),
+        );
     }
 
     await StorageUtils.writeJson(StorageUtils.filePaths);
@@ -964,6 +1001,18 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       await _applyFiltersAndSort();
       await StorageUtils.syncLocalAndCloud();
     }
+
+    messenger.hideCurrentSnackBar();
+    final imported = newEntries.length;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          imported > 0
+              ? 'Imported $imported image${imported == 1 ? '' : 's'}'
+              : 'No new images imported',
+        ),
+      ),
+    );
   }
 }
 
@@ -1632,8 +1681,7 @@ class _ImageTileState extends State<ImageTile> {
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
-                                  if (widget
-                                          .contact.snapUsername?.isNotEmpty ??
+                                  if (widget.contact.snapUsername?.isNotEmpty ??
                                       false)
                                     IconButton(
                                       iconSize: 22,
@@ -1648,8 +1696,8 @@ class _ImageTileState extends State<ImageTile> {
                                       icon: SocialIcon
                                           .snapchatIconButton!.socialIcon,
                                     ),
-                                  if (widget.contact.instaUsername
-                                          ?.isNotEmpty ??
+                                  if (widget
+                                          .contact.instaUsername?.isNotEmpty ??
                                       false)
                                     IconButton(
                                       iconSize: 22,
@@ -1684,26 +1732,23 @@ class _ImageTileState extends State<ImageTile> {
                                     iconSize: 22,
                                     color: Colors.white,
                                     padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 36, height: 36),
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 36, height: 36),
                                     icon: const Icon(Icons.note_alt_outlined),
                                     onPressed: () async {
                                       await showNoteDialog(
                                           context,
                                           widget.contact.identifier,
                                           widget.contact,
-                                          existingNotes:
-                                              widget.contact.notes);
+                                          existingNotes: widget.contact.notes);
                                     },
                                   ),
                                   IconButton(
                                     iconSize: 22,
                                     color: Colors.white,
                                     padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 36, height: 36),
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 36, height: 36),
                                     icon: const Icon(Icons.edit),
                                     onPressed: () => _editUsernames(context),
                                   ),
@@ -1711,9 +1756,8 @@ class _ImageTileState extends State<ImageTile> {
                                     iconSize: 22,
                                     color: Colors.white,
                                     padding: EdgeInsets.zero,
-                                    constraints:
-                                        const BoxConstraints.tightFor(
-                                            width: 36, height: 36),
+                                    constraints: const BoxConstraints.tightFor(
+                                        width: 36, height: 36),
                                     icon: const Icon(Icons.more_vert),
                                     onPressed: () => _showPopupMenu(
                                         context, widget.imagePath),
