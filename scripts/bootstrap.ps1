@@ -11,7 +11,7 @@ $ProjectId = 'pwfapp-f314d'
 $FirebaseAppId = '1:1082599556322:android:66fb03c1d8192758440abb'
 
 # Refreshes the PATH for the current session so newly installed CLIs are
-# immediately available.
+# immediately available. This uses only persisted Machine + User PATH.
 function Refresh-SessionPath {
     Write-Host "Refreshing session PATH..."
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
@@ -25,6 +25,84 @@ function Is-WingetPackageInstalled($id) {
     return ($LASTEXITCODE -eq 0 -and $out -and $out -notmatch 'No installed')
 }
 
+# Returns $true if a directory path is present in a PATH string (case-insensitive, trailing slashes ignored)
+function Test-PathContainsEntry {
+    param(
+        [Parameter(Mandatory=$true)][string]$Dir,
+        [Parameter(Mandatory=$true)][string]$PathString
+    )
+    function _Norm([string]$p) {
+        if (-not $p) { return '' }
+        $e = [Environment]::ExpandEnvironmentVariables($p).Trim().Trim('"')
+        $e = $e.TrimEnd('\\')
+        return $e.ToLowerInvariant()
+    }
+    $target = _Norm $Dir
+    $entriesNormalized = (
+        $PathString -split ';' |
+        Where-Object { $_ -and $_.Trim() -ne '' } |
+        ForEach-Object { _Norm $_ }
+    )
+    return ($entriesNormalized -contains $target)
+}
+
+# Ensures a directory is present in persistent User PATH. If changed, refreshes session.
+function Ensure-PathEntry {
+    param(
+        [Parameter(Mandatory=$true)][string]$Dir,
+        [string]$ToolName = 'Tool'
+    )
+    $Dir = $Dir.Trim().Trim('"')
+    if (-not $Dir) { return $false }
+
+    $userPath    = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $persisted   = "$machinePath;$userPath"
+
+    if (Test-PathContainsEntry -Dir $Dir -PathString $persisted) {
+        Write-Host "$ToolName path already present in persisted PATH." -ForegroundColor Green
+        return $true
+    }
+
+    Write-Host "Persisting $ToolName path to User PATH: $Dir"
+    $newUserPath = "$Dir;" + $userPath
+    setx Path $newUserPath | Out-Null
+
+    Refresh-SessionPath
+
+    $finalUser = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $predicted = "$machinePath;$finalUser"
+    $ok = Test-PathContainsEntry -Dir $Dir -PathString $predicted
+    if ($ok) {
+        Write-Host "$ToolName path ensured in persistence." -ForegroundColor Green
+    } else {
+        Write-Host "Warning: $ToolName path not found in persisted PATH after update." -ForegroundColor Yellow
+    }
+    return $ok
+}
+
+# Tries to resolve a command now; if not found, refresh PATH and try again. If found, ensures its directory persists.
+function Ensure-CommandPersistence {
+    param(
+        [Parameter(Mandatory=$true)][string]$CommandName,
+        [string]$ToolName = $null
+    )
+    if (-not $ToolName) { $ToolName = $CommandName }
+
+    $cmd = Get-Command $CommandName -ErrorAction SilentlyContinue
+    if (-not $cmd) {
+        Refresh-SessionPath
+        $cmd = Get-Command $CommandName -ErrorAction SilentlyContinue
+        if (-not $cmd) {
+            Write-Host "Error: $ToolName command '$CommandName' not found after install and PATH refresh." -ForegroundColor Red
+            return $false
+        }
+    }
+
+    $dir = Split-Path $cmd.Source
+    return (Ensure-PathEntry -Dir $dir -ToolName $ToolName)
+}
+
 # Ensure JDK 17 is installed and available
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $javaCmd = Get-Command java -ErrorAction SilentlyContinue
@@ -32,7 +110,7 @@ $jdkInstalled = Is-WingetPackageInstalled $jdkPackage
 if (-not $javaCmd -or -not $jdkInstalled) {
     Write-Host "Installing JDK 17 via winget..."
     winget install -e --id $jdkPackage
-    Refresh-SessionPath
+    $null = Ensure-CommandPersistence -CommandName 'java' -ToolName 'JDK 17'
     $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 } else {
     Write-Host "JDK 17 is already installed and available." -ForegroundColor Green
@@ -57,7 +135,7 @@ $studioInstalled = Is-WingetPackageInstalled $studioPackage
 if (-not $studioCmd -or -not $studioInstalled) {
     Write-Host "Installing Android Studio via winget..."
     winget install -e --id $studioPackage
-    Refresh-SessionPath
+    $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
     $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 } else {
     Write-Host "Android Studio is already installed and available." -ForegroundColor Green
@@ -76,12 +154,7 @@ if (-not $studioCmd) {
 }
 if ($studioCmd) {
     $studioDir = Split-Path $studioCmd.Source
-    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $studioDir })) {
-        Write-Host "Adding Android Studio to user PATH..."
-        setx Path ("$studioDir;" + $persistPath) | Out-Null
-    }
-    if ($env:Path -notlike "$studioDir*") { $env:Path = "$studioDir;" + $env:Path }
+    $null = Ensure-PathEntry -Dir $studioDir -ToolName 'Android Studio'
 } else {
     Write-Host "Android Studio executable not found" -ForegroundColor Yellow
 }
@@ -109,17 +182,8 @@ if ($jdkDir) {
         setx PWF_JAVA_HOME $env:PWF_JAVA_HOME | Out-Null
     }
 
-    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $jdkPathEntry = "$env:PWF_JAVA_HOME\bin"
-    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $jdkPathEntry })) {
-        Write-Host "Adding JDK 17 to user PATH..."
-        $newPath = "$jdkPathEntry;" + $persistPath
-        setx Path $newPath | Out-Null
-    }
-
-    if ($env:Path -notlike "$jdkPathEntry*") {
-        $env:Path = "$jdkPathEntry;" + $env:Path
-    }
+    $null = Ensure-PathEntry -Dir $jdkPathEntry -ToolName 'JDK 17'
 
     $jdkLink = Join-Path $PSScriptRoot '..\.jdk'
     if (-not (Test-Path $jdkLink)) {
@@ -139,14 +203,7 @@ if ($jdkDir) {
 
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
 if (Test-Path $adbPathEntry) {
-    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $adbPathEntry })) {
-        Write-Host "Adding Android platform-tools to user PATH..."
-        setx Path ("$adbPathEntry;" + $persistPath) | Out-Null
-    }
-    if ($env:Path -notlike "$adbPathEntry*") {
-        $env:Path = "$adbPathEntry;" + $env:Path
-    }
+    $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools'
 }
 
 # Ensure Flutter is installed and on PATH
@@ -156,7 +213,7 @@ $flutterInstalled = Is-WingetPackageInstalled $flutterPackage
 if (-not $flutterCmd -or -not $flutterInstalled) {
     Write-Host "Installing Flutter via winget..."
     winget install -e --id $flutterPackage
-    Refresh-SessionPath
+    $null = Ensure-CommandPersistence -CommandName 'flutter' -ToolName 'Flutter'
     $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
 } else {
     Write-Host "Flutter is already installed and available." -ForegroundColor Green
@@ -174,12 +231,7 @@ if (-not $flutterCmd) {
 }
 if ($flutterCmd) {
     $flutterBin = Split-Path $flutterCmd.Source
-    $persistPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    if (-not ($persistPath -split ';' | Where-Object { $_ -eq $flutterBin })) {
-        Write-Host "Adding Flutter to user PATH..."
-        setx Path ("$flutterBin;" + $persistPath) | Out-Null
-    }
-    if ($env:Path -notlike "$flutterBin*") { $env:Path = "$flutterBin;" + $env:Path }
+    $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter'
     Push-Location (Split-Path $flutterBin -Parent)
     $desiredFlutterVersion = "3.24.5"
     $currentFlutterVersion = (& $flutterCmd.Source --version 2>$null | Select-String -Pattern "^Flutter\s+([0-9\.]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value })[0]
@@ -201,7 +253,7 @@ $firebaseInstalled = Is-WingetPackageInstalled $firebasePackage
 if (-not $firebaseCmd -or -not $firebaseInstalled) {
     Write-Host "Installing Firebase CLI via winget..."
     winget install -e --id $firebasePackage
-    Refresh-SessionPath
+    $null = Ensure-CommandPersistence -CommandName 'firebase' -ToolName 'Firebase CLI'
     $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
 } else {
     Write-Host "Firebase CLI is already installed and available." -ForegroundColor Green
