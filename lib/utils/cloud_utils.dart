@@ -59,6 +59,9 @@ class CloudUtils {
     ],
   );
 
+  /// Returns the email of the currently signed in user, or null if not signed in.
+  static String? get currentUserEmail => _googleSignIn.currentUser?.email;
+
   /// Optional progress callback for UI layers (old or new UIs) to observe
   /// cloud operations. UI can assign a function to receive progress updates
   /// instead of CloudUtils depending on a concrete ProgressDialog.

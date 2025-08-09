@@ -73,13 +73,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   /// has navigation and localization available.
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-  // Track sign-out operation
-  bool _signingOut = false;
-  String? _signOutMessage;
+  // Track sign-out operation (removed icon usage, state no longer needed)
+  // bool _signingOut = false;
+  // String? _signOutMessage;
   // New sync state
   bool _syncing = false;
   DateTime? _lastSyncTime;
-  String? _lastSyncError;
+  // String? _lastSyncError; // no longer surfaced
 
   @override
   void initState() {
@@ -87,12 +87,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     // Attach progress callback for CloudUtils (scoped to this screen)
     CloudUtils.progressCallback = ({double? value, String? message, bool done = false, bool error = false}) {
       if (!mounted) return;
-      setState(() {
-        _signOutMessage = message;
-        if (done) {
-          _signingOut = false;
-        }
-      });
+      // Previously updated sign-out UI; now no-op.
     };
     _initializeApp();
   }
@@ -164,12 +159,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     setState(() {
       _syncing = true;
-      _lastSyncError = null;
     });
 
-    // Helper to show (ephemeral) snack
     void show(String msg, {Duration duration = const Duration(seconds: 2)}) {
-      if (fromPull) return; // suppress snackbars during pull gesture
+      if (fromPull) return;
       messenger.showSnackBar(SnackBar(content: Text(msg), duration: duration));
     }
 
@@ -182,7 +175,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         show('No internet connection');
         return;
       }
-
       if (!fromPull) {
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(const SnackBar(
@@ -196,32 +188,19 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           duration: Duration(minutes: 1),
         ));
       }
-
-      // Perform sync with a timeout safeguard
       await CloudUtils.updateCloudJson().timeout(const Duration(seconds: 45));
       _lastSyncTime = DateTime.now();
       if (!fromPull) {
         messenger.hideCurrentSnackBar();
         show('Sync complete (${DateFormat.Hm().format(_lastSyncTime!)})');
       }
-    } on TimeoutException {
-      _lastSyncError = 'Timed out';
-      if (!fromPull) {
-        messenger.hideCurrentSnackBar();
-        show('Sync failed: timeout');
-      }
     } catch (e) {
-      _lastSyncError = e.toString();
       if (!fromPull) {
         messenger.hideCurrentSnackBar();
         show('Sync failed: $e');
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _syncing = false;
-        });
-      }
+      if (mounted) setState(() => _syncing = false);
     }
   }
 
@@ -247,8 +226,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       );
       if (confirm == true) {
         setState(() {
-          _signingOut = true;
-          _signOutMessage = 'Signing out...';
+          // _signingOut = true; // removed
+          // _signOutMessage = 'Signing out...'; // removed
         });
         try {
           await CloudUtils.signOut();
@@ -334,83 +313,63 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             appBar: AppBar(
               title: const Text('Image Gallery'),
               actions: [
-                if (_signingOut) Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  child: Center(
-                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                ),
-                if (_signingOut && _signOutMessage != null) Padding(
-                  padding: const EdgeInsets.only(right: 12.0),
-                  child: Center(child: Text(_signOutMessage!, style: TextStyle(fontSize: 12))),
-                ),
-                // Show initialization status instead of sign-in status during init
-                _isInitializing
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                if (_isInitializing)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  // Persistent auth status icon (green if signed in, red if failed last attempt)
+                  FutureBuilder<bool>(
+                    future: CloudUtils.isSignedin(),
+                    builder: (ctx, snap) {
+                      final signed = snap.data == true;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Icon(
+                          signed ? Icons.cloud_done : Icons.cloud_off,
+                          color: signed ? Colors.green : Colors.redAccent,
                         ),
-                      )
-                    : FutureBuilder<bool>(
-                        future: CloudUtils.isSignedin(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16.0),
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            );
-                          }
-                          final signedIn = snapshot.data ?? false;
-                          return Row(
-                            children: [
-                              IconButton(
-                                icon: _syncing
-                                    ? const Icon(Icons.sync_disabled)
-                                    : const Icon(Icons.sync),
-                                tooltip: _syncing
-                                    ? 'Syncing...'
-                                    : _lastSyncTime != null
-                                        ? 'Sync (last: ' + DateFormat.Hm().format(_lastSyncTime!) + ')\nPull controls down to refresh'
-                                        : 'Sync (pull controls down to refresh)',
-                                onPressed: signedIn && !_syncing ? () => _forceSync() : null,
-                              ),
-                              if (_lastSyncError != null && !_syncing)
-                                Tooltip(
-                                  message: _lastSyncError!,
-                                  child: const Icon(Icons.error_outline, size: 20, color: Colors.orangeAccent),
-                                ),
-                              IconButton(
-                                icon:
-                                    Icon(signedIn ? Icons.logout : Icons.login),
-                                tooltip: signedIn ? 'Sign out' : 'Sign in',
-                                onPressed: _toggleSignInOut,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.settings),
-                                onPressed: () {
-                                  Navigator.of(navContext).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => SettingsScreen(
-                                        onResetImportDir: _resetImportDir,
-                                        onChangeImportDir: _changeImportDir,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      ),
+                      );
+                    },
+                  ),
+                if (!_isInitializing)
+                  IconButton(
+                    icon: const Icon(Icons.settings),
+                    tooltip: 'Settings',
+                    onPressed: () {
+                      Navigator.of(navContext).push(
+                        MaterialPageRoute(
+                          builder: (_) => SettingsScreen(
+                            onResetImportDir: _resetImportDir,
+                            onChangeImportDir: _changeImportDir,
+                            onRequestSignIn: () async {
+                              final ok = await _ensureSignedIn();
+                              if (!ok) {
+                                setState(() {
+                                  _initializationError = 'Sign-in failed';
+                                });
+                              }
+                              return ok;
+                            },
+                            onRequestSignOut: () async {
+                              try {
+                                await CloudUtils.signOut();
+                              } catch (_) {}
+                              setState(() {});
+                            },
+                            lastSyncTime: _lastSyncTime,
+                            syncing: _syncing,
+                            signInFailed: _initializationError != null,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
             body: _isInitializing
