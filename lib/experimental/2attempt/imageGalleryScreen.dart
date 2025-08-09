@@ -25,7 +25,6 @@ import 'package:PhotoWordFind/experimental/2attempt/redo_crop_screen.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -77,6 +76,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // Track sign-out operation
   bool _signingOut = false;
   String? _signOutMessage;
+  // New sync state
+  bool _syncing = false;
+  DateTime? _lastSyncTime;
+  String? _lastSyncError;
 
   @override
   void initState() {
@@ -154,16 +157,71 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return signed;
   }
 
-  Future<void> _forceSync() async {
+  Future<void> _forceSync({bool fromPull = false}) async {
+    if (_syncing) return; // Prevent concurrent syncs
     final ctx = _navigatorKey.currentContext ?? context;
     final messenger = ScaffoldMessenger.of(ctx);
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Syncing…'), duration: Duration(seconds: 1)));
+
+    setState(() {
+      _syncing = true;
+      _lastSyncError = null;
+    });
+
+    // Helper to show (ephemeral) snack
+    void show(String msg, {Duration duration = const Duration(seconds: 2)}) {
+      if (fromPull) return; // suppress snackbars during pull gesture
+      messenger.showSnackBar(SnackBar(content: Text(msg), duration: duration));
+    }
+
     try {
-      await CloudUtils.updateCloudJson();
-      messenger.showSnackBar(const SnackBar(content: Text('Sync complete')));
+      if (!await CloudUtils.isSignedin()) {
+        show('Not signed in');
+        return;
+      }
+      if (!await CloudUtils.isConnected()) {
+        show('No internet connection');
+        return;
+      }
+
+      if (!fromPull) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 12),
+              Text('Syncing…'),
+            ],
+          ),
+          duration: Duration(minutes: 1),
+        ));
+      }
+
+      // Perform sync with a timeout safeguard
+      await CloudUtils.updateCloudJson().timeout(const Duration(seconds: 45));
+      _lastSyncTime = DateTime.now();
+      if (!fromPull) {
+        messenger.hideCurrentSnackBar();
+        show('Sync complete (${DateFormat.Hm().format(_lastSyncTime!)})');
+      }
+    } on TimeoutException {
+      _lastSyncError = 'Timed out';
+      if (!fromPull) {
+        messenger.hideCurrentSnackBar();
+        show('Sync failed: timeout');
+      }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+      _lastSyncError = e.toString();
+      if (!fromPull) {
+        messenger.hideCurrentSnackBar();
+        show('Sync failed: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _syncing = false;
+        });
+      }
     }
   }
 
@@ -315,10 +373,21 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                           return Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.sync),
-                                tooltip: 'Sync',
-                                onPressed: signedIn ? _forceSync : null,
+                                icon: _syncing
+                                    ? const Icon(Icons.sync_disabled)
+                                    : const Icon(Icons.sync),
+                                tooltip: _syncing
+                                    ? 'Syncing...'
+                                    : _lastSyncTime != null
+                                        ? 'Sync (last: ' + DateFormat.Hm().format(_lastSyncTime!) + ')\nPull controls down to refresh'
+                                        : 'Sync (pull controls down to refresh)',
+                                onPressed: signedIn && !_syncing ? () => _forceSync() : null,
                               ),
+                              if (_lastSyncError != null && !_syncing)
+                                Tooltip(
+                                  message: _lastSyncError!,
+                                  child: const Icon(Icons.error_outline, size: 20, color: Colors.orangeAccent),
+                                ),
                               IconButton(
                                 icon:
                                     Icon(signedIn ? Icons.logout : Icons.login),
@@ -448,11 +517,21 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Widget _buildControls() {
-    return AnimatedSize(
-        duration: const Duration(milliseconds: 300),
-        child: _controlsExpanded
-            ? _buildExpandedControls()
-            : _buildMinimizedControls());
+    // Pull-to-refresh limited to this controls area only
+    return RefreshIndicator(
+      onRefresh: () => _forceSync(fromPull: true),
+      displacement: 56,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          child: _controlsExpanded
+              ? _buildExpandedControls()
+              : _buildMinimizedControls(),
+        ),
+      ),
+    );
   }
 
   Widget _buildExpandedControls() {
