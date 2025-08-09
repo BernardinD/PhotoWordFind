@@ -117,7 +117,7 @@ class Gallery{
 
     runSelectImageToast(selected.contains(fileName));
 
-    MyApp.updateFrame(() => null);
+  LegacyAppShell.updateFrame?.call(() => null);
     debugPrint("Leaving onPressed()...");
   }
 

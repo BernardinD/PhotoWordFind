@@ -320,12 +320,18 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   onPressed: () async {
                     final proceed = await showDialog<bool>(
                       context: navContext,
-                      builder: (_) => AlertDialog(
+                      builder: (dialogCtx) => AlertDialog(
                         title: const Text('Confirm UI Switch'),
                         content: const Text('Switch to legacy interface?'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(navContext, false), child: const Text('Cancel')),
-                          TextButton(onPressed: () => Navigator.pop(navContext, true), child: const Text('Switch')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogCtx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogCtx, true),
+                            child: const Text('Switch'),
+                          ),
                         ],
                       ),
                     );

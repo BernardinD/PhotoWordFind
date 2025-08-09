@@ -97,16 +97,16 @@ String getKeyOfFilename(String f) {
 
 Future ocrParallel(List filesList, Size size,
     {String? query, bool findFirst = false, Map<int, String?>? replace}) async {
-  await MyApp.showProgress(autoComplete: false, limit: filesList.length);
+  await LegacyAppShell.showProgress(autoComplete: false, limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
   await Future.delayed(const Duration(milliseconds: 300), () {});
 
   // Reset Gallery
   if (replace == null) {
-    if (MyApp.gallery.length() > 0) {
-      MyApp.gallery.galleryController.jumpToPage(0);
+  if (LegacyAppShell.gallery.length() > 0) {
+      LegacyAppShell.gallery.galleryController.jumpToPage(0);
     }
-    MyApp.gallery.clear();
+  LegacyAppShell.gallery.clear();
   }
 
   // Time search
@@ -151,7 +151,7 @@ Future ocrParallel(List filesList, Size size,
   }
   debugPrint("completed: $completed");
 
-  MyApp.updateFrame(() => null);
+  LegacyAppShell.updateFrame?.call(() => null);
 
   // Only backup when getting new data
   int finalStorageSize = StorageUtils.getSize();
@@ -161,8 +161,8 @@ Future ocrParallel(List filesList, Size size,
   // Display completed status
   increaseProgressBar(completed, filesList.length);
   // Close dialog and control delay
-  if (MyApp.pr.isOpen()) {
-    MyApp.pr.close(delay: 500);
+  if (LegacyAppShell.pr.isOpen()) {
+    LegacyAppShell.pr.close(delay: 500);
     debugPrint(">>> getting in.");
   }
 }
@@ -255,7 +255,7 @@ void increaseProgressBar(int completed, int pathsLength) {
   int update = (completed + 1) * 100 ~/ pathsLength;
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
-  MyApp.pr.update(value: completed, msg: "Loading...");
+  LegacyAppShell.pr.update(value: completed, msg: "Loading...");
 }
 
 Map<String, dynamic> postProcessOCR(String ocr) {
@@ -352,7 +352,7 @@ Future onEachOcrResult(
   if (!skipImage) {
     // If query word has been found
     if (replace == null)
-      MyApp.gallery.addNewCell(
+  LegacyAppShell.gallery.addNewCell(
         cellBody,
         snapUsername,
         srcFile,
@@ -364,7 +364,7 @@ Future onEachOcrResult(
     else {
       var pair = replace.entries.first;
       int idx = pair.key;
-      MyApp.gallery.redoCell(
+  LegacyAppShell.gallery.redoCell(
           cellBody, snapUsername, instaUsername, discordUsername, idx);
       // Note: scrFile will always be a File for redo and ONLY redo
       (srcFile as File).delete();

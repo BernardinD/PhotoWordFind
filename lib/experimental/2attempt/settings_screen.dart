@@ -106,20 +106,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text(isNew ? 'Currently using new UI' : 'Currently using legacy UI'),
                   value: isNew,
                   onChanged: (val) async {
+                    if (val == isNew) return; // no change
                     final proceed = await showDialog<bool>(
                       context: context,
-                      builder: (_) => AlertDialog(
+                      builder: (dialogCtx) => AlertDialog(
                         title: const Text('Confirm UI Switch'),
                         content: Text('Switch to ' + (val ? 'new' : 'legacy') + ' interface?'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Switch')),
+                          TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('Switch')),
                         ],
                       ),
                     );
                     if (proceed == true) {
+                      // Perform the UI mode switch; this will rebuild the root and likely dispose this screen.
                       await UiMode.switchTo(val);
-                      setState(() {}); // refresh switch state
+                      // Only attempt to refresh if still mounted (e.g., if user stayed in same UI somehow).
+                      if (mounted) setState(() {});
                     }
                   },
                 );

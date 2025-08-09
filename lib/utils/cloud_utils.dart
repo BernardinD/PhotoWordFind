@@ -230,8 +230,8 @@ class CloudUtils {
             "/storage/emulated/0/DCIM/$dir/$key.jpg", jsonDecode(value)));
       });
 
-      StorageUtils.merge(cloudLocalJson)
-          .then((value) => MyApp.updateFrame(() => null));
+    StorageUtils.merge(cloudLocalJson)
+      .then((value) => LegacyAppShell.updateFrame?.call(() => null));
 
       debugPrint("Leaving getCloudJson()...");
       return _cloudRef != null;

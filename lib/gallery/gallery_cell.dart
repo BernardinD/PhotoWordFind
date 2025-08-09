@@ -374,14 +374,14 @@ class _GalleryCellState extends State<GalleryCell> {
                                     //     snap: snap,
                                     //     overridingUsername: false);
                                     widget.contact?.snapUsername = snap;
-                                    MyApp.gallery.redoCell(
+                                    LegacyAppShell.gallery.redoCell(
                                         widget.text,
                                         snap,
                                         widget.instaUsername,
                                         widget.discordUsername,
                                         widget.listPos(widget));
                                     Sortings.updateCache();
-                                    MyApp.updateFrame(() => null);
+                                    LegacyAppShell.updateFrame?.call(() => null);
                                   },
                                 ));
                             return AdaptiveTextSelectionToolbar.buttonItems(
@@ -508,11 +508,11 @@ class _GalleryCellState extends State<GalleryCell> {
     if (_displayDatesCounter >= _dates.length) {
       _displayDatesCounter--;
     }
-    MyApp.updateFrame(() {});
+  LegacyAppShell.updateFrame?.call(() {});
   }
 
   openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
-    await MyApp.showProgress(autoComplete: true);
+  await LegacyAppShell.showProgress(autoComplete: true);
     String key = widget.storageKey;
     Uri _site;
     DateTime? date;
@@ -570,10 +570,10 @@ class _GalleryCellState extends State<GalleryCell> {
     debugPrint("site URI: $_site");
     if (!_site.hasEmptyPath)
       launchUrl(_site, mode: LaunchMode.externalApplication)
-          .then((value) => MyApp.pr.close(delay: 500));
+          .then((value) => LegacyAppShell.pr.close(delay: 500));
     // Make sure to close the progress dialog
     else
-      MyApp.pr.close(delay: 500);
+  LegacyAppShell.pr.close(delay: 500);
   }
 
   TableRow getSocialRow(bool hasUser, SocialType social) {
@@ -759,7 +759,7 @@ class _GalleryCellState extends State<GalleryCell> {
                 default:
                   break;
               }
-              MyApp.gallery.redoCell(
+              LegacyAppShell.gallery.redoCell(
                   widget.text, snap, insta, discord, widget.listPos(widget));
               Sortings.updateCache();
             }
