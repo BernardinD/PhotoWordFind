@@ -25,6 +25,7 @@ import 'package:PhotoWordFind/experimental/2attempt/redo_crop_screen.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
+import 'package:PhotoWordFind/main.dart' show UiMode; // for UI mode switching
 
 final PageController _pageController =
     PageController(viewportFraction: 0.8); // Gives a gallery feel
@@ -313,6 +314,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             appBar: AppBar(
               title: const Text('Image Gallery'),
               actions: [
+                IconButton(
+                  tooltip: 'Switch to Legacy UI',
+                  icon: const Icon(Icons.swap_horiz),
+                  onPressed: () async {
+                    final proceed = await showDialog<bool>(
+                      context: navContext,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Confirm UI Switch'),
+                        content: const Text('Switch to legacy interface?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(navContext, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(navContext, true), child: const Text('Switch')),
+                        ],
+                      ),
+                    );
+                    if (proceed == true) {
+                      await UiMode.switchTo(false);
+                    }
+                  },
+                ),
                 if (_isInitializing)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),

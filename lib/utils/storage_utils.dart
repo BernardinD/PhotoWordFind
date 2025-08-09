@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
-import 'package:collection/collection.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Only needed for migrateSharedPrefsToHive
@@ -57,6 +56,12 @@ class SubKeys {
 class StorageUtils {
   static Map<String, String> filePaths = {};
   static bool enableLegacyImagePathSearch = false;
+  // Reserved SharedPreferences keys that are app settings rather than contact entries.
+  static const Set<String> reservedPrefKeys = {
+    'use_new_ui_candidate',
+    'last_selected_state',
+    'import_directory',
+  };
 
   static Future<void> init() async {
     filePaths = (await readJson()).cast<String, String>();
@@ -367,6 +372,10 @@ class StorageUtils {
     final box = Hive.box('contacts');
     final prefs = await SharedPreferences.getInstance();
     for (String key in prefs.getKeys()) {
+  if (reservedPrefKeys.contains(key)) {
+        debugPrint('Skipping reserved preference key during migration: $key');
+        continue;
+      }
       final value = prefs.getString(key);
       if (value != null) {
         // Store as String for now; can parse to Map if needed
@@ -381,11 +390,13 @@ class StorageUtils {
     }
     // Validation: compare key counts in both stores
     final migratedKeys = box.keys.whereType<String>();
-    if (migratedKeys.length == prefs.getKeys().length) {
+  // Only compare counts for non-reserved keys
+  final nonReservedCount = prefs.getKeys().where((k) => !reservedPrefKeys.contains(k)).length;
+  if (migratedKeys.length == nonReservedCount) {
       debugPrint('Migration to Hive complete. Key counts match.');
     } else {
       debugPrint(
-          'Migration: mismatch in key counts. SharedPrefs: \\${prefs.getKeys().length}, Hive: \\${migratedKeys.length}');
+      'Migration: mismatch in key counts. SharedPrefs(non-reserved): \\${nonReservedCount}, Hive: \\${migratedKeys.length}');
     }
   }
 }

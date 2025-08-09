@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:PhotoWordFind/main.dart' show UiMode; // for UI mode toggle
 
 class SettingsScreen extends StatefulWidget {
   final Future<void> Function() onResetImportDir;
@@ -92,6 +93,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Interface', style: Theme.of(context).textTheme.titleMedium),
+          ),
+            FutureBuilder<bool>(
+              future: UiMode.isNewUi(),
+              builder: (ctx, snap) {
+                final isNew = snap.data ?? true;
+                return SwitchListTile(
+                  title: Text('Use new gallery UI'),
+                  subtitle: Text(isNew ? 'Currently using new UI' : 'Currently using legacy UI'),
+                  value: isNew,
+                  onChanged: (val) async {
+                    final proceed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Confirm UI Switch'),
+                        content: Text('Switch to ' + (val ? 'new' : 'legacy') + ' interface?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Switch')),
+                        ],
+                      ),
+                    );
+                    if (proceed == true) {
+                      await UiMode.switchTo(val);
+                      setState(() {}); // refresh switch state
+                    }
+                  },
+                );
+              },
+            ),
+          const Divider(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text('Account', style: Theme.of(context).textTheme.titleMedium),

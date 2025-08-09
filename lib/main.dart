@@ -11,8 +11,8 @@ import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
-import 'package:PhotoWordFind/experimental/1attempt/test_new_gallery.dart';
 import 'package:catcher/catcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -22,8 +22,6 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
-import 'package:responsive_framework/responsive_framework.dart';
-import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 // import 'package:image_picker/image_picker.dart';
@@ -37,11 +35,29 @@ void main() {
   ]);
 
   Catcher(
-    rootWidget: MyRootWidget(),
+    rootWidget: MyRootWidget(key: MyRootWidget.globalKey),
     debugConfig: debugOptions,
     releaseConfig: releaseOptions,
     ensureInitialized: true,
   );
+}
+
+/// Helper to allow either UI to toggle between legacy/new modes.
+class UiMode {
+  static Future<bool> isNewUi() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(MyRootWidget.prefUseNewUi) ?? true;
+  }
+
+  static Future<void> switchTo(bool useNew) async {
+    final state = MyRootWidget.globalKey.currentState;
+    if (state != null) {
+      await state.switchUi(useNew); // live swap
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance(); // fallback
+    await prefs.setBool(MyRootWidget.prefUseNewUi, useNew);
+  }
 }
 
 /// Handles all the inititalization of the app
@@ -58,24 +74,61 @@ Future<void> initializeApp() async {
   // await StorageUtils.resetImagePaths();
 }
 
-class MyRootWidget extends StatelessWidget {
+class MyRootWidget extends StatefulWidget {
   const MyRootWidget({Key? key}) : super(key: key);
+
+  static const String prefUseNewUi = 'use_new_ui_candidate';
+  static final GlobalKey<MyRootWidgetState> globalKey = GlobalKey<MyRootWidgetState>();
+
+  @override
+  State<MyRootWidget> createState() => MyRootWidgetState();
+}
+
+class MyRootWidgetState extends State<MyRootWidget> {
+  bool _initialized = false;
+  bool _useNew = true; // default to new
+
+  bool get useNewUi => _useNew;
+
+  static Future<bool> _readPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(MyRootWidget.prefUseNewUi) ?? true;
+  }
+
+  Future<void> _writePref(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(MyRootWidget.prefUseNewUi, v);
+  }
+
+  Future<void> switchUi(bool useNew) async {
+    if (_useNew == useNew) return;
+    setState(() => _useNew = useNew);
+    await _writePref(useNew);
+  }
+
+  @override
+    void initState() {
+    super.initState();
+    (() async {
+      await initializeApp();
+      _useNew = await _readPref();
+      if (mounted) setState(() => _initialized = true);
+    })();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: initializeApp(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done) {
-          // Swap between UIs here for testing
-          return ImageGalleryScreen();
-          // return MyApp(title: 'Flutter Demo Home Page');
-        }
-        return MaterialApp(
-          home: Scaffold(body: Center(child: CircularProgressIndicator())),
-        );
-      },
-    );
+    if (!_initialized) {
+      return const MaterialApp(
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+    // We retain existing nested MaterialApp(s) for now to minimize refactor risk.
+    return _useNew
+        ? ImageGalleryScreen(
+            // New UI can access switch via UiMode.switchTo once we add it.
+          )
+        : MyApp(title: 'Photo Word Find');
   }
 }
 
@@ -84,7 +137,12 @@ class MyApp extends StatelessWidget {
   static ProgressDialog? _pr;
 
   final String title;
-  static ProgressDialog get pr => _pr!;
+  static ProgressDialog get pr {
+    if (_pr == null) {
+      throw StateError('ProgressDialog accessed before initialization');
+    }
+    return _pr!;
+  }
 
   static late final Gallery _gallery = Gallery();
   static Gallery get gallery => _gallery;
@@ -95,9 +153,8 @@ class MyApp extends StatelessWidget {
   /// Initalizes SharedPreferences [_pref] object and gives default values
   /// No clue where this came from ☝🏾. will have to check.
   static Future<void> init(BuildContext context) async {
-    if (_pr == null) {
-      _pr = ProgressDialog(context: context);
-    }
+  // Always recreate on init to avoid stale context after UI mode switch.
+  _pr = ProgressDialog(context: context);
   }
 
   static showProgress({required bool autoComplete, int limit = 1}) {
@@ -314,6 +371,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recreate progress dialog if needed when dependencies (context) change after UI mode swap.
+    if (MyApp._pr == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) await MyApp.init(context);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -321,6 +389,29 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title!),
+        actions: [
+          IconButton(
+            tooltip: 'Switch to ${MyRootWidget.globalKey.currentState?.useNewUi == true ? 'Legacy' : 'New'} UI',
+            icon: Icon(Icons.swap_horiz),
+            onPressed: () async {
+              final current = MyRootWidget.globalKey.currentState?.useNewUi ?? true;
+              final proceed = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Confirm UI Switch'),
+                  content: Text('You are about to switch to the ' + (!current ? 'new' : 'legacy') + ' interface. Continue?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Switch')),
+                  ],
+                ),
+              );
+              if (proceed == true) {
+                await UiMode.switchTo(!current);
+              }
+            },
+          ),
+        ],
         leading: FutureBuilder(
           future: CloudUtils.isSignedin(),
           builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
@@ -481,7 +572,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (individual) {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
-      Stopwatch timer = new Stopwatch();
+  // Stopwatch timer = Stopwatch(); // removed (unused)
       await MyApp.showProgress(autoComplete: true);
       paths = (await FilePicker.platform
               .pickFiles(type: _pickingType, allowMultiple: _multiPick))
