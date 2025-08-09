@@ -59,6 +59,23 @@ class CloudUtils {
     ],
   );
 
+  /// Optional progress callback for UI layers (old or new UIs) to observe
+  /// cloud operations. UI can assign a function to receive progress updates
+  /// instead of CloudUtils depending on a concrete ProgressDialog.
+  /// value: 0.0-1.0 (nullable if only message update)
+  /// message: status text
+  /// done: whether the operation has finished (success or error)
+  /// error: whether the operation ended with error
+  static void Function({double? value, String? message, bool done, bool error})? progressCallback;
+
+  static void _reportProgress({double? value, String? message, bool done=false, bool error=false}) {
+    try {
+      progressCallback?.call(value: value, message: message, done: done, error: error);
+    } catch (e) {
+      debugPrint("progressCallback threw: $e");
+    }
+  }
+
   static Future<bool> firstSignIn() {
     return handleSignIn().then((bool value) {
       if (value) {
@@ -75,36 +92,27 @@ class CloudUtils {
   }
 
   static Future possibleSignOut() async {
-    // TODO: Show confirmation dialog
-    // ...
-
     return signOut();
   }
 
-  static Future signOut() async {
-    // TODO: Add a way to handle if a sign in request was already attempted and rejected
-    
-    bool _hasProgress = false;
+  /// Signs out the current Google session.
+  /// 1. Optionally syncs (updateCloudJson) before disconnect (default true)
+  /// 2. Disconnects Google sign-in
+  /// No UI side-effects; callers hook into [progressCallback] if desired.
+  static Future<void> signOut({bool syncBefore = true}) async {
+    _reportProgress(value: 0, message: "Signing out...");
     try {
-      MyApp.pr.show(max: 1);
-      MyApp.pr.update(value: 0, msg: "Signing out...");
-      _hasProgress = true;
-    } catch (e) {
-      debugPrint("ProgressDialog not initialized or unavailable: $e");
-    }
-
-    // Let updateCloudJson errors propagate so caller can handle
-    await updateCloudJson();
-
-    // TODO: Clear current local storage
-    // ...
-
-    await handleSignOut();
-
-    if (_hasProgress) {
-      try {
-        MyApp.pr.update(value: 1);
-      } catch (_) {}
+      if (syncBefore) {
+        _reportProgress(message: "Updating cloud backup...");
+        await updateCloudJson();
+      }
+      _reportProgress(message: "Disconnecting account...");
+      await handleSignOut();
+      _reportProgress(value: 1, message: "Signed out", done: true);
+    } catch (e, s) {
+      debugPrint("signOut error: $e\n$s");
+      _reportProgress(message: "Sign out failed: $e", done: true, error: true);
+      rethrow; // Allow caller to decide
     }
   }
 

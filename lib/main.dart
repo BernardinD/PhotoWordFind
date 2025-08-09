@@ -251,8 +251,27 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _attachLegacyProgress() {
+    CloudUtils.progressCallback = ({double? value, String? message, bool done=false, bool error=false}) {
+      try {
+        if (message != null) {
+          if (!MyApp.pr.isOpen()) {
+            MyApp.pr.show(max: 1);
+          }
+          MyApp.pr.update(value: (value ?? 0).toInt(), msg: message);
+        }
+        if (done) {
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (MyApp.pr.isOpen()) MyApp.pr.close();
+          });
+        }
+      } catch (_) {}
+    };
+  }
+
   void initState() {
     super.initState();
+    _attachLegacyProgress();
 
     // Ensure ProgressDialog is initialized with context
     WidgetsBinding.instance.addPostFrameCallback((_) async {

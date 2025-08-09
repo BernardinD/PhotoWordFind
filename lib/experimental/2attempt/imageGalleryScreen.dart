@@ -74,9 +74,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   /// has navigation and localization available.
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
+  // Track sign-out operation
+  bool _signingOut = false;
+  String? _signOutMessage;
+
   @override
   void initState() {
     super.initState();
+    // Attach progress callback for CloudUtils (scoped to this screen)
+    CloudUtils.progressCallback = ({double? value, String? message, bool done = false, bool error = false}) {
+      if (!mounted) return;
+      setState(() {
+        _signOutMessage = message;
+        if (done) {
+          _signingOut = false;
+        }
+      });
+    };
     _initializeApp();
   }
 
@@ -174,7 +188,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         builder: (_) => ConfirmationDialog(message: 'Sign out?'),
       );
       if (confirm == true) {
-        await CloudUtils.possibleSignOut();
+        setState(() {
+          _signingOut = true;
+          _signOutMessage = 'Signing out...';
+        });
+        try {
+          await CloudUtils.signOut();
+        } catch (_) {
+          // error message already captured via callback
+        }
       }
     }
     if (!mounted) return;
@@ -254,6 +276,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             appBar: AppBar(
               title: const Text('Image Gallery'),
               actions: [
+                if (_signingOut) Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Center(
+                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                ),
+                if (_signingOut && _signOutMessage != null) Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: Center(child: Text(_signOutMessage!, style: TextStyle(fontSize: 12))),
+                ),
                 // Show initialization status instead of sign-in status during init
                 _isInitializing
                     ? const Padding(
