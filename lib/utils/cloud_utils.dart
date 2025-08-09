@@ -82,14 +82,30 @@ class CloudUtils {
   }
 
   static Future signOut() async {
-    MyApp.pr.show(max: 1);
-    MyApp.pr.update(value: 0, msg: "Signing out...");
+    // TODO: Add a way to handle if a sign in request was already attempted and rejected
+    
+    bool _hasProgress = false;
+    try {
+      MyApp.pr.show(max: 1);
+      MyApp.pr.update(value: 0, msg: "Signing out...");
+      _hasProgress = true;
+    } catch (e) {
+      debugPrint("ProgressDialog not initialized or unavailable: $e");
+    }
+
+    // Let updateCloudJson errors propagate so caller can handle
     await updateCloudJson();
 
     // TODO: Clear current local storage
     // ...
 
-    return handleSignOut().then((value) => MyApp.pr.update(value: 1));
+    await handleSignOut();
+
+    if (_hasProgress) {
+      try {
+        MyApp.pr.update(value: 1);
+      } catch (_) {}
+    }
   }
 
   static Future<bool> handleSignIn() async {
