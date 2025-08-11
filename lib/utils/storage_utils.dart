@@ -4,6 +4,7 @@ import 'dart:developer';
 
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:validators/validators.dart';
 
@@ -68,6 +69,34 @@ class StorageUtils {
       // Assumes this is an OCR that doesn't exist on this phone yet and was created BEFORE format change
       _map = {};
     }
+    // Compatibility: detect new UI ContactEntry shape and normalize.
+    bool looksLikeNewContact = _map.containsKey('extractedText') || _map.containsKey('imagePath');
+    if (looksLikeNewContact) {
+      // Map probable new field names to legacy keys if legacy not present.
+      _map[SubKeys.OCR] = _map[SubKeys.OCR] ?? _map['extractedText'];
+      _map[SubKeys.SnapUsername] = _map[SubKeys.SnapUsername] ?? _map['snapUsername'];
+      _map[SubKeys.InstaUsername] = _map[SubKeys.InstaUsername] ?? _map['instaUsername'];
+      _map[SubKeys.DiscordUsername] = _map[SubKeys.DiscordUsername] ?? _map['discordUsername'];
+      _map[SubKeys.AddedOnSnap] = _map[SubKeys.AddedOnSnap] ?? _map['addedOnSnap'];
+      _map[SubKeys.AddedOnInsta] = _map[SubKeys.AddedOnInsta] ?? _map['addedOnInsta'];
+      _map[SubKeys.AddedOnDiscord] = _map[SubKeys.AddedOnDiscord] ?? _map['addedOnDiscord'];
+      _map[SubKeys.SnapDate] = _map[SubKeys.SnapDate] ?? _map['dateAddedOnSnap'];
+      _map[SubKeys.InstaDate] = _map[SubKeys.InstaDate] ?? _map['dateAddedOnInsta'];
+      _map[SubKeys.DiscordDate] = _map[SubKeys.DiscordDate] ?? _map['dateAddedOnDiscord'];
+      _map[SubKeys.Sections] = _map[SubKeys.Sections] ?? _map['sections'];
+      _map[SubKeys.Name] = _map[SubKeys.Name] ?? _map['name'];
+      _map[SubKeys.Age] = _map[SubKeys.Age] ?? _map['age'];
+      _map[SubKeys.Location] = _map[SubKeys.Location] ?? _map['location'];
+      _map[SubKeys.Notes] = _map[SubKeys.Notes] ?? _map['notes'];
+      // Social media handles may already be grouped; if not, synthesize the map.
+      if (_map[SubKeys.SocialMediaHandles] == null) {
+        _map[SubKeys.SocialMediaHandles] = {
+          SubKeys.SnapUsername: _map[SubKeys.SnapUsername] ?? '',
+          SubKeys.InstaUsername: _map[SubKeys.InstaUsername] ?? '',
+          SubKeys.DiscordUsername: _map[SubKeys.DiscordUsername] ?? '',
+        };
+      }
+    }
     Map<String, dynamic> map = {
       SubKeys.OCR:             _map[SubKeys.OCR] ?? value,
       SubKeys.SnapUsername:    _map[SubKeys.SnapUsername] ?? "",
@@ -76,13 +105,13 @@ class StorageUtils {
       SubKeys.AddedOnSnap:     _map[SubKeys.AddedOnSnap] ?? false,
       SubKeys.AddedOnInsta:    _map[SubKeys.AddedOnInsta] ?? false,
       SubKeys.AddedOnDiscord:  _map[SubKeys.AddedOnDiscord] ?? false,
-      SubKeys.SnapDate:        _map[SubKeys.SnapDate]    != null && _map[SubKeys.SnapDate].isNotEmpty    ? DateTime.parse(_map[SubKeys.SnapDate]).toIso8601String()  : "",
-      SubKeys.InstaDate:       _map[SubKeys.InstaDate]   != null && _map[SubKeys.InstaDate].isNotEmpty   ? DateTime.parse(_map[SubKeys.InstaDate  ]).toIso8601String() : "",
-      SubKeys.DiscordDate:     _map[SubKeys.DiscordDate] != null && _map[SubKeys.DiscordDate].isNotEmpty ? DateTime.parse(_map[SubKeys.DiscordDate  ]).toIso8601String() : "",
-      SubKeys.PreviousUsernames:     _map[SubKeys.PreviousUsernames] ?? <String, List<String>>{
+      SubKeys.SnapDate:        _map[SubKeys.SnapDate]    != null && _map[SubKeys.SnapDate].toString().isNotEmpty    ? DateTime.tryParse(_map[SubKeys.SnapDate])?.toIso8601String()  ?? '' : "",
+      SubKeys.InstaDate:       _map[SubKeys.InstaDate]   != null && _map[SubKeys.InstaDate].toString().isNotEmpty   ? DateTime.tryParse(_map[SubKeys.InstaDate  ])?.toIso8601String() ?? '' : "",
+      SubKeys.DiscordDate:     _map[SubKeys.DiscordDate] != null && _map[SubKeys.DiscordDate].toString().isNotEmpty ? DateTime.tryParse(_map[SubKeys.DiscordDate  ])?.toIso8601String() ?? '' : "",
+      SubKeys.PreviousUsernames: _map[SubKeys.PreviousUsernames] ?? <String, List<String>>{
         SubKeys.SnapUsername: <String>[],
         SubKeys.InstaUsername: <String>[],
-          },
+      },
       SubKeys.Notes: _map[SubKeys.Notes],
       // New values from chat GPT
       SubKeys.SocialMediaHandles: _map[SubKeys.SocialMediaHandles],
@@ -190,8 +219,9 @@ class StorageUtils {
       bool discordDate = false,
       bool notes = false,
       bool asMap = false}) async {
-    SharedPreferences prefs = (await _getStorageInstance(reload: reload));
-    String? rawJson = prefs.getString(key);
+    
+    final box = Hive.box('contacts');
+    String? rawJson = box.get(key);
 
     Map<String, dynamic>? map = convertValueToMap(rawJson);
 

@@ -13,6 +13,8 @@ import 'package:catcher/catcher.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -60,6 +62,9 @@ class MyApp extends StatelessWidget {
     if (_pr == null) {
       _pr = new ProgressDialog(context: context);
     }
+    
+    await Hive.initFlutter();
+    await Hive.openBox('contacts');
   }
 
   static showProgress({required bool autoComplete, int limit = 1}) {

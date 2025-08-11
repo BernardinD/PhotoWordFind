@@ -97,7 +97,19 @@ class Sortings {
     localPrefs.reload();
 
     for (String key in localPrefs.getKeys()) {
-      String rawJson = localPrefs.getString(key)!;
+      final dynamic prefValue = localPrefs.get(key);
+
+      // Some prefs may be stored as booleans (feature flags, etc); skip those
+      if (prefValue is bool) {
+        continue;
+      }
+
+      if (prefValue is! String) {
+        debugPrint("Skipping key $key: unsupported type ${prefValue.runtimeType}");
+        continue;
+      }
+
+      String rawJson = prefValue;
       Map<String, dynamic> map = StorageUtils.convertValueToMap(rawJson , enforceMapOutput: true)!;
 
       if(!map.containsKey("discord") ?? false){
