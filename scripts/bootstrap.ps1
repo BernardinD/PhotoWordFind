@@ -342,6 +342,17 @@ if ($existing -contains $normFingerprint) {
     }
 }
 
+# Provide OAuth setup guidance
+Write-Host "" -ForegroundColor Green
+Write-Host "Google Sign-In Setup Required:" -ForegroundColor Cyan
+Write-Host "For Google Sign-In to work, you need to create OAuth 2.0 credentials:" -ForegroundColor Yellow
+Write-Host "1. Visit: https://console.cloud.google.com/apis/credentials?project=$ProjectId" -ForegroundColor Cyan
+Write-Host "2. Create OAuth 2.0 Client ID (Android type)" -ForegroundColor Yellow
+Write-Host "   - Package name: com.example.PhotoWordFind" -ForegroundColor White
+Write-Host "   - SHA-1 fingerprint: $fingerprint" -ForegroundColor White
+Write-Host "3. Configure OAuth consent screen if prompted" -ForegroundColor Yellow
+Write-Host "" -ForegroundColor Green
+
 # Wait for Android Studio wizard if it was started
 if ($studioProcess) {
     Write-Host "Waiting for Android Studio setup to finish..."

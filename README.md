@@ -160,3 +160,12 @@ registering the SHA‑1 fingerprint with Firebase app
 Mode settings for convenience. Because Gradle executes from the `android`
 subdirectory it looks for this flag relative to the parent
 directory and runs the script automatically when it is absent.
+
+### Google Sign-In Setup
+For Google Sign-In to work, you'll need to create OAuth 2.0 credentials:
+1. Visit the [Google Cloud Console](https://console.cloud.google.com/apis/credentials?project=pwfapp-f314d)
+2. Create an OAuth 2.0 Client ID for Android with package name `com.example.PhotoWordFind`
+3. Add the SHA-1 fingerprint displayed by the bootstrap script
+4. Configure the OAuth consent screen if prompted
+
+The bootstrap script provides the exact SHA-1 fingerprint and setup instructions.
