@@ -17,7 +17,6 @@ import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:googleapis/shared.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -380,7 +379,7 @@ class _GalleryCellState extends State<GalleryCell> {
                                         widget.instaUsername,
                                         widget.discordUsername,
                                         widget.listPos(widget));
-                                    Sortings.updateCache();
+                                    Sortings.scheduleCacheUpdate();
                                     LegacyAppShell.updateFrame?.call(() => null);
                                   },
                                 ));
@@ -458,18 +457,20 @@ class _GalleryCellState extends State<GalleryCell> {
     // Create file location for image
     final tempDir = Directory.systemTemp;
     print("tempDir = ${tempDir.path}");
-    final File? file =
-        await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
-            .create()
-            .catchError((e) {
-      print("file creation failed.");
-      print(e);
-    });
+  final File? file =
+    await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
+      .create()
+      .catchError((e) {
+    print("file creation failed.");
+    print(e);
+    return File('${tempDir.path}/${fileName.split(".").first}.repl.png');
+  });
 
     // Save image locally
     await file!.writeAsBytes(pngBytes).catchError((e) {
       print("file writing failed.");
       print(e);
+      return file;
     });
     print("image file exists: " + (await file.exists()).toString());
     print("image file path: " + (file.path));
@@ -513,7 +514,6 @@ class _GalleryCellState extends State<GalleryCell> {
 
   openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
   await LegacyAppShell.showProgress(autoComplete: true);
-    String key = widget.storageKey;
     Uri _site;
     DateTime? date;
 
@@ -553,7 +553,7 @@ class _GalleryCellState extends State<GalleryCell> {
         _site = Uri.parse("");
         Clipboard.setData(ClipboardData(text: widget.discordUsername));
         SocialIcon.discordIconButton?.openApp();
-        if (true || addOnSocial) {
+  if (addOnSocial) {
           if (date != null) {
             // saving =
             //     StorageUtils.save(key, backup: true, discordAddedDate: date);
@@ -565,7 +565,7 @@ class _GalleryCellState extends State<GalleryCell> {
         break;
     }
     // TODO: Make sure there's some other mechinism to update the
-    saving.then((_) => Sortings.updateCache());
+  saving.then((_) => Sortings.scheduleCacheUpdate());
 
     debugPrint("site URI: $_site");
     if (!_site.hasEmptyPath)
@@ -761,7 +761,7 @@ class _GalleryCellState extends State<GalleryCell> {
               }
               LegacyAppShell.gallery.redoCell(
                   widget.text, snap, insta, discord, widget.listPos(widget));
-              Sortings.updateCache();
+              Sortings.scheduleCacheUpdate();
             }
           },
         ))

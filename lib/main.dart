@@ -746,6 +746,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .key;
                               Sortings.updateSortType(dropdownValue,
                                   resetGroupBy: false);
+                              // Debounced cache refresh to avoid stutter while keeping cache current
+                              Sortings.scheduleCacheUpdate();
                               gallery.sort();
                               if (dropdownValue == null) {
                                 dropdownValue = currentSortBy;

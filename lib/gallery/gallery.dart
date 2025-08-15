@@ -24,8 +24,8 @@ class Gallery{
 
   // Getters
   List<PhotoViewGalleryPageOptions> get images {
-    Sortings.updateCache();
-    // sort();
+  // Avoid triggering heavy cache rebuilds on every access; callers
+  // should update or sort explicitly at appropriate times.
     return _images;
   }
   Set<String> get selected => _selected;

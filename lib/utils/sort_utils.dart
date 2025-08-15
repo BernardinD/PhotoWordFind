@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
@@ -53,6 +53,9 @@ Set<Sorts> groupBy = {
 };
 
 class Sortings {
+  // Debounce timer for cache rebuilds to avoid repeated heavy work
+  static Timer? _cacheDebounce;
+
   // The direction of the sort
   static bool _reverseSortBy = false, _reverseGroupBy = false;
   static get reverseSortBy => _reverseSortBy;
@@ -115,6 +118,17 @@ class Sortings {
       localCache[key] = entry;
     }
     // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
+  }
+
+  /// Debounce calls to updateCache so rapid UI actions coalesce into one run.
+  static void scheduleCacheUpdate({Duration delay = const Duration(milliseconds: 400)}) {
+    _cacheDebounce?.cancel();
+    _cacheDebounce = Timer(delay, () {
+      // Fire and forget; heavy work should not block the tap/swipe path
+      // Callers that need post-refresh behavior can await updateCache directly.
+      // ignore: discarded_futures
+      updateCache();
+    });
   }
 
   static File convertToStdDartFile(file) {
