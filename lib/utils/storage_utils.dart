@@ -318,6 +318,62 @@ class StorageUtils {
     return ret;
   }
 
+  /// Returns all contact entries stored in Hive as a list of [ContactEntry]
+  /// objects. This performs a single read of the Hive box and converts each
+  /// entry to a [ContactEntry] instance, reducing per-key disk access.
+  static Future<List<ContactEntry>> getAllEntries() async {
+    final box = Hive.box('contacts');
+    List<ContactEntry> entries = [];
+
+    for (final key in box.keys.whereType<String>()) {
+      final rawJson = box.get(key);
+      if (rawJson is! String) continue;
+      Map<String, dynamic>? map;
+      try {
+        map = json.decode(rawJson);
+      } catch (_) {
+        map = convertValueToMap(rawJson);
+      }
+      if (map == null) continue;
+
+      ContactEntry entry;
+      if (map.containsKey('imagePath') && map['imagePath'] != null) {
+        entry = ContactEntry.fromJson2(key, map);
+      } else {
+        String? imagePath = filePaths[key];
+        if (imagePath == null && enableLegacyImagePathSearch) {
+          List<String> dirs = [
+            "Buzz buzz",
+            "Honey",
+            "Strings",
+            "Stale",
+            "Comb",
+            "Delete"
+          ];
+          for (final dir in dirs) {
+            final testFilePath = "/storage/emulated/0/DCIM/$dir/$key.jpg";
+            if (File(testFilePath).existsSync()) {
+              filePaths[key] = testFilePath;
+              imagePath = testFilePath;
+              await StorageUtils.writeJson(filePaths);
+              break;
+            }
+          }
+        }
+        if (imagePath == null) continue;
+        entry = ContactEntry.fromJson(key, imagePath, map);
+      }
+
+      if (entry.state == null || entry.state!.isEmpty) {
+        entry.state = path.basename(path.dirname(entry.imagePath));
+      }
+
+      entries.add(entry);
+    }
+
+    return entries;
+  }
+
   /// Returns all keys from the contacts Hive box without fetching values.
   static List<String> getKeys() {
     final box = Hive.box('contacts');

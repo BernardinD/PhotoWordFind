@@ -93,29 +93,16 @@ class Sortings {
   }
 
   static Future updateCache() async {
-    // Use StorageUtils.toMap() to get all keys
-    Map<String, String?> allEntries = await StorageUtils.toMap();
-    for (String key in allEntries.keys) {
-      ContactEntry? entry;
-      try {
-        entry = await StorageUtils.get(key);
-      } catch (e) {
-        debugPrint("Failed to load ContactEntry for $key: $e");
-        entry = null;
-      }
-      if (entry == null) {
-        debugPrint("Entry is null for key: $key");
-        localCache[key] = null;
-        continue;
-      }
-      // Check if the file exists
+    // Load all entries at once to avoid repeatedly hitting disk
+    final entries = await StorageUtils.getAllEntries();
+    for (final entry in entries) {
       if (!File(entry.imagePath).existsSync()) {
         debugPrint(
-            "File does not exist for key: $key, path: ${entry.imagePath}");
-        localCache[key] = null;
+            "File does not exist for key: ${entry.identifier}, path: ${entry.imagePath}");
+        localCache[entry.identifier] = null;
         continue;
       }
-      localCache[key] = entry;
+      localCache[entry.identifier] = entry;
     }
     // localCache.entries.where((MapEntry<String, Map> e) => e.value[''])
   }
