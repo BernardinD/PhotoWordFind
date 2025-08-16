@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:PhotoWordFind/experimental/2attempt/imageGalleryScreen.dart';
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:catcher/catcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -19,12 +22,11 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:path/path.dart' as path;
 import 'package:sn_progress_dialog/sn_progress_dialog.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 // import 'package:image_picker/image_picker.dart';
 
 void main() {
-  ChatGPTService.initialize();
-
   CatcherOptions debugOptions =
       CatcherOptions(PageReportMode(), [ConsoleHandler()]);
   CatcherOptions releaseOptions = CatcherOptions(PageReportMode(), [
@@ -33,36 +35,128 @@ void main() {
   ]);
 
   Catcher(
-      rootWidget: MyApp(title: 'Flutter Demo Home Page'),
-      debugConfig: debugOptions,
-      releaseConfig: releaseOptions,
-      ensureInitialized: true);
-
-  // final prefs = SharedPreferences.getInstance().then((prefs) => prefs.clear());
-  // runApp(MyApp('Flutter Demo Home Page'));
+    rootWidget: MyRootWidget(key: MyRootWidget.globalKey),
+    debugConfig: debugOptions,
+    releaseConfig: releaseOptions,
+    ensureInitialized: true,
+  );
 }
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
-  static ProgressDialog? _pr;
+/// Helper to allow either UI to toggle between legacy/new modes.
+class UiMode {
+  static Future<bool> isNewUi() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(MyRootWidget.prefUseNewUi) ?? true;
+  }
 
-  final String title;
-  static ProgressDialog get pr => _pr!;
+  static Future<void> switchTo(bool useNew) async {
+    final state = MyRootWidget.globalKey.currentState;
+    if (state != null) {
+      await state.switchUi(useNew); // live swap
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance(); // fallback
+    await prefs.setBool(MyRootWidget.prefUseNewUi, useNew);
+  }
+}
+
+/// Handles all the inititalization of the app
+Future<void> initializeApp() async {
+  ChatGPTService.initialize();
+
+  tz.initializeTimeZones();
+
+  await StorageUtils.init();
+
+  // Ensure cloud backup is synced when the app starts
+  await CloudUtils.firstSignIn();
+
+  // await StorageUtils.resetImagePaths();
+}
+
+class MyRootWidget extends StatefulWidget {
+  const MyRootWidget({Key? key}) : super(key: key);
+
+  static const String prefUseNewUi = 'use_new_ui_candidate';
+  static final GlobalKey<MyRootWidgetState> globalKey = GlobalKey<MyRootWidgetState>();
+
+  @override
+  State<MyRootWidget> createState() => MyRootWidgetState();
+}
+
+class MyRootWidgetState extends State<MyRootWidget> {
+  bool _initialized = false;
+  bool _useNew = true; // default to new
+
+  bool get useNewUi => _useNew;
+
+  static Future<bool> _readPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(MyRootWidget.prefUseNewUi) ?? true;
+  }
+
+  Future<void> _writePref(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(MyRootWidget.prefUseNewUi, v);
+  }
+
+  Future<void> switchUi(bool useNew) async {
+    if (_useNew == useNew) return;
+    setState(() => _useNew = useNew);
+    await _writePref(useNew);
+  }
+
+  @override
+    void initState() {
+    super.initState();
+    (() async {
+      await initializeApp();
+      _useNew = await _readPref();
+      if (mounted) setState(() => _initialized = true);
+    })();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+  final theme = ThemeData(primarySwatch: Colors.blue);
+  return MaterialApp(
+    navigatorKey: Catcher.navigatorKey,
+    title: 'Photo Word Find',
+    theme: theme,
+    home: !_initialized
+      ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+      : (_useNew
+        ? ImageGalleryScreen()
+        : MyHomePage(title: 'Photo Word Find')),
+  );
+  }
+}
+
+// LegacyAppShell replaces the old MyApp widget wrapper. All static legacy
+// utilities (progress dialog, gallery reference, frame updates) now live here
+// without creating a nested MaterialApp.
+class LegacyAppShell {
+  static ProgressDialog? _pr;
+  static ProgressDialog get pr {
+    if (_pr == null) {
+      throw StateError('ProgressDialog accessed before initialization');
+    }
+    return _pr!;
+  }
 
   static late final Gallery _gallery = Gallery();
   static Gallery get gallery => _gallery;
-  static late Function updateFrame;
-
-  MyApp({required this.title});
-
-  /// Initalizes SharedPreferences [_pref] object and gives default values
-  Future init(BuildContext context) async {
-    if (_pr == null) {
-      _pr = new ProgressDialog(context: context);
-    }
+  static Function? updateFrame; // may be null until legacy UI initializes
+  static void invokeFrame(VoidCallback fn) {
+    try { updateFrame?.call(fn); } catch (e, s) { debugPrint('invokeFrame error: $e\n$s'); }
   }
 
-  static showProgress({required bool autoComplete, int limit = 1}) {
+  static Future<void> init(BuildContext context) async {
+    // Always recreate on init to avoid stale context after UI mode switch.
+    _pr = ProgressDialog(context: context);
+  }
+
+  static Future<void> showProgress({required bool autoComplete, int limit = 1}) async {
     debugPrint("Entering showProgress()...");
     if (pr.isOpen()) {
       debugPrint("Closing.");
@@ -79,7 +173,6 @@ class MyApp extends StatelessWidget {
       backgroundColor: Colors.white,
       elevation: 10.0,
       msgColor: Colors.black, msgFontSize: 19.0, msgFontWeight: FontWeight.w600,
-      // progressValueColor: Colors.black,
       completed: autoComplete
           ? Completed(
               completedMsg: "Done!",
@@ -89,33 +182,6 @@ class MyApp extends StatelessWidget {
     );
     debugPrint("show return: $temp");
     debugPrint("Leaving showProgress()...");
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: MaterialApp(
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // Try running your application with "flutter run". You'll see the
-          // application has a blue toolbar. Then, without quitting the app, try
-          // changing the primarySwatch below to Colors.green and then invoke
-          // "hot reload" (press "r" in the console where you ran "flutter run",
-          // or simply save your changes to "hot reload" in a Flutter IDE).
-          // Notice that the counter didn't reset back to zero; the application
-          // is not restarted.
-          primarySwatch: Colors.blue,
-        ),
-        navigatorKey: Catcher.navigatorKey,
-        home: Builder(builder: (context) {
-          init(context);
-          return MyHomePage(title: title);
-        }),
-      ),
-    );
   }
 }
 
@@ -148,7 +214,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _sendToChatGPT() async {
-    MyApp.pr.show(max: _images.length);
+  LegacyAppShell.pr.show(max: _images.length);
 
     try {
       // Get full path
@@ -181,15 +247,15 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e, s) {
       Catcher.reportCheckedError(e, s);
     }
-    MyApp.pr.close();
+  LegacyAppShell.pr.close();
   }
 
   String? _directoryPath;
-  Gallery gallery = MyApp._gallery;
+  Gallery gallery = LegacyAppShell._gallery;
 
   Map<Sorts?, String> sortings = Map.from({
     Sorts.SortByTitle: "Sort By",
-    Sorts.Date: "Date Found",
+    Sorts.Date: "Date found",
     Sorts.DateAddedOnSnap: "Date Added on Snap",
     Sorts.DateAddedOnInsta: "Date Added on Instagram",
     Sorts.SnapDetected: "Snap Handle",
@@ -214,10 +280,34 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _attachLegacyProgress() {
+    CloudUtils.progressCallback = ({double? value, String? message, bool done=false, bool error=false}) {
+      try {
+        if (message != null) {
+          if (!LegacyAppShell.pr.isOpen()) {
+            LegacyAppShell.pr.show(max: 1);
+          }
+          LegacyAppShell.pr.update(value: (value ?? 0).toInt(), msg: message);
+        }
+        if (done) {
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (LegacyAppShell.pr.isOpen()) LegacyAppShell.pr.close();
+          });
+        }
+      } catch (_) {}
+    };
+  }
+
   void initState() {
     super.initState();
+    _attachLegacyProgress();
 
-    MyApp.updateFrame = setState;
+    // Ensure ProgressDialog is initialized with context
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+  await LegacyAppShell.init(context);
+    });
+
+  LegacyAppShell.updateFrame = setState;
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
@@ -226,19 +316,19 @@ class _MyHomePageState extends State<MyHomePage> {
     requestPermissions().then((value) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Sign into cloud account
-        MyApp.pr.show(max: 1);
-        MyApp.pr.update(value: 0, msg: "Setting up...");
+  LegacyAppShell.pr.show(max: 1);
+  LegacyAppShell.pr.update(value: 0, msg: "Setting up...");
 
         CloudUtils.firstSignIn()
             .then((bool signedIn) {
-              if(!signedIn){
+              if (!signedIn) {
                 throw Exception("Sign-in failed");
               }
             })
             .onError((dynamic error, stackTrace) async =>
                 debugPrint("Sign in error: $error \n$stackTrace")
                     as FutureOr<Null>)
-            .whenComplete(() => MyApp.pr.update(value: 1));
+            .whenComplete(() => LegacyAppShell.pr.update(value: 1));
       });
     });
 
@@ -253,6 +343,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recreate progress dialog if needed when dependencies (context) change after UI mode swap.
+  if (LegacyAppShell._pr == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (mounted) await LegacyAppShell.init(context);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -260,6 +361,29 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title!),
+        actions: [
+          IconButton(
+            tooltip: 'Switch to ${MyRootWidget.globalKey.currentState?.useNewUi == true ? 'Legacy' : 'New'} UI',
+            icon: Icon(Icons.swap_horiz),
+            onPressed: () async {
+              final current = MyRootWidget.globalKey.currentState?.useNewUi ?? true;
+              final proceed = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Confirm UI Switch'),
+                  content: Text('You are about to switch to the ' + (!current ? 'new' : 'legacy') + ' interface. Continue?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Switch')),
+                  ],
+                ),
+              );
+              if (proceed == true) {
+                await UiMode.switchTo(!current);
+              }
+            },
+          ),
+        ],
         leading: FutureBuilder(
           future: CloudUtils.isSignedin(),
           builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
@@ -276,7 +400,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       icon: Icon(Icons.cloud_upload_rounded),
                     ),
                     onPressed: () => CloudUtils.firstSignIn()
-                        .then((value) => MyApp.updateFrame(() => null)),
+                        .then((value) => LegacyAppShell.updateFrame?.call(() => null)),
                   )
                 : ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
@@ -291,7 +415,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
                       if (!result) return;
                       CloudUtils.possibleSignOut()
-                          .then((value) => MyApp.updateFrame(() => null));
+                          .then((value) => LegacyAppShell.updateFrame?.call(() => null));
                     },
                     child: IconButton(
                       onPressed: null,
@@ -333,6 +457,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               if (gallery.images.isNotEmpty)
                 showGallery()
+              // ImageListScreen()
               else if (Operation.isRetryOp())
                 showRetry(),
             ],
@@ -419,8 +544,8 @@ class _MyHomePageState extends State<MyHomePage> {
     if (individual) {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
-      Stopwatch timer = new Stopwatch();
-      await MyApp.showProgress(autoComplete: true);
+  // Stopwatch timer = Stopwatch(); // removed (unused)
+  await LegacyAppShell.showProgress(autoComplete: true);
       paths = (await FilePicker.platform
               .pickFiles(type: _pickingType, allowMultiple: _multiPick))
           ?.files;
@@ -434,7 +559,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return null;
       }
     } else {
-      await MyApp.showProgress(autoComplete: true);
+  await LegacyAppShell.showProgress(autoComplete: true);
       paths = Directory(_directoryPath!)
           .listSync(recursive: false, followLinks: false);
     }
@@ -621,6 +746,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .key;
                               Sortings.updateSortType(dropdownValue,
                                   resetGroupBy: false);
+                              // Debounced cache refresh to avoid stutter while keeping cache current
+                              Sortings.scheduleCacheUpdate();
                               gallery.sort();
                               if (dropdownValue == null) {
                                 dropdownValue = currentSortBy;

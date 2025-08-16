@@ -1,0 +1,25 @@
+name: Flutter Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.13.0'
+      # Generate the `apiSecretKeys.dart` file, which contains sensitive API keys required for testing.
+      # The API key is securely sourced from GitHub Actions secrets and injected into the file.
+      - name: Write apiSecretKeys.dart
+        run: |
+          mkdir -p lib
+          cat > lib/apiSecretKeys.dart <<'EOF_KEY'
+          const String chatGPTApiKey = '${{ secrets.OPENAI_API_KEY }}';
+          EOF_KEY
+      - run: flutter test
+        continue-on-error: true

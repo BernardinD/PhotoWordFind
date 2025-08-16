@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:PhotoWordFind/constants/constants.dart';
 import 'package:PhotoWordFind/gallery/display_dates.dart';
 import 'package:PhotoWordFind/main.dart';
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
@@ -16,7 +17,6 @@ import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:googleapis/shared.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -31,6 +31,7 @@ class GalleryCell extends StatefulWidget {
       this.listPos,
       this.onPressedHandler,
       this.onLongPressedHandler,
+      this.contact,
       {required ValueKey<String> key})
       : super(key: key);
 
@@ -40,6 +41,7 @@ class GalleryCell extends StatefulWidget {
   final String discordUsername;
   final dynamic f;
   final File srcImage;
+  final ContactEntry? contact;
   final int Function(GalleryCell cell) listPos;
   final void Function(String fileName) onPressedHandler;
   final void Function(String fileName) onLongPressedHandler;
@@ -57,7 +59,7 @@ class _GalleryCellState extends State<GalleryCell> {
   late final String fileName = widget.f.path.split("/").last;
   late final PhotoView _photo;
   late String? _notes;
-  final SplayTreeMap<SocialType?, Future<Text?>> _dates =
+  final SplayTreeMap<SocialType?, Text?> _dates =
       SplayTreeMap((a, b) => enumPriorities[a]! - enumPriorities[b]!);
   int _displayDatesCounter = 0;
 
@@ -74,34 +76,18 @@ class _GalleryCellState extends State<GalleryCell> {
       basePosition: Alignment.topCenter,
     );
 
-    _dates[SocialType.Snapchat] =
-        StorageUtils.get(widget.storageKey, reload: false, snapDate: true)
-            .then((value) {
-      value = value as String;
-      if (value.isEmpty) return null;
-      var date = DateTime.parse(value);
-      String text = snapchatDisplayDate(date);
-      return createTextWidget(text);
-    });
-    _dates[SocialType.Instagram] =
-        StorageUtils.get(widget.storageKey, reload: false, instaDate: true)
-            .then((value) {
-      value = value as String;
-      if (value.isEmpty) return null;
-      var date = DateTime.parse(value);
-      String text = instagramDisplayDate(date);
-      return createTextWidget(text);
-    });
-    _dates[null] =
-        Future.value(widget.srcImage.lastModifiedSync()).then((date) {
-      String text = "Profile Found on: \n ${dateFormat.format(date)}";
-      return createTextWidget(text);
-    });
+    if (widget.contact?.dateAddedOnSnap != null) {
+      String text = snapchatDisplayDate(widget.contact!.dateAddedOnSnap!);
+      _dates[SocialType.Snapchat] = createTextWidget(text);
+    }
+    if (widget.contact?.dateAddedOnInsta != null) {
+      String text = instagramDisplayDate(widget.contact!.dateAddedOnInsta!);
+      _dates[SocialType.Instagram] = createTextWidget(text);
+    }
+    _dates[null] = createTextWidget(
+        "Profile Found on: \n ${dateFormat.format(widget.contact!.dateFound)}");
 
-    StorageUtils.get(widget.storageKey, reload: false, notes: true)
-        .then((value) {
-      _notes = value;
-    });
+    _notes = widget.contact?.notes;
   }
 
   createTextWidget(String text) => Text(
@@ -133,36 +119,22 @@ class _GalleryCellState extends State<GalleryCell> {
                        * Date
                         */
                     child: Builder(builder: (context) {
-                      return FutureBuilder(
-                          future: Future.wait(_dates.values),
-                          builder:
-                              (context, AsyncSnapshot<List<Text?>> snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return createTextWidget("Loading...");
-                            } else if (snapshot.hasError) {
-                              throw snapshot.error!;
-                            } else {
-                              List<Text?> displayDates =
-                                  snapshot.data as List<Text?>;
-                              displayDates
-                                  .removeWhere((element) => element == null);
+                      return Builder(builder: (contextt) {
+                        List<Text?> displayDates = _dates.values.toList();
+                        displayDates.removeWhere((element) => element == null);
 
-                              return GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _displayDatesCounter++;
-                                      _displayDatesCounter %=
-                                          displayDates.length;
-                                    });
-                                  },
-                                  child: IndexedStack(
-                                    index: _displayDatesCounter,
-                                    children:
-                                        displayDates.map((e) => e!).toList(),
-                                  ));
-                            }
-                          });
+                        return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _displayDatesCounter++;
+                                _displayDatesCounter %= displayDates.length;
+                              });
+                            },
+                            child: IndexedStack(
+                              index: _displayDatesCounter,
+                              children: displayDates.map((e) => e!).toList(),
+                            ));
+                      });
                     }),
                   ),
                 ),
@@ -210,8 +182,8 @@ class _GalleryCellState extends State<GalleryCell> {
                             width: fabSize, // Adjust the width of the FAB
                             child: FloatingActionButton(
                               onPressed: () async {
-                                _notes = await showNoteDialog(
-                                        context, widget.storageKey,
+                                _notes = await showNoteDialog(context,
+                                        widget.storageKey, widget.contact,
                                         existingNotes: _notes) ??
                                     _notes;
                               },
@@ -251,17 +223,17 @@ class _GalleryCellState extends State<GalleryCell> {
                                 child: Container(
                                   color: Theme.of(context).primaryColor,
                                   child: FutureBuilder(
-                                      future: StorageUtils.get(
-                                          widget.storageKey,
-                                          reload: false,
-                                          asMap: true),
-                                      builder: (context, AsyncSnapshot<dynamic> snapshot) {
+                                      future:
+                                          StorageUtils.get(widget.storageKey),
+                                      builder: (context,
+                                          AsyncSnapshot<dynamic> snapshot) {
                                         if (snapshot.connectionState ==
                                             ConnectionState.waiting)
                                           return SizedBox();
                                         if (snapshot.hasData &&
                                             !snapshot.hasError) {
-                                          Map? map = snapshot.data as Map?;
+                                          ContactEntry? map =
+                                              snapshot.data as ContactEntry?;
                                           return FittedBox(
                                             fit: BoxFit.fitHeight,
                                             child: PopupMenuButton<int>(
@@ -275,41 +247,44 @@ class _GalleryCellState extends State<GalleryCell> {
                                                   showRedoWindow,
                                                 ),
                                                 // Assumes that if map isn't null then it follows the formot STRICTLY
-                                                if(map != null) ...[
-                                                  if (widget.snapUsername.isNotEmpty)
+                                                if (map != null) ...[
+                                                  if (widget
+                                                      .snapUsername.isNotEmpty)
                                                     OurMenuItem(
                                                       "Open on snap",
                                                       () => openUserAppPage(
                                                           SocialType.Snapchat,
                                                           addOnSocial: false),
                                                     ),
-                                                  if (widget.instaUsername.isNotEmpty)
+                                                  if (widget
+                                                      .instaUsername.isNotEmpty)
                                                     OurMenuItem(
                                                       "Open on insta",
                                                       () => openUserAppPage(
                                                           SocialType.Instagram,
                                                           addOnSocial: false),
                                                     ),
-                                                  if (widget.discordUsername.isNotEmpty)
+                                                  if (widget.discordUsername
+                                                      .isNotEmpty)
                                                     OurMenuItem(
                                                       "Open on discord",
                                                       () => openUserAppPage(
                                                           SocialType.Discord,
                                                           addOnSocial: false),
                                                     ),
-                                                  if (map[SubKeys.AddedOnSnap])
+                                                  if (map.addedOnSnap)
                                                     OurMenuItem(
                                                       "Unadd Snap",
                                                       () => unAddUser(
                                                           SocialType.Snapchat),
                                                     ),
-                                                  if (map[SubKeys.AddedOnInsta])
+                                                  if (map.addedOnInsta)
                                                     OurMenuItem(
                                                       "Unadd Insta",
                                                       () => unAddUser(
                                                           SocialType.Instagram),
                                                     ),
-                                                  if (map[SubKeys.AddedOnDiscord])
+                                                  if (map.addedOnDiscord)
                                                     OurMenuItem(
                                                       "Unadd Discord",
                                                       () => unAddUser(
@@ -354,11 +329,13 @@ class _GalleryCellState extends State<GalleryCell> {
                         },
                         children: [
                           getSocialRow(
-                              (widget.snapUsername.isNotEmpty &&
+                              ((widget.contact?.snapUsername ?? "")
+                                      .isNotEmpty &&
                                   SocialIcon.snapchatIconButton != null),
                               SocialType.Snapchat),
                           getSocialRow(
-                              (widget.instaUsername.isNotEmpty &&
+                              ((widget.contact?.instaUsername ?? "")
+                                      .isNotEmpty &&
                                   SocialIcon.instagramIconButton != null),
                               SocialType.Instagram),
                         ],
@@ -391,18 +368,19 @@ class _GalleryCellState extends State<GalleryCell> {
                                     ContextMenuController.removeAny();
                                     String snap =
                                         value.selection.textInside(value.text);
-                                    StorageUtils.save(widget.storageKey,
-                                        backup: true,
-                                        snap: snap,
-                                        overridingUsername: false);
-                                    MyApp.gallery.redoCell(
+                                    // StorageUtils.save(widget.storageKey,
+                                    //     backup: true,
+                                    //     snap: snap,
+                                    //     overridingUsername: false);
+                                    widget.contact?.snapUsername = snap;
+                                    LegacyAppShell.gallery.redoCell(
                                         widget.text,
                                         snap,
                                         widget.instaUsername,
                                         widget.discordUsername,
                                         widget.listPos(widget));
-                                    Sortings.updateCache();
-                                    MyApp.updateFrame(() => null);
+                                    Sortings.scheduleCacheUpdate();
+                                    LegacyAppShell.updateFrame?.call(() => null);
                                   },
                                 ));
                             return AdaptiveTextSelectionToolbar.buttonItems(
@@ -479,18 +457,20 @@ class _GalleryCellState extends State<GalleryCell> {
     // Create file location for image
     final tempDir = Directory.systemTemp;
     print("tempDir = ${tempDir.path}");
-    final File? file =
-        await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
-            .create()
-            .catchError((e) {
-      print("file creation failed.");
-      print(e);
-    });
+  final File? file =
+    await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
+      .create()
+      .catchError((e) {
+    print("file creation failed.");
+    print(e);
+    return File('${tempDir.path}/${fileName.split(".").first}.repl.png');
+  });
 
     // Save image locally
     await file!.writeAsBytes(pngBytes).catchError((e) {
       print("file writing failed.");
       print(e);
+      return file;
     });
     print("image file exists: " + (await file.exists()).toString());
     print("image file path: " + (file.path));
@@ -514,17 +494,14 @@ class _GalleryCellState extends State<GalleryCell> {
     Toasts.showToast(true, (_) => "Marked as unadded");
     switch (social) {
       case SocialType.Snapchat:
-        await StorageUtils.save(widget.storageKey,
-            backup: true, snapAdded: false, snapAddedDate: null);
+        widget.contact!.resetSnapchatAdd();
         break;
       case SocialType.Instagram:
-        await StorageUtils.save(widget.storageKey,
-            backup: true, instaAdded: false, instaAddedDate: null);
+        widget.contact!.resetInstagramAdd();
         break;
       case SocialType.Discord:
       default:
-        await StorageUtils.save(widget.storageKey,
-            backup: true, discordAdded: false, discordAddedDate: null);
+        widget.contact!.resetDiscordAdd();
         break;
     }
 
@@ -532,12 +509,11 @@ class _GalleryCellState extends State<GalleryCell> {
     if (_displayDatesCounter >= _dates.length) {
       _displayDatesCounter--;
     }
-    MyApp.updateFrame(() {});
+  LegacyAppShell.updateFrame?.call(() {});
   }
 
   openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
-    await MyApp.showProgress(autoComplete: true);
-    String key = widget.storageKey;
+  await LegacyAppShell.showProgress(autoComplete: true);
     Uri _site;
     DateTime? date;
 
@@ -554,24 +530,22 @@ class _GalleryCellState extends State<GalleryCell> {
             "https://www.snapchat.com/add/${widget.snapUsername.toLowerCase()}");
         if (addOnSocial) {
           if (date != null) {
-            _dates[social] ??=
-              Future.value(createTextWidget(snapchatDisplayDate(date)));
-            saving = StorageUtils.save(key,
-                backup: true, snapAddedDate: date);
+            // saving = StorageUtils.save(key, backup: true, snapAddedDate: date);
+            widget.contact?.addSnapchat();
+            _dates[social] ??= createTextWidget(
+                snapchatDisplayDate(widget.contact!.dateAddedOnSnap!));
           }
-          saving = saving.then((_) => StorageUtils.save(key, backup: true, snapAdded: true) );
         }
         break;
       case (SocialType.Instagram):
         _site = Uri.parse("https://www.instagram.com/${widget.instaUsername}");
         if (addOnSocial) {
           if (date != null) {
-            _dates[social] ??=
-              Future.value(createTextWidget(instagramDisplayDate(date)));
-            saving = StorageUtils.save(key,
-                backup: true, instaAddedDate: date);
+            // saving = StorageUtils.save(key, backup: true, instaAddedDate: date);
+            widget.contact?.addInstagram();
+            _dates[social] ??= createTextWidget(
+                instagramDisplayDate(widget.contact!.dateAddedOnInsta!));
           }
-          saving = saving.then((_) => StorageUtils.save(key, backup: true, instaAdded: true) );
         }
         break;
       case (SocialType.Discord):
@@ -579,26 +553,27 @@ class _GalleryCellState extends State<GalleryCell> {
         _site = Uri.parse("");
         Clipboard.setData(ClipboardData(text: widget.discordUsername));
         SocialIcon.discordIconButton?.openApp();
-        if (true || addOnSocial) {
+  if (addOnSocial) {
           if (date != null) {
-            _dates[social] ??=
-              Future.value(createTextWidget(discordDisplayDate(date)));
-            saving = StorageUtils.save(key,
-                backup: true, discordAddedDate: date);
+            // saving =
+            //     StorageUtils.save(key, backup: true, discordAddedDate: date);
+            widget.contact?.addDiscord();
+            _dates[social] ??= createTextWidget(
+                discordDisplayDate(widget.contact!.dateAddedOnInsta!));
           }
-          saving = saving.then((_) => StorageUtils.save(key, backup: true, discordAdded: true) );
         }
         break;
     }
-    saving.then((_) => Sortings.updateCache());
+    // TODO: Make sure there's some other mechinism to update the
+  saving.then((_) => Sortings.scheduleCacheUpdate());
 
     debugPrint("site URI: $_site");
     if (!_site.hasEmptyPath)
       launchUrl(_site, mode: LaunchMode.externalApplication)
-          .then((value) => MyApp.pr.close(delay: 500));
+          .then((value) => LegacyAppShell.pr.close(delay: 500));
     // Make sure to close the progress dialog
     else
-      MyApp.pr.close(delay: 500);
+  LegacyAppShell.pr.close(delay: 500);
   }
 
   TableRow getSocialRow(bool hasUser, SocialType social) {
@@ -623,7 +598,7 @@ class _GalleryCellState extends State<GalleryCell> {
             ),
           )),
           FutureBuilder(
-            future: social.isAdded(widget.storageKey),
+            future: social.isAdded(widget.contact),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return TableCell(
@@ -739,7 +714,7 @@ class _GalleryCellState extends State<GalleryCell> {
         TableCell(child: social.icon!),
         TableCell(
           child: StreamBuilder(
-            stream: social.getUserName(widget.storageKey).asStream(),
+            stream: social.getUserName(widget.contact).asStream(),
             builder: (BuildContext context, AsyncSnapshot snapshot) {
               if (snapshot.connectionState == ConnectionState.done &&
                   !snapshot.hasError) {
@@ -766,7 +741,7 @@ class _GalleryCellState extends State<GalleryCell> {
 
             if (newValue != null) {
               _controller.text = newValue;
-              await social.saveUsername(widget.storageKey, newValue,
+              await social.saveUsername(widget.contact!, newValue,
                   overriding: true);
               String snap = widget.snapUsername,
                   insta = widget.instaUsername,
@@ -784,9 +759,9 @@ class _GalleryCellState extends State<GalleryCell> {
                 default:
                   break;
               }
-              MyApp.gallery.redoCell(
+              LegacyAppShell.gallery.redoCell(
                   widget.text, snap, insta, discord, widget.listPos(widget));
-              Sortings.updateCache();
+              Sortings.scheduleCacheUpdate();
             }
           },
         ))

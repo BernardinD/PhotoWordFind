@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:flutter/material.dart';
 
@@ -12,7 +13,9 @@ import 'package:flutter_isolate/flutter_isolate.dart';
 import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/main.dart';
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/timezone.dart' as tz;
+
+import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 
 Future<Map<String, dynamic>> extractProfileData(String filePath,
     {bool crop = true, ui.Size? size}) async {
@@ -94,16 +97,16 @@ String getKeyOfFilename(String f) {
 
 Future ocrParallel(List filesList, Size size,
     {String? query, bool findFirst = false, Map<int, String?>? replace}) async {
-  await MyApp.showProgress(autoComplete: false, limit: filesList.length);
+  await LegacyAppShell.showProgress(autoComplete: false, limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
   await Future.delayed(const Duration(milliseconds: 300), () {});
 
   // Reset Gallery
   if (replace == null) {
-    if (MyApp.gallery.length() > 0) {
-      MyApp.gallery.galleryController.jumpToPage(0);
+  if (LegacyAppShell.gallery.length() > 0) {
+      LegacyAppShell.gallery.galleryController.jumpToPage(0);
     }
-    MyApp.gallery.clear();
+  LegacyAppShell.gallery.clear();
   }
 
   // Time search
@@ -115,12 +118,10 @@ Future ocrParallel(List filesList, Size size,
   timeElasped.start();
 
   // Make sure latest thread cached updates exist in main thread
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.reload();
-  int startingStorageSize = prefs.getKeys().length;
+  int startingStorageSize = StorageUtils.getSize();
 
-  await Sortings.updateCache();
-  filesList.sort(Sortings.getSorting() as int Function(dynamic, dynamic)?);
+  filesList.sort(Sortings.getSorting() as int Function(
+      dynamic, dynamic)?); //  TODO: determine if this sort is useful.
   for (filesIdx = 0; filesIdx < filesList.length; filesIdx++) {
     // Prepare data to be sent to thread
     var srcFile = filesList[filesIdx];
@@ -135,8 +136,7 @@ Future ocrParallel(List filesList, Size size,
     debugPrint(
         "srcFilePath [${srcFile.path}] :: isolate name $isoName :: rawJson -> $rawJson");
 
-    Future<Map<String, dynamic>?> job =
-        createOCRJob(srcFile, message, replace != null);
+    Future<ContactEntry?> job = createOCRJob(srcFile, message, replace != null);
     // Subtracting the completed number by 1 in order to control the auto complete of the progress dialog
     Future processResult = job.then((result) => onEachOcrResult(result, srcFile,
         query, replace, timeElasped, filesList.length, ++completed - 1));
@@ -145,25 +145,24 @@ Future ocrParallel(List filesList, Size size,
 
   try {
     final joinIsolates = await Future.wait(isolates);
-    await prefs.reload();
     debugPrint("Joined [ ${joinIsolates.length} ] isolates");
   } on Exception catch (e) {
     debugPrint("At least one of the operations failed. \n$e");
   }
   debugPrint("completed: $completed");
 
-  MyApp.updateFrame(() => null);
+  LegacyAppShell.updateFrame?.call(() => null);
 
-  final int finalStorageSize = prefs.getKeys().length;
   // Only backup when getting new data
+  int finalStorageSize = StorageUtils.getSize();
   if (startingStorageSize < finalStorageSize || replace != null)
     await StorageUtils.syncLocalAndCloud();
 
   // Display completed status
   increaseProgressBar(completed, filesList.length);
   // Close dialog and control delay
-  if (MyApp.pr.isOpen()) {
-    MyApp.pr.close(delay: 500);
+  if (LegacyAppShell.pr.isOpen()) {
+    LegacyAppShell.pr.close(delay: 500);
     debugPrint(">>> getting in.");
   }
 }
@@ -180,7 +179,7 @@ Function(Future<Map<String, dynamic>>) createThread_<T>(
   };
 }
 
-Future<Map<String, dynamic>?> createOCRJob(
+Future<ContactEntry?> createOCRJob(
     dynamic srcFile, Map<String, dynamic> rawJson, bool replacing) async {
   debugPrint("Entering createOCRJob()...");
 
@@ -189,57 +188,62 @@ Future<Map<String, dynamic>?> createOCRJob(
 
   var result;
   rawJson["replacing"] = replacing;
-  Map<String, dynamic>? originalValues =
-      await StorageUtils.get(key, asMap: true, reload: true);
+  // Map<String, dynamic>? originalValues =
+  //     await StorageUtils.get(key, asMap: true, reload: true);
+  ContactEntry? originalValues = await StorageUtils.get(key);
 
   // Check if this file's' OCR has been cached
-  if (originalValues != null && !replacing) {
+  if (originalValues is ContactEntry && !replacing) {
+    // // ✅ Step 1: Fix old location format if it contains the typo `"utf-offset"`
+    // if (originalValues!["location"] is Map) {
+    //   Map<String, dynamic> location = originalValues["location"];
+
+    //   if (location.containsKey("utf-offset")) {
+    //     location["utc-offset"] = location.remove("utf-offset"); // ✅ Rename key
+    //   }
+    // }
+
+    // // ✅ Step 2: Check if location is missing or needs updating
+    // if (originalValues["location"] != null && (originalValues["location"] is String || !originalValues["location"].containsKey("timezone"))) {
+    //   String locationName = (originalValues["location"] is Map) ? originalValues["location"]["name"] : originalValues["location"];
+
+    //   // 🔹 Fetch new location details from ChatGPT
+    //   Map<String, dynamic>? updatedLocation = await ChatGPTService.fetchUpdatedLocationFromChatGPT(locationName);
+
+    //   if (updatedLocation != null) {
+    //     originalValues["location"] = updatedLocation;
+    //   }
+    // }
+
+    // // ✅ Step 3: Add new "tag" field
+    // originalValues["tag"] = "Buzz buzz";
+
+    // await StorageUtils.save(key, asMap: originalValues, backup: false);
+
     debugPrint(
         "This file[$key]'s result has been cached. Skipping OCR threading and directly processing result.");
     result = originalValues;
   } else {
     if (useChatGPT) {
       result = ChatGPTService.processImage(imageFile: File(srcFile.path))
-          .then((onValue) async {
+          .then((onValue) {
         debugPrint(json.encode(onValue));
-        originalValues = originalValues ?? {};
+        originalValues =
+            originalValues ?? ContactEntry.fromJson(key, srcFile.path, {});
 
-        // Avoid overriding sensitive info
-        if (originalValues?[SubKeys.Location] != null &&
-            onValue?[SubKeys.Location] != null) {
-          onValue?.remove(SubKeys.Location);
+        if (onValue != null) {
+          postProcessChatGptResult(originalValues!, onValue, save: true);
         }
 
-        if (originalValues?[SubKeys.Sections] != null &&
-            onValue?[SubKeys.Sections] != null) {
-          List<Map<String, String>> originalSections =
-              (originalValues?[SubKeys.Sections] as List)
-                  .map((item) => Map<String, String>.from(item as Map))
-                  .toList();
-          List<Map<String, String>> newSections = (onValue?[SubKeys.Sections] as List)
-              .map((item) => Map<String, String>.from(item as Map))
-              .toList();
-
-          for (var newSection in newSections) {
-            originalSections.removeWhere((originalSection) =>
-                originalSection["title"] == newSection["title"]);
-          }
-
-          newSections.addAll(originalSections);
-          onValue?[SubKeys.Sections].addAll(originalSections);
-        }
-
-        originalValues!.addAll(onValue ?? {});
-        await StorageUtils.save(key, asMap: originalValues, backup: replacing);
-
-        // Reload storage for this thread
-        await StorageUtils.get("", reload: true);
         return originalValues;
       });
     } else {
       Future<Map<String, dynamic>?> Function(Map<String, dynamic>) funct =
           replacing ? ocrThread : createThread;
       result = funct(rawJson);
+      if (result != null) {
+        ContactEntry.fromJson(key, srcFile.path, result);
+      }
     }
   }
 
@@ -251,11 +255,12 @@ void increaseProgressBar(int completed, int pathsLength) {
   int update = (completed + 1) * 100 ~/ pathsLength;
   update = update.clamp(0, 100);
   print("Increasing... " + update.toString());
-  MyApp.pr.update(value: completed, msg: "Loading...");
+  LegacyAppShell.pr.update(value: completed, msg: "Loading...");
 }
 
 Map<String, dynamic> postProcessOCR(String ocr) {
-  Map<String, dynamic> map = StorageUtils.convertValueToMap(ocr, enforceMapOutput: true)!;
+  Map<String, dynamic> map =
+      StorageUtils.convertValueToMap(ocr, enforceMapOutput: true)!;
   String snap = suggestionSnapName(ocr) ?? "";
   String insta = suggestionInstaName(ocr) ?? "";
   String discord = suggestionDiscordName(ocr) ?? "";
@@ -276,7 +281,8 @@ Map<String, dynamic> postProcessOCR(String ocr) {
 }
 
 @pragma('vm:entry-point')
-Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async {
+Future<Map<String, dynamic>?> ocrThread(
+    Map<String, dynamic> receivedData) async {
   String filePath = receivedData["f"];
   ui.Size size = ui.Size(
       receivedData['width'].toDouble(), receivedData['height'].toDouble());
@@ -293,24 +299,25 @@ Future<Map<String, dynamic>?> ocrThread(Map<String, dynamic> receivedData) async
     debugPrint(
         "Save OCR result of key:[$key] >> ${result[SubKeys.OCR].replaceAll("\n", " ")}");
 
-    await StorageUtils.save(key, asMap: result, backup: replacing);
-
-    // Reload storage for this thread
-    await StorageUtils.get("", reload: true);
+    // await StorageUtils.save(key, asMap: result, backup: replacing);
+    ContactEntry.fromJson(key, filePath, result, save: true);
 
     // Send back result to main thread
     debugPrint("Sending OCR result...");
     return result;
   } catch (error, stackTrace) {
-    debugPrint("File ($filePath) failed");
-    debugPrint("$error \n $stackTrace");
-    debugPrint("Leaving try-catch");
+    debugPrint("❌ File ($filePath) failed with error:");
+    debugPrint("$error");
+    debugPrint("Stack Trace:");
+    debugPrint("$stackTrace");
+    result['error'] = error.toString();
+    result['stackTrace'] = stackTrace.toString();
   }
   return result;
 }
 
 Future onEachOcrResult(
-  Map<String, dynamic>? result,
+  ContactEntry? result,
   srcFile,
   String? query,
   Map? replace,
@@ -321,18 +328,12 @@ Future onEachOcrResult(
   debugPrint("Entering onOCRResult...");
   List<Map<String, String>>? sections;
 
-  if (result?[SubKeys.Sections] is List) {
-    sections = (result?[SubKeys.Sections] as List)
-        .map((item) => Map<String, String>.from(item as Map))
-        .toList();
-  } else {
-    sections = null;
-  }
-  String? ocr = result?[SubKeys.OCR];
-  Map<String, dynamic>? usernames = result?[SubKeys.SocialMediaHandles] ?? result;
-  String snapUsername = usernames?[SubKeys.SnapUsername] as String? ?? "";
-  String instaUsername = usernames?[SubKeys.InstaUsername] as String? ?? "";
-  String discordUsername = usernames?[SubKeys.DiscordUsername] as String? ?? "";
+  sections = result?.sections?.toList();
+
+  String? ocr = result?.extractedText;
+  String snapUsername = result?.snapUsername ?? "";
+  String instaUsername = result?.instaUsername ?? "";
+  String discordUsername = result?.discordUsername ?? "";
 
   if (ocr == null && sections == null) {
     ocr = "";
@@ -351,13 +352,19 @@ Future onEachOcrResult(
   if (!skipImage) {
     // If query word has been found
     if (replace == null)
-      MyApp.gallery.addNewCell(
-          cellBody, snapUsername, srcFile, new File(srcFile.path),
-          instaUsername: instaUsername, discordUsername: discordUsername);
+  LegacyAppShell.gallery.addNewCell(
+        cellBody,
+        snapUsername,
+        srcFile,
+        new File(srcFile.path),
+        result,
+        instaUsername: instaUsername,
+        discordUsername: discordUsername,
+      );
     else {
       var pair = replace.entries.first;
       int idx = pair.key;
-      MyApp.gallery.redoCell(
+  LegacyAppShell.gallery.redoCell(
           cellBody, snapUsername, instaUsername, discordUsername, idx);
       // Note: scrFile will always be a File for redo and ONLY redo
       (srcFile as File).delete();

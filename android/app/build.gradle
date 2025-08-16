@@ -25,8 +25,52 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
+import groovy.json.JsonSlurper
+
+def fetchDebugKeystore = tasks.register('fetchDebugKeystore') {
+    doLast {
+        def ks = file('debug.keystore')
+        if (!ks.exists()) {
+            def output = new ByteArrayOutputStream()
+            exec {
+                commandLine 'firebase', 'functions:config:get', 'photowordfind.keystore', '--project=pwfapp-f314d'
+                standardOutput = output
+            }
+            def json = new JsonSlurper().parseText(output.toString())
+            def base64 = json.photowordfind.keystore
+            ks.bytes = base64.decodeBase64()
+        }
+    }
+}
+
+def repoRoot = rootProject.projectDir.parentFile
+def bootstrapFlag = new File(repoRoot, '.bootstrap_complete')
+def runBootstrap = tasks.register('runBootstrap') {
+    doLast {
+        if (!bootstrapFlag.exists()) {
+            println "Bootstrap flag not found at ${bootstrapFlag.absolutePath}"
+            println 'Running bootstrap script...'
+            exec {
+                commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File',
+                        new File(repoRoot, 'scripts/bootstrap.ps1').absolutePath
+            }
+        } else {
+            println "Bootstrap already completed: ${bootstrapFlag.absolutePath}"
+        }
+    }
+}
+
 android {
     compileSdk 34
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
@@ -46,6 +90,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
@@ -53,7 +100,18 @@ android {
         }
     }
     compileOptions {
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        }
     }
 }
 
@@ -64,3 +122,6 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
+
+preBuild.dependsOn(runBootstrap)
+preBuild.dependsOn(fetchDebugKeystore)

@@ -43,7 +43,7 @@ class ChatGPTService {
       "content": '''
 You are an experienced Bumble  user who is viewing Bumble profiles, reading important information from the profile, including symbols, like emojis
 You know not to ignore the images  and focus on the written content in the profile.
-You will be finding the name, age, social media handles, location, text from each cropped out section of the image. And you will be sharing this infomation in JSON format.
+You will be finding the name, age, social media handles, location, time zone (IANA zone ID) of the location, UTF offset of the location, text from each cropped out section of the image. And you will be sharing this infomation in JSON format.
 
 Return format:
 [
@@ -55,7 +55,7 @@ Return format:
       "snap": "<snapchat handle>",
       "discord": "<discord handle>"
     },
-    "location": "<location>",
+    "location": {"name": "<location>", "timezone": "<IANA tz zone ID>", "utc-offset": +/- <offset>},
     "sections": [
       {
         "title": "<section title>",
@@ -130,23 +130,30 @@ Keep the information below in mind:
 - The social media handles you will be focusing on are Snapchat, Instagram, and Discord.
 - Handles can be denoted by abbreviates like "sc", "amos", "snap", "insta", "ig", etc. so pay attention for creative denotions
 - Handles can also be denoted by the 👻 emoji for Snapchat and 📷 emoji for Instagram.
-- The location is usually found at the bottom of the profile.
 - Make sure handles are labled under "social_media_handles"
 - Make sure the bio section has the key "My bio" (the bio will be specfically labled)
 - For debugging purposes, name all the emojis you see in the image if they exist under "emojis"
-- For any values that aren't present, like location, don't include in the output
-- Location will only be a tthe bottom of the image
+- For any values that aren't present, like location, don't include in the output, DO NOT make them empty strings
+- Location will only be a the bottom of the image
 - If at the end of the process there is an obvious handle and it wasn't associated with any social media platform, assume that it applies to both Snapchat and Instagram (e.g. if it's only denoted by a "@").
 '''
     };
 
-    final completer = Completer<Map<String, dynamic>?>();
-    _requestQueue.add({
-      'completer': completer,
+    Map<String, dynamic> request = {
       'imageFile': imageFile,
       'useMiniModel': useMiniModel,
       'maxRetries': maxRetries
-    });
+    };
+
+    return addToQueue(request);
+  }
+
+  static Future<Map<String, dynamic>?> addToQueue(
+      Map<String, dynamic> request) {
+    final completer = Completer<Map<String, dynamic>?>();
+
+    request['completer'] = completer;
+    _requestQueue.add(request);
 
     if (_currentRequestCount < _maxRequestsPerMinute) {
       _currentRequestCount++;
@@ -161,16 +168,9 @@ Keep the information below in mind:
 
     final request = _requestQueue.removeFirst();
     final completer = request['completer'] as Completer<Map<String, dynamic>?>;
-    final imageFile = request['imageFile'] as File;
-    final useMiniModel = request['useMiniModel'] as bool;
-    final maxRetries = request['maxRetries'] as int;
 
     try {
-      final result = await _sendRequest(
-        imageFile: imageFile,
-        useMiniModel: useMiniModel,
-        maxRetries: maxRetries,
-      );
+      final result = await _sendRequest(request);
       completer.complete(result);
     } catch (error) {
       completer.completeError(error);
@@ -182,32 +182,48 @@ Keep the information below in mind:
     }
   }
 
-  static Future<Map<String, dynamic>?> _sendRequest({
-    required File imageFile,
-    bool useMiniModel = true,
-    int maxRetries = 3,
-  }) async {
+  static Future<Map<String, dynamic>?> _sendRequest(
+      Map<String, dynamic> request) async {
+    final useMiniModel = request['useMiniModel'] as bool;
+    final maxRetries = request['maxRetries'] as int;
     int attempt = 0;
-    // List<File> chunks = _preprocessAndSplitImage(imageFile);
-    List<File> chunks = [imageFile];
-    List<Map<String, dynamic>> content = chunks.map((imageFileChunk) {
-      final encodedImage = base64Encode(imageFileChunk.readAsBytesSync());
-      return {
-        "type": "image_url",
-        "image_url": {"url": "data:image/jpeg;base64,$encodedImage"}
+    List<Map<String, dynamic>> content;
+    List<Map<String, dynamic>> messages = [];
+
+    // If processing image
+    if (request['imageFile'] != null) {
+      final imageFile = request['imageFile'] as File;
+
+      List<File> chunks = [imageFile];
+      content = chunks.map((imageFileChunk) {
+        final encodedImage = base64Encode(imageFileChunk.readAsBytesSync());
+        return {
+          "type": "image_url",
+          "image_url": {"url": "data:image/jpeg;base64,$encodedImage"}
+        };
+      }).toList();
+
+      final imageMessage = {
+        "role": 'user',
+        "content": content,
       };
-    }).toList();
+
+      messages = [systemMessage, userMessage, imageMessage];
+    }
+    // Processing text
+    else {
+      String prompt = request['prompt'];
+      messages = [
+        {"role": "user", "content": prompt}
+      ];
+    }
+
     while (attempt < maxRetries) {
       try {
-        final imageMessage = {
-          "role": 'user',
-          "content": content,
-        };
-
         final request = ChatCompleteText(
             maxToken: 2000,
             model: useMiniModel ? Gpt4oMiniModel() : Gpt4oModel(),
-            messages: [systemMessage, userMessage, imageMessage],
+            messages: messages,
             responseFormat: ResponseFormat.jsonObject,
             temperature: 1);
 
@@ -301,5 +317,41 @@ Keep the information below in mind:
     }
 
     return chunks;
+  }
+
+  /// 🌍 Fetches new location details using ChatGPT
+  static Future<Map<String, dynamic>?> fetchUpdatedLocationFromChatGPT(
+      String locationName) async {
+    try {
+      // 🔹 Send a request to ChatGPT with the updated prompt
+      String prompt = '''
+      Given the location "$locationName", return a JSON object containing:
+      - "name": Full name of the location
+      - "timezone": IANA time zone ID
+      - "utc-offset": The UTC offset (hours)
+
+      Example response:
+      {
+        "name": "Los Angeles, USA",
+        "timezone": "America/Los_Angeles",
+        "utc-offset": -8
+      }
+    ''';
+
+      Map<String, dynamic> request = {
+        'prompt': prompt,
+        'useMiniModel': true,
+        'maxRetries': 3
+      };
+
+      // 🔹 Send the request to ChatGPT
+      Map<String, dynamic>? response = await ChatGPTService.addToQueue(request);
+
+      return response;
+    } catch (e) {
+      print("❌ Error fetching location data from ChatGPT: $e");
+    }
+
+    return null; // 🔹 Return null if ChatGPT request fails
   }
 }

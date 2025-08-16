@@ -34,7 +34,7 @@ class Operation{
         break;
       case(Operations.FIND):
         retryOp = () {
-          MyApp.updateFrame((){
+          LegacyAppShell.updateFrame?.call((){
             find(directoryPath!, findQuery!, context);
           });
         };
@@ -70,7 +70,7 @@ class Operation{
     debugPrint("paths: " + paths.toString());
     // TODO: Figure out what does the null case mean
     if(paths == null) {
-      MyApp.pr.close();
+  LegacyAppShell.pr.close();
       return;
     }
 
@@ -101,7 +101,7 @@ class Operation{
     debugPrint("Entering _displayImages()...");
 
     if(paths == null) {
-      MyApp.pr.close();
+  LegacyAppShell.pr.close();
       return;
     }
 
@@ -120,7 +120,7 @@ class Operation{
             children: [
               Text("The last operation did not return any files. Would you like to try a different folder?"),
               ElevatedButton(onPressed: ()async {await _envChange!(); await retryOp!();}, child: Text("Yes")),
-              ElevatedButton(onPressed: (){retry = null; MyApp.updateFrame(() => null);}, child: Text("No.")),
+              ElevatedButton(onPressed: (){retry = null; LegacyAppShell.updateFrame?.call(() => null);}, child: Text("No.")),
             ],
           )
         )
