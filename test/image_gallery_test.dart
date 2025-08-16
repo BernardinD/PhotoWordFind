@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:PhotoWordFind/screens/gallery/image_gallery_screen.dart';
+import 'package:PhotoWordFind/screens/gallery/widgets/image_gallery.dart';
 
 Future<String> _createTestImage() async {
   final bytes = base64Decode(
