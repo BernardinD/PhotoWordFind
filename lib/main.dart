@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:PhotoWordFind/experimental/2attempt/imageGalleryScreen.dart';
+import 'package:PhotoWordFind/screens/gallery/image_gallery_screen.dart';
 import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
