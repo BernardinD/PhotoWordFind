@@ -91,6 +91,8 @@ The experimental gallery uses a new `SearchService` which builds a search string
 - A counter shows which image is currently visible out of the filtered list
 - Quick actions to open Snapchat/Instagram/Discord profiles and mark them as unfriended with a timestamped note
 - Separate flows for quick unfriending when there's no response versus when a chat went poorly
+- Chip-based state selection dialog
+- Ability to move selected images together
 
 The app can't confirm whether a friend request was ever accepted. When removing someone you may also need to clear the "added" flag for that platform so the username can be reused later.
 
