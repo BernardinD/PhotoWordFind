@@ -1,11 +1,13 @@
 # PhotoWordFind
 Flutter app for finding pictures that contain a searched word in a group of photos
 
+Note: The new gallery UI is now the default. The legacy UI remains available temporarily via a runtime toggle.
+
 ## Overview (Legacy vs New UI)
-The project now ships with two gallery experiences that can be switched live at runtime:
+The project ships with two gallery experiences that can be switched live at runtime. The new UI is the default.
 
 - Legacy UI ("classic") – the original directory‑driven workflow with explicit Find / Display operations and a ProgressDialog overlay.
-- New Experimental UI – a modern, card/page based gallery fed from persisted ContactEntry objects, with incremental search, filtering, state tags, and pull‑to‑refresh for cloud sync.
+- New UI (default) – a modern, card/page based gallery fed from persisted ContactEntry objects, with incremental search, filtering, state tags, and pull‑to‑refresh for cloud sync.
 
 A single flattened `MaterialApp` (see `MyRootWidget` in `main.dart`) hosts both. A SharedPreferences flag (`use_new_ui_candidate`) records the chosen UI. Switching can be initiated from:
 
@@ -13,6 +15,25 @@ A single flattened `MaterialApp` (see `MyRootWidget` in `main.dart`) hosts both.
 2. The Settings screen toggle (Interface section) in the new UI.
 
 Both triggers present a confirmation dialog and then call `UiMode.switchTo(bool useNew)`, which updates the preference and tells the root widget to rebuild immediately. Because the rebuild disposes the *previous* screen tree, any dialog / async callback must avoid using a stale `BuildContext` after switching (all recent dialogs now pop using their *dialog* context to prevent exceptions).
+
+The legacy UI will be removed in a future cleanup once the new UI is fully settled.
+
+## Quick start
+
+Run on a connected device or emulator:
+
+```powershell
+flutter pub get
+flutter run
+```
+
+Run the focused widget tests used during the new UI migration:
+
+```powershell
+flutter test test/image_gallery_test.dart -r expanded
+```
+
+Tip (Android): if you get installation/signing errors across machines, see “Shared Debug Keystore” below or simply run the bootstrap script under “Bootstrap setup”.
 
 ## Current Architecture
 | Layer | Purpose | Key Artifacts |
@@ -79,7 +100,7 @@ Programmatic | `await UiMode.switchTo(true/false);` | Persists preference & rebu
 If you introduce another UI, extend `UiMode` or add an enum; for now the boolean flag keeps code simple.
 
 ## Search
-The experimental gallery uses a new `SearchService` which builds a search string from each entry's filename, identifier, usernames, social media handles, and extracted text (from either `extractedText` or older `ocr` fields). Typing in the search box filters the gallery using this service. When a search term is entered, any entry missing extracted text is automatically processed through the OCR service so its content can be searched next time.
+The new gallery uses `SearchService`, which builds a search string from each entry's filename, identifier, usernames, social media handles, and extracted text (from either `extractedText` or older `ocr` fields). Typing in the search box filters the gallery using this service. When a search term is entered, any entry missing extracted text is automatically processed through the OCR service so its content can be searched next time.
 
 ## Features
 - Sorting by name, date or file size
