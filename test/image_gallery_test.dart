@@ -4,8 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:PhotoWordFind/experimental/2attempt/imageGalleryScreen.dart';
-import 'package:PhotoWordFind/models/contactEntry.dart';
+import 'package:PhotoWordFind/screens/gallery/image_gallery_screen.dart';
 
 Future<String> _createTestImage() async {
   final bytes = base64Decode(
