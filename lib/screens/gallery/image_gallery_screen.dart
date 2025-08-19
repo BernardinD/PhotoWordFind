@@ -242,6 +242,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
 		// Fetch each contact directly from Hive using the keys list to avoid
 		// reading the entire box twice.
+		// TODO: Make sure that an error from parsing one contact doesn't prevent others from loading
 		for (final identifier in StorageUtils.getKeys()) {
 			final contactEntry = await StorageUtils.get(identifier);
 			if (contactEntry != null) {

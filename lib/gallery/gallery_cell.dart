@@ -210,10 +210,14 @@ class _GalleryCellState extends State<GalleryCell> {
                           children: [
                             ElevatedButton(
                               child: Text("Select"),
-                              onPressed: () =>
-                                  widget.onPressedHandler(fileName),
+                              // TODO: Consider showing a tooltip or helper text when disabled
+                              // (contact is null) to explain why selection isn't available yet.
+                              onPressed: widget.contact == null
+                                ? null
+                                : () => widget
+                                  .onPressedHandler(widget.storageKey),
                               onLongPress: () =>
-                                  widget.onLongPressedHandler(fileName),
+                                widget.onLongPressedHandler(fileName),
                             ),
                             ClipRRect(
                               borderRadius:
