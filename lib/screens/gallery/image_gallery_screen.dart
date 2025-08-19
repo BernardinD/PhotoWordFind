@@ -408,6 +408,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 											final screenHeight = constraints.maxHeight;
 											return Column(
 												children: [
+												if (_initializationError != null)
+													_buildInitializationErrorBanner(context),
 													_buildControls(),
 													Expanded(
 														child: ImageGallery(
@@ -821,7 +823,52 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 			images = filtered;
 			currentIndex = 0;
 		});
-		kGalleryPageController.jumpToPage(0);
+		if (images.isNotEmpty) {
+			if (kGalleryPageController.hasClients) {
+				kGalleryPageController.jumpToPage(0);
+			} else {
+				WidgetsBinding.instance.addPostFrameCallback((_) {
+					if (!mounted) return;
+					if (kGalleryPageController.hasClients) {
+						try {
+							kGalleryPageController.jumpToPage(0);
+						} catch (_) {}
+					}
+				});
+			}
+		}
+	}
+
+	Widget _buildInitializationErrorBanner(BuildContext context) {
+		return Padding(
+			padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+			child: Container(
+				padding: const EdgeInsets.all(12),
+				decoration: BoxDecoration(
+					color: Colors.orange.shade50,
+					borderRadius: BorderRadius.circular(8),
+					border: Border.all(color: Colors.orange.shade300),
+				),
+				child: Row(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: [
+						const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+						const SizedBox(width: 8),
+						Expanded(
+							child: Text(
+								_initializationError ?? 'Initialization error',
+								style: TextStyle(color: Colors.orange.shade900),
+							),
+						),
+						IconButton(
+							tooltip: 'Dismiss',
+							icon: const Icon(Icons.close, size: 18),
+							onPressed: () => setState(() => _initializationError = null),
+						),
+					],
+				),
+			),
+		);
 	}
 
 	Future<String?> _selectState(String currentState) async {
