@@ -217,12 +217,10 @@ class _MyHomePageState extends State<MyHomePage> {
   LegacyAppShell.pr.show(max: _images.length);
 
     try {
-      // Get full path
-      final srcList = gallery.selected.toList();
-      var lst = srcList
-          .map((x) => (getDirectoryPath().toString() + "/" + x))
-          .toList();
-      _images = lst.map((path) => File(path)).toList();
+      // Build File list from selected ContactEntry image paths
+      final srcEntries = gallery.selected.toList();
+      final paths = srcEntries.map((e) => e.imagePath).toList();
+      _images = paths.map((p) => File(p)).toList();
 
       var result = await ChatGPTService.processMultipleImages(
           imageFiles: _images, useMiniModel: true);

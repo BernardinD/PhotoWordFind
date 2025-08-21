@@ -1,15 +1,16 @@
 
 
 import 'dart:io';
+import 'dart:collection';
 import 'dart:math';
 
 
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
-import 'package:path/path.dart' as path;
 import 'package:PhotoWordFind/gallery/gallery_cell.dart';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/toast_utils.dart';
+import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -19,7 +20,7 @@ class Gallery{
   // PriorityQueue<PhotoViewGalleryPageOptions> _images;
   late List<PhotoViewGalleryPageOptions> _images;
 
-  late Set<String> _selected;
+  late Set<ContactEntry> _selected;
   late PageController _galleryController;
 
   // Getters
@@ -28,12 +29,12 @@ class Gallery{
   // should update or sort explicitly at appropriate times.
     return _images;
   }
-  Set<String> get selected => _selected;
+  Set<ContactEntry> get selected => _selected;
   PageController get galleryController => _galleryController;
 
   // Setters
   set selected(Set selected) {
-    _selected = selected as Set<String>;
+    _selected = selected as Set<ContactEntry>;
   }
   set galleryController(galleryController) {
     _galleryController = galleryController;
@@ -42,7 +43,10 @@ class Gallery{
   Gallery(){
 
     // Initialize indicator for selected photos
-    _selected = new Set();
+    _selected = LinkedHashSet<ContactEntry>(
+      equals: (a, b) => a.identifier == b.identifier,
+      hashCode: (e) => e.identifier.hashCode,
+    );
 
     _galleryController = new PageController(initialPage: 0, keepPage: false, viewportFraction: 1.0);
     _images = [];
@@ -63,7 +67,9 @@ class Gallery{
   GalleryCell? _getNewCurrentCell(){
     int currentPage = _galleryController.page!.toInt();
     GalleryCell currentCell = _images[currentPage].child as GalleryCell;
-    if(_selected.contains((currentCell.key as ValueKey).value)){
+    // If the current cell's contact is selected, step back one page
+    final currentContact = currentCell.contact;
+    if (currentContact != null && _selected.contains(currentContact)) {
       currentPage--;
     }
     return currentPage >= 0 ? _images[currentPage].child as GalleryCell? : null;
@@ -71,7 +77,10 @@ class Gallery{
 
   void removeSelected(){
     GalleryCell? newPage = _getNewCurrentCell();
-    _images.removeWhere((cell) => _selected.contains(((cell.child as GalleryCell).key as ValueKey<String>).value));
+    _images.removeWhere((cell) {
+      final entry = (cell.child as GalleryCell).contact;
+      return entry != null && _selected.contains(entry);
+    });
     _selected.clear();
 
     if(_images.isNotEmpty) {
@@ -86,7 +95,20 @@ class Gallery{
 
 
     var cell = PhotoViewGalleryPageOptions.customChild(
-      child: GalleryCell(body, snapUsername, instaUsername, discordUsername, file, displayImage, redoListPos as int Function(GalleryCell), onPressed, onLongPress, contact, key: ValueKey(path.basename(file.path)),),
+      child: GalleryCell(
+        body,
+        snapUsername,
+        instaUsername,
+        discordUsername,
+        file,
+        displayImage,
+        redoListPos as int Function(GalleryCell),
+        onPressed,
+        onLongPress,
+        contact,
+        // Use the identifier (filename without extension) as the key
+        key: ValueKey(getKeyOfFilename(file.path)),
+      ),
       // heroAttributes: const HeroAttributes(tag: "tag1"),
     );
 
@@ -111,11 +133,14 @@ class Gallery{
   }
 
 
-  void onPressed(String fileName) {
+  void onPressed(ContactEntry entry) {
     debugPrint("Entering onPressed()...");
-    selected.contains(fileName) ? selected.remove(fileName) : selected.add(fileName);
+    // Toggle selection using custom equality
+    final removed = _selected.remove(entry);
+    if (!removed) _selected.add(entry);
 
-    runSelectImageToast(selected.contains(fileName));
+    final nowSelected = _selected.contains(entry);
+    runSelectImageToast(nowSelected);
 
   LegacyAppShell.updateFrame?.call(() => null);
     debugPrint("Leaving onPressed()...");
