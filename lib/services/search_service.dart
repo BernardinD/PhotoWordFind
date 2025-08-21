@@ -26,6 +26,10 @@ class SearchService {
       buffer.write(entry.identifier);
       buffer.write(' ');
 
+      // State and name
+      if (entry.state != null && entry.state!.isNotEmpty) buffer.write('${entry.state} ');
+      if (entry.name != null && entry.name!.isNotEmpty) buffer.write('${entry.name} ');
+
       // Usernames
       if (entry.snapUsername != null) buffer.write('${entry.snapUsername} ');
       if (entry.instaUsername != null) buffer.write('${entry.instaUsername} ');
@@ -37,6 +41,24 @@ class SearchService {
         for (final value in entry.socialMediaHandles!.values) {
           if (value != null && value.isNotEmpty) {
             buffer.write('$value ');
+          }
+        }
+      }
+
+      // Previous handle values
+      if (entry.previousHandles != null) {
+        for (final list in entry.previousHandles!.values) {
+          for (final v in list) {
+            if (v.isNotEmpty) buffer.write('$v ');
+          }
+        }
+      }
+
+      // Sections content
+      if (entry.sections != null) {
+        for (final m in entry.sections!) {
+          for (final v in m.values) {
+            if (v.isNotEmpty) buffer.write('$v ');
           }
         }
       }

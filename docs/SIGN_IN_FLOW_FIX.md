@@ -70,7 +70,7 @@ Added tests to verify:
 - Error handling works gracefully without crashes
 
 ## Files Modified
-- `lib/experimental/2attempt/imageGalleryScreen.dart`: Main implementation
+- `lib/screens/gallery/image_gallery_screen.dart`: Main implementation (migrated from experimental path)
 - `test/image_gallery_test.dart`: Added tests for the new flow
 - `docs/SIGN_IN_FLOW_FIX.md`: This documentation
 

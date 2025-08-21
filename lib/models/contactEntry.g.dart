@@ -25,6 +25,22 @@ mixin _$ContactEntry on _ContactEntry, Store {
     });
   }
 
+  late final _$imagePathAtom =
+      Atom(name: '_ContactEntry.imagePath', context: context);
+
+  @override
+  String get imagePath {
+    _$imagePathAtom.reportRead();
+    return super.imagePath;
+  }
+
+  @override
+  set imagePath(String value) {
+    _$imagePathAtom.reportWrite(value, super.imagePath, () {
+      super.imagePath = value;
+    });
+  }
+
   late final _$snapUsernameAtom =
       Atom(name: '_ContactEntry.snapUsername', context: context);
 
@@ -353,6 +369,7 @@ mixin _$ContactEntry on _ContactEntry, Store {
   String toString() {
     return '''
 extractedText: ${extractedText},
+imagePath: ${imagePath},
 snapUsername: ${snapUsername},
 instaUsername: ${instaUsername},
 discordUsername: ${discordUsername},

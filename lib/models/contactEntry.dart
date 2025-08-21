@@ -268,6 +268,7 @@ abstract class _ContactEntry with Store {
   @observable
   String? extractedText;
 
+  @observable
   String imagePath;
 
   /// The ocr scanned from images BEFORE switching over to chatGPT approach.

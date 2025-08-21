@@ -1,9 +1,13 @@
 
 import 'dart:io';
+// import 'dart:convert';
 
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
+import 'package:PhotoWordFind/models/contactEntry.dart';
+import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
+// import 'package:hive/hive.dart';
 
 enum Operations{
   MOVE,
@@ -21,7 +25,7 @@ class Operation{
     Function? directoryPath,
     String? findQuery,
     List? displayImagesList,
-    List<String>? moveSrcList,
+    List<ContactEntry>? moveSrcList,
     String? moveDesDir,
   }){
 
@@ -30,7 +34,7 @@ class Operation{
 
     switch(operation){
       case(Operations.MOVE):
-        move(moveSrcList!, moveDesDir, directoryPath);
+        move(moveSrcList!, moveDesDir!);
         break;
       case(Operations.FIND):
         retryOp = () {
@@ -68,9 +72,9 @@ class Operation{
 
 
     debugPrint("paths: " + paths.toString());
-    // TODO: Figure out what does the null case mean
-    if(paths == null) {
-  LegacyAppShell.pr.close();
+    // If the paths list is empty, close progress and return
+    if(paths.isEmpty) {
+      LegacyAppShell.pr.close();
       return;
     }
 
@@ -84,16 +88,17 @@ class Operation{
     debugPrint("Leaving find()...");
   }
 
-  static void move(List<String> srcList, String? destDir, Function? directoryPath){
+  static void move(List<ContactEntry> srcList, String destDir) {
+    for (final entry in srcList) {
+      final src = entry.imagePath;
+      final fileName = path.basename(src);
+      final dst = path.join(destDir, fileName);
 
-    var lst = srcList.map((x) => [(directoryPath!().toString() +"/"+ x), (destDir! +"/"+ x)] ).toList();
-
-    debugPrint("List:" + lst.toString());
-    String src, dst;
-    for(List<String> pair in lst){
-      src = pair[0];
-      dst = pair[1];
+      // Move the physical file first
       File(src).renameSync(dst);
+
+      // Update only the in-memory ContactEntry path per request
+      entry.imagePath = dst;
     }
   }
 

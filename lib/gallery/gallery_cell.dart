@@ -41,10 +41,10 @@ class GalleryCell extends StatefulWidget {
   final String discordUsername;
   final dynamic f;
   final File srcImage;
-  final ContactEntry? contact;
   final int Function(GalleryCell cell) listPos;
-  final void Function(String fileName) onPressedHandler;
+  final void Function(ContactEntry entry) onPressedHandler;
   final void Function(String fileName) onLongPressedHandler;
+  final ContactEntry? contact;
 
   String get storageKey => getKeyOfFilename(srcImage.path);
 
@@ -210,10 +210,13 @@ class _GalleryCellState extends State<GalleryCell> {
                           children: [
                             ElevatedButton(
                               child: Text("Select"),
-                              onPressed: () =>
-                                  widget.onPressedHandler(fileName),
+                              // TODO: Consider showing a tooltip or helper text when disabled
+                              // (contact is null) to explain why selection isn't available yet.
+                              onPressed: widget.contact == null
+                                ? null
+                                : () => widget.onPressedHandler(widget.contact!),
                               onLongPress: () =>
-                                  widget.onLongPressedHandler(fileName),
+                                widget.onLongPressedHandler(fileName),
                             ),
                             ClipRRect(
                               borderRadius:
