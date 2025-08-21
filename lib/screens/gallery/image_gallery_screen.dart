@@ -75,6 +75,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 	DateTime? _lastSyncTime;
 	// String? _lastSyncError; // no longer surfaced
 
+	// Debounce for search input to reduce rebuild churn
+	Timer? _searchDebounce;
+
 	@override
 	void initState() {
 		super.initState();
@@ -84,6 +87,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 			// Previously updated sign-out UI; now no-op.
 		};
 		_initializeApp();
+	}
+
+	@override
+	void dispose() {
+		_searchDebounce?.cancel();
+		super.dispose();
 	}
 
 	Future requestPermissions() async {
@@ -539,7 +548,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 						),
 						onChanged: (value) async {
 							searchQuery = value;
-							await _filterImages();
+							_searchDebounce?.cancel();
+							_searchDebounce = Timer(const Duration(milliseconds: 220), () {
+								if (!mounted) return;
+								_filterImages();
+							});
 						},
 					),
 				),
@@ -772,7 +785,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
 	Future<void> _applyFiltersAndSort() async {
 		List<ContactEntry> filtered =
-				(await SearchService.searchEntriesWithOcr(allImages, searchQuery))
+				SearchService.searchEntries(allImages, searchQuery)
 						.where((img) {
 			final tag = img.state ?? path.basename(path.dirname(img.imagePath));
 			final matchesState = selectedState == 'All' || tag == selectedState;
