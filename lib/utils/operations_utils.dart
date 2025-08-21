@@ -72,7 +72,7 @@ class Operation{
 
 
     debugPrint("paths: " + paths.toString());
-    // If no files are present, close progress and return
+    // If the paths list is empty, close progress and return
     if(paths.isEmpty) {
       LegacyAppShell.pr.close();
       return;
