@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import 'package:PhotoWordFind/screens/gallery/widgets/image_tile.dart';
 
 // Shared page controller used by the gallery and screen logic
 final PageController kGalleryPageController = PageController(viewportFraction: 0.8);
+
+// Feature flag: switch between PageView carousel and Masonry grid.
+const bool kUseMasonryGrid = true;
 
 class ImageGallery extends StatelessWidget {
   final List<ContactEntry> images;
@@ -30,46 +34,162 @@ class ImageGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: galleryHeight,
+    if (!kUseMasonryGrid) {
+      return SizedBox(
+        height: galleryHeight,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: kGalleryPageController,
+              itemCount: images.length,
+              onPageChanged: onPageChanged,
+              itemBuilder: (context, index) {
+                return ImageTile(
+                  imagePath: images[index].imagePath,
+                  isSelected: selectedImages.contains(images[index].identifier),
+                  extractedText: images[index].extractedText ?? "",
+                  identifier: images[index].identifier,
+                  sortOption: sortOption,
+                  onSelected: onImageSelected,
+                  onMenuOptionSelected: onMenuOptionSelected,
+                  contact: images[index],
+                );
+              },
+            ),
+            _buildCounterOverlay(context, currentIndex, images.length),
+          ],
+        ),
+      );
+    }
+
+    // Masonry grid variant
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    // Aim for tiles ~180dp wide with clamped column count
+    final int columns = width ~/ 180.0 > 0 ? width ~/ 180.0 : 1;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Stack(
         children: [
-          PageView.builder(
-            controller: kGalleryPageController,
+          MasonryGridView.count(
+            crossAxisCount: columns,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            padding: const EdgeInsets.only(bottom: 96, top: 8),
             itemCount: images.length,
-            onPageChanged: onPageChanged,
             itemBuilder: (context, index) {
+              final item = images[index];
               return ImageTile(
-                imagePath: images[index].imagePath,
-                isSelected: selectedImages.contains(images[index].identifier),
-                extractedText: images[index].extractedText ?? "",
-                identifier: images[index].identifier,
+                imagePath: item.imagePath,
+                isSelected: selectedImages.contains(item.identifier),
+                extractedText: item.extractedText ?? '',
+                identifier: item.identifier,
                 sortOption: sortOption,
                 onSelected: onImageSelected,
                 onMenuOptionSelected: onMenuOptionSelected,
-                contact: images[index],
+                contact: item,
+                gridMode: true,
               );
             },
           ),
-          Positioned(
-            bottom: 8,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${currentIndex + 1} / ${images.length}',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ),
+          _buildCounterOverlay(context, currentIndex, images.length),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCounterOverlay(BuildContext context, int index, int total) {
+    return Positioned(
+      bottom: 8,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${index + 1} / $total',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sliver variant for use inside a CustomScrollView.
+class SliverImageGallery extends StatelessWidget {
+  final List<ContactEntry> images;
+  final List<String> selectedImages;
+  final Function(String) onImageSelected;
+  final Function(String, String) onMenuOptionSelected;
+  final String sortOption;
+
+  const SliverImageGallery({
+    super.key,
+    required this.images,
+    required this.selectedImages,
+    required this.onImageSelected,
+    required this.onMenuOptionSelected,
+    required this.sortOption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kUseMasonryGrid) {
+      // Fallback to a simple sliver list if masonry grid is off.
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final item = images[index];
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: ImageTile(
+                imagePath: item.imagePath,
+                isSelected: selectedImages.contains(item.identifier),
+                extractedText: item.extractedText ?? '',
+                identifier: item.identifier,
+                sortOption: sortOption,
+                onSelected: onImageSelected,
+                onMenuOptionSelected: onMenuOptionSelected,
+                contact: item,
+              ),
+            );
+          },
+          childCount: images.length,
+        ),
+      );
+    }
+
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final int columns = width ~/ 180.0 > 0 ? width ~/ 180.0 : 1;
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+      sliver: SliverMasonryGrid.count(
+        crossAxisCount: columns,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childCount: images.length,
+        itemBuilder: (context, index) {
+          final item = images[index];
+          return ImageTile(
+            imagePath: item.imagePath,
+            isSelected: selectedImages.contains(item.identifier),
+            extractedText: item.extractedText ?? '',
+            identifier: item.identifier,
+            sortOption: sortOption,
+            onSelected: onImageSelected,
+            onMenuOptionSelected: onMenuOptionSelected,
+            contact: item,
+            gridMode: true,
+          );
+        },
       ),
     );
   }
