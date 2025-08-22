@@ -62,6 +62,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
 	bool _isInitializing = true; // Tracks if app is still initializing
 	String? _initializationError; // Stores any initialization error
+	
+	// New granular loading states
+	bool _isLoadingImages = false; // Tracks if images are being loaded
+	int _totalImagesToLoad = 0; // Total number of images to load
+	int _imagesLoaded = 0; // Number of images loaded so far
 
 	/// Key for the root [Navigator] so dialogs can use a context that
 	/// has navigation and localization available.
@@ -124,6 +129,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 				});
 			}
 
+			// Complete basic initialization - allow UI to be partially functional
+			setState(() {
+				_isInitializing = false;
+				_isLoadingImages = true;
+			});
+
 			// Step 2: Load images only after sign-in is complete
 			if (useJsonFileForLoading) {
 				await _loadImagesFromJsonFile();
@@ -135,11 +146,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 			await _loadImportDirectory();
 
 			setState(() {
-				_isInitializing = false;
+				_isLoadingImages = false;
 			});
 		} catch (e) {
 			setState(() {
 				_isInitializing = false;
+				_isLoadingImages = false;
 				_initializationError = 'Initialization failed: $e';
 			});
 		}
@@ -248,14 +260,30 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 	Future<void> _loadImagesFromPreferences() async {
 		// Read the image path map from the JSON file (simulating a separate storage location)
 		List<ContactEntry> loadedImages = [];
+		
+		final keys = StorageUtils.getKeys();
+		setState(() {
+			_totalImagesToLoad = keys.length;
+			_imagesLoaded = 0;
+		});
 
 		// Fetch each contact directly from Hive using the keys list to avoid
 		// reading the entire box twice.
 		// TODO: Make sure that an error from parsing one contact doesn't prevent others from loading
-		for (final identifier in StorageUtils.getKeys()) {
+		for (final identifier in keys) {
 			final contactEntry = await StorageUtils.get(identifier);
 			if (contactEntry != null) {
 				loadedImages.add(contactEntry);
+			}
+			
+			setState(() {
+				_imagesLoaded++;
+			});
+			
+			// Allow UI to update progressively every 10 images or at the end
+			if (_imagesLoaded % 10 == 0 || _imagesLoaded == _totalImagesToLoad) {
+				// Small delay to allow UI updates
+				await Future.delayed(Duration(milliseconds: 1));
 			}
 		}
 		allImages = loadedImages;
@@ -268,6 +296,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 		// Read the image path map from the JSON file
 		final Map<String, dynamic> fileMap = await StorageUtils.readJson();
 		List<ContactEntry> loadedImages = [];
+		
+		setState(() {
+			_totalImagesToLoad = fileMap.length;
+			_imagesLoaded = 0;
+		});
+		
 		for (final entry in fileMap.entries) {
 			final identifier = entry.key;
 			final value = entry.value;
@@ -289,6 +323,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 					imagePath,
 					value,
 				));
+			}
+			
+			setState(() {
+				_imagesLoaded++;
+			});
+			
+			// Allow UI to update progressively every 10 images or at the end
+			if (_imagesLoaded % 10 == 0 || _imagesLoaded == _totalImagesToLoad) {
+				// Small delay to allow UI updates
+				await Future.delayed(Duration(milliseconds: 1));
 			}
 		}
 		allImages = loadedImages;
@@ -331,7 +375,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 										}
 									},
 								),
-								if (_isInitializing)
+								if (_isInitializing || _isLoadingImages)
 									const Padding(
 										padding: EdgeInsets.symmetric(horizontal: 16.0),
 										child: SizedBox(
@@ -397,7 +441,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 											children: [
 												const CircularProgressIndicator(),
 												const SizedBox(height: 16),
-												const Text('Signing in and loading images...'),
+												const Text('Signing in and setting up...'),
 												if (_initializationError != null) ...[
 													const SizedBox(height: 16),
 													Padding(
@@ -420,6 +464,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 												children: [
 												if (_initializationError != null)
 													_buildInitializationErrorBanner(context),
+												if (_isLoadingImages)
+													_buildImageLoadingBanner(),
 													_buildControls(),
 													Expanded(
 														child: ImageGallery(
@@ -878,6 +924,56 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 							tooltip: 'Dismiss',
 							icon: const Icon(Icons.close, size: 18),
 							onPressed: () => setState(() => _initializationError = null),
+						),
+					],
+				),
+			),
+		);
+	}
+
+	/// Builds a banner showing image loading progress
+	Widget _buildImageLoadingBanner() {
+		final progress = _totalImagesToLoad > 0 
+			? _imagesLoaded / _totalImagesToLoad 
+			: 0.0;
+		
+		return Padding(
+			padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+			child: Container(
+				padding: const EdgeInsets.all(12),
+				decoration: BoxDecoration(
+					color: Colors.blue.shade50,
+					borderRadius: BorderRadius.circular(8),
+					border: Border.all(color: Colors.blue.shade300),
+				),
+				child: Row(
+					children: [
+						const SizedBox(
+							width: 16,
+							height: 16,
+							child: CircularProgressIndicator(strokeWidth: 2),
+						),
+						const SizedBox(width: 12),
+						Expanded(
+							child: Column(
+								crossAxisAlignment: CrossAxisAlignment.start,
+								mainAxisSize: MainAxisSize.min,
+								children: [
+									Text(
+										'Loading images... $_imagesLoaded/$_totalImagesToLoad',
+										style: TextStyle(
+											color: Colors.blue.shade900,
+											fontWeight: FontWeight.w500,
+										),
+									),
+									const SizedBox(height: 4),
+									LinearProgressIndicator(
+										value: progress,
+										backgroundColor: Colors.blue.shade100,
+										valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+									),
+								],
+							),
 						),
 					],
 				),

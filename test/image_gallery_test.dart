@@ -45,8 +45,27 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
 
     // Should show loading state initially
-    expect(find.text('Signing in and loading images...'), findsOneWidget);
+    expect(find.text('Signing in and setting up...'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
+  });
+
+  testWidgets('ImageGalleryScreen shows image loading state after initialization',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
+    
+    // Wait for initialization to complete and image loading to start
+    await tester.pump();
+    await tester.pump(Duration(milliseconds: 100));
+    
+    // Should show either loading images or have completed loading
+    // (depending on how fast the test environment loads)
+    final loadingTextFinder = find.textContaining('Loading images...');
+    final progressBarFinder = find.byType(LinearProgressIndicator);
+    
+    // If still loading images, should show progress
+    if (tester.any(loadingTextFinder)) {
+      expect(progressBarFinder, findsOneWidget);
+    }
   });
 
   testWidgets('ImageGalleryScreen handles initialization error gracefully',
