@@ -45,8 +45,8 @@ class CloudUtils {
   static Function get isSignedin => _googleSignIn.isSignedIn;
   static JsonEncoder _jsonEncoder = JsonEncoder.withIndent('    ');
   // static String _jsonBackupFile = "PWF_scans_backup.json";
-  static String _jsonTestingNewUIBackup = "testing_new_UI.json";
-  // static String _jsonBackupFile = "test_auto_create_file2.json";
+  // static String _jsonTestingNewUIBackup = "testing_new_UI.json";
+  static String _jsonBackupFile = "test_auto_create_file2.json";
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -166,7 +166,7 @@ class CloudUtils {
     Future response = _useDriveAPI((drive.DriveApi api) async {
       return api.files.create(
         drive.File()
-          ..name = '$_jsonTestingNewUIBackup'
+          ..name = '$_jsonBackupFile'
           ..mimeType = '$_jsonMimetype',
         uploadMedia: uploadMedia,
         /*..parents=[]*/
@@ -186,7 +186,7 @@ class CloudUtils {
     return await (_useDriveAPI((drive.DriveApi api) async {
       _cloudRef = await api.files.list(
           // Set parentID if idx is passed root
-          q: """mimeType = '$_jsonMimetype' and name = '$_jsonTestingNewUIBackup'""",
+          q: """mimeType = '$_jsonMimetype' and name = '$_jsonBackupFile'""",
           spaces: 'drive').then((folders) {
         drive.File? sub_ = folders.files![0];
         return sub_;
