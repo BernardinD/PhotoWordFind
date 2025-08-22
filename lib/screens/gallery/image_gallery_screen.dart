@@ -77,6 +77,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
 	// Debounce for search input to reduce rebuild churn
 	Timer? _searchDebounce;
+	
+	// Controller for search TextField to enable clear functionality
+	final TextEditingController _searchController = TextEditingController();
 
 	@override
 	void initState() {
@@ -92,6 +95,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 	@override
 	void dispose() {
 		_searchDebounce?.cancel();
+		_searchController.dispose();
 		super.dispose();
 	}
 
@@ -540,14 +544,30 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 				Expanded(
 					flex: 2,
 					child: TextField(
+						controller: _searchController,
 						decoration: InputDecoration(
 							hintText: 'Search',
 							prefixIcon: const Icon(Icons.search),
+							suffixIcon: searchQuery.isNotEmpty
+								? IconButton(
+									icon: const Icon(Icons.clear),
+									onPressed: () {
+										_searchController.clear();
+										setState(() {
+											searchQuery = '';
+										});
+										_searchDebounce?.cancel();
+										_filterImages();
+									},
+								)
+								: null,
 							border: const OutlineInputBorder(),
 							isDense: true,
 						),
 						onChanged: (value) async {
-							searchQuery = value;
+							setState(() {
+								searchQuery = value;
+							});
 							_searchDebounce?.cancel();
 							_searchDebounce = Timer(const Duration(milliseconds: 220), () {
 								if (!mounted) return;

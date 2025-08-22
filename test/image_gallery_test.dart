@@ -60,4 +60,35 @@ void main() {
     // Should either show the app content or an error message, but not crash
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Search field shows clear button when text is entered',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
+
+    // Wait for initialization
+    await tester.pump();
+    await tester.pump(Duration(seconds: 2));
+
+    // Find the search field
+    final searchField = find.byType(TextField).first;
+    expect(searchField, findsOneWidget);
+
+    // Initially, there should be no clear button (suffixIcon should be null)
+    expect(find.byIcon(Icons.clear), findsNothing);
+
+    // Enter text in search field
+    await tester.enterText(searchField, 'test search');
+    await tester.pump();
+
+    // Now the clear button should appear
+    expect(find.byIcon(Icons.clear), findsOneWidget);
+
+    // Tap the clear button
+    await tester.tap(find.byIcon(Icons.clear));
+    await tester.pump();
+
+    // Clear button should disappear and text should be cleared
+    expect(find.byIcon(Icons.clear), findsNothing);
+    expect(find.text('test search'), findsNothing);
+  });
 }
