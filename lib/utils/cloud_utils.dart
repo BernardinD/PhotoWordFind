@@ -213,23 +213,6 @@ class CloudUtils {
       // debugPrint("Raw: $rawJSON");
       Map<String, String> cloudLocalJson = new Map.from(json.decode(rawJSON));
 
-      // TODO: move this logic into merge()
-      List<ContactEntry> images = [];
-      List<String> dirs = ["Buzz buzz", "Honey", "Strings", "Stale", "Comb"];
-      cloudLocalJson.forEach((String key, dynamic value) {
-        String? dir=null;
-        dirs.forEach((_dir) {
-          if (File("/storage/emulated/0/DCIM/$_dir/$key.jpg").existsSync()) {
-            dir = _dir;
-          }
-        });
-        if(dir == null){
-          return;
-        }
-        images.add(ContactEntry.fromJson(key,
-            "/storage/emulated/0/DCIM/$dir/$key.jpg", jsonDecode(value)));
-      });
-
     StorageUtils.merge(cloudLocalJson)
       .then((value) => LegacyAppShell.updateFrame?.call(() => null));
 
