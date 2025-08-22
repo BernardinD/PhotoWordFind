@@ -161,6 +161,8 @@ class StorageUtils {
           : null,
       SubKeys.Age: (_map[SubKeys.Age] is int) ? _map[SubKeys.Age] : null,
       SubKeys.Location: _map[SubKeys.Location],
+      if ((_map['imagePath'] as String?)?.isNotEmpty ?? false)
+        'imagePath': _map['imagePath'],
     };
     return map;
   }
