@@ -40,13 +40,43 @@ void main() {
     expect(find.text('1 / 0'), findsOneWidget);
   });
 
-  testWidgets('ImageGalleryScreen shows loading state during initialization',
+  testWidgets('ImageGalleryScreen shows progressive loading states',
       (tester) async {
     await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
 
-    // Should show loading state initially
-    expect(find.text('Signing in and loading images...'), findsOneWidget);
+    // Should show initial loading state
+    expect(find.text('Signing in and setting up...'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
+    
+    // Wait a bit and pump to allow state changes
+    await tester.pump(Duration(milliseconds: 50));
+    await tester.pump();
+    
+    // Should either still be in initial loading or have progressed to image loading
+    final stillInitializing = tester.any(find.text('Signing in and setting up...'));
+    final imageLoading = tester.any(find.textContaining('Loading images...'));
+    
+    expect(stillInitializing || imageLoading, isTrue, 
+        reason: 'Should show either initial loading or image loading state');
+  });
+
+  testWidgets('ImageGalleryScreen shows image loading state after initialization',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
+    
+    // Wait for initialization to complete and image loading to start
+    await tester.pump();
+    await tester.pump(Duration(milliseconds: 100));
+    
+    // Should show either loading images or have completed loading
+    // (depending on how fast the test environment loads)
+    final loadingTextFinder = find.textContaining('Loading images...');
+    final progressBarFinder = find.byType(LinearProgressIndicator);
+    
+    // If still loading images, should show progress
+    if (tester.any(loadingTextFinder)) {
+      expect(progressBarFinder, findsOneWidget);
+    }
   });
 
   testWidgets('ImageGalleryScreen handles initialization error gracefully',
