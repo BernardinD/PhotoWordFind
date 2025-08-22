@@ -22,6 +22,7 @@ class ImageTile extends StatefulWidget {
   final Function(String) onSelected;
   final Function(String, String) onMenuOptionSelected;
   final ContactEntry contact;
+  final bool gridMode;
 
   const ImageTile({
     super.key,
@@ -33,6 +34,7 @@ class ImageTile extends StatefulWidget {
     required this.onSelected,
     required this.onMenuOptionSelected,
     required this.contact,
+    this.gridMode = false,
   });
 
   @override
@@ -437,9 +439,10 @@ class _ImageTileState extends State<ImageTile> {
       onLongPress: () => widget.onSelected(widget.identifier),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final bool isGrid = widget.gridMode;
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            width: constraints.maxWidth * 0.8,
+            margin: isGrid ? const EdgeInsets.symmetric(vertical: 6, horizontal: 0) : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            width: isGrid ? double.infinity : constraints.maxWidth * 0.8,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: widget.isSelected ? Border.all(color: Colors.blueAccent, width: 3) : null,
@@ -455,14 +458,25 @@ class _ImageTileState extends State<ImageTile> {
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
-                  Positioned.fill(
-                    child: PhotoView(
-                      imageProvider: FileImage(File(widget.imagePath)),
-                      backgroundDecoration: const BoxDecoration(color: Colors.white),
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 2.5,
+                  if (isGrid)
+                    // Fixed aspect thumbnail in grid mode to ensure a deterministic height
+                    AspectRatio(
+                      aspectRatio: 3 / 4,
+                      child: Image.file(
+                        File(widget.imagePath),
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, _, __) => const ColoredBox(color: Colors.black12),
+                      ),
+                    )
+                  else
+                    Positioned.fill(
+                      child: PhotoView(
+                        imageProvider: FileImage(File(widget.imagePath)),
+                        backgroundDecoration: const BoxDecoration(color: Colors.white),
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: PhotoViewComputedScale.covered * 2.5,
+                      ),
                     ),
-                  ),
                   Positioned(
                     top: 8,
                     right: 8,
