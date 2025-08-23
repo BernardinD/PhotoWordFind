@@ -3,6 +3,7 @@ import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import 'package:PhotoWordFind/screens/gallery/widgets/image_tile.dart';
+import 'package:PhotoWordFind/screens/gallery/review_viewer.dart';
 
 // Shared page controller used by the gallery and screen logic
 final PageController kGalleryPageController = PageController(viewportFraction: 0.8);
@@ -90,6 +91,13 @@ class ImageGallery extends StatelessWidget {
                 onMenuOptionSelected: onMenuOptionSelected,
                 contact: item,
                 gridMode: true,
+                onOpenFullScreen: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ReviewViewer(images: images, initialIndex: index, sortOption: sortOption),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -188,6 +196,13 @@ class SliverImageGallery extends StatelessWidget {
             onMenuOptionSelected: onMenuOptionSelected,
             contact: item,
             gridMode: true,
+            onOpenFullScreen: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ReviewViewer(images: images, initialIndex: index, sortOption: sortOption),
+                ),
+              );
+            },
           );
         },
       ),

@@ -12,6 +12,7 @@ import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
+import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
 
 class ImageTile extends StatefulWidget {
   final String imagePath;
@@ -23,6 +24,7 @@ class ImageTile extends StatefulWidget {
   final Function(String, String) onMenuOptionSelected;
   final ContactEntry contact;
   final bool gridMode;
+  final VoidCallback? onOpenFullScreen;
 
   const ImageTile({
     super.key,
@@ -35,6 +37,7 @@ class ImageTile extends StatefulWidget {
     required this.onMenuOptionSelected,
     required this.contact,
     this.gridMode = false,
+  this.onOpenFullScreen,
   });
 
   @override
@@ -82,6 +85,15 @@ class _ImageTileState extends State<ImageTile> {
               onTap: () {
                 Navigator.pop(sheetContext);
                 _showDetailsDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.manage_accounts),
+              title: const Text('Handles & Verification'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await showHandlesSheet(context, widget.contact);
+                setState(() {});
               },
             ),
             ListTile(
@@ -435,7 +447,13 @@ class _ImageTileState extends State<ImageTile> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _showDetailsDialog(context),
+      onTap: () async {
+        if (widget.gridMode && widget.onOpenFullScreen != null) {
+          widget.onOpenFullScreen!.call();
+        } else {
+          _showDetailsDialog(context);
+        }
+      },
       onLongPress: () => widget.onSelected(widget.identifier),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -643,7 +661,10 @@ class _ImageTileState extends State<ImageTile> {
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints.tightFor(width: 36, height: 36),
                                     icon: const Icon(Icons.edit),
-                                    onPressed: () => _editUsernames(context),
+                                    onPressed: () async {
+                                      await showHandlesSheet(context, widget.contact);
+                                      setState(() {});
+                                    },
                                   ),
                                   IconButton(
                                     iconSize: 22,
