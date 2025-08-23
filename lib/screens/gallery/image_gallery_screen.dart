@@ -18,6 +18,7 @@ import 'package:path/path.dart' as path;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:PhotoWordFind/screens/gallery/review_viewer.dart';
 
 class ImageGalleryScreen extends StatefulWidget {
   const ImageGalleryScreen({super.key});
@@ -42,6 +43,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   ];
   String selectedState = 'All';
   List<String> states = ['All'];
+
+  // Verification filter
+  String verificationFilter = 'All';
+  final List<String> verificationOptions = const [
+    'All',
+    'Unverified (any)',
+    'Unverified: Snapchat',
+    'Unverified: Instagram',
+    'Unverified: Discord',
+  ];
 
   // Data
   List<ContactEntry> images = [];
@@ -313,17 +324,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       slivers: [
         SliverAppBar(
           title: const Text('Image Gallery'),
-          floating: true,
-          snap: true,
+          floating: false,
+          snap: false,
           pinned: true,
+          primary: true,
           actions: _buildAppBarActions(navContext),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(56),
-            child: _buildSlimFilterBar(),
-          ),
         ),
         if (_initializationError != null)
           SliverToBoxAdapter(child: _buildInitializationErrorBanner(context)),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _FixedHeaderDelegate(
+            minHeight: 120,
+            maxHeight: 120,
+            child: _buildSlimFilterBar(),
+          ),
+        ),
         SliverImageGallery(
           images: images,
           selectedImages: selectedImages,
@@ -421,85 +437,169 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return Container(
       color: Theme.of(context).colorScheme.surface,
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // State selector chip
-          InkWell(
-            onTap: _showStatePicker,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.label, size: 18),
-                  SizedBox(width: 6),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(selectedState, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(width: 12),
-
-          // Search
-          Expanded(
-            child: SizedBox(
-              height: 36,
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Search',
-                  prefixIcon: Icon(Icons.search),
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                ),
-                onChanged: (value) {
-                  searchQuery = value;
-                  _searchDebounce?.cancel();
-                  _searchDebounce = Timer(const Duration(milliseconds: 220), () {
-                    if (!mounted) return;
-                    _filterImages();
-                  });
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Sort menu
-          IconButton(
-            tooltip: 'Sort',
-            icon: const Icon(Icons.sort),
-            onPressed: () async {
-              final res = await showModalBottomSheet<String>(
-                context: context,
-                builder: (ctx) => SafeArea(
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      const ListTile(title: Text('Sort by', style: TextStyle(fontWeight: FontWeight.bold))),
-                      ...sortOptions.map((o) => RadioListTile<String>(
-                            value: o,
-                            groupValue: selectedSortOption,
-                            title: Text(o),
-                            onChanged: (v) => Navigator.pop(ctx, v),
-                          )),
-                    ],
+          // Row 1: chips (scrollable to avoid overflow)
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                // State chip
+                InkWell(
+                  onTap: _showStatePicker,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.label, size: 18),
+                        SizedBox(width: 6),
+                      ],
+                    ),
                   ),
                 ),
-              );
-              if (res != null) {
-                selectedSortOption = res;
-                await _applyFiltersAndSort();
-              }
-            },
+                const SizedBox(width: 6),
+                Center(child: Text(selectedState, style: const TextStyle(fontWeight: FontWeight.w600))),
+                const SizedBox(width: 12),
+
+                // Verification chip
+                Tooltip(
+                  message: 'Verification filter',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      final res = await showModalBottomSheet<String>(
+                        context: context,
+                        builder: (ctx) => SafeArea(
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: [
+                              const ListTile(title: Text('Verification filter', style: TextStyle(fontWeight: FontWeight.bold))),
+                              ...verificationOptions.map((o) => RadioListTile<String>(
+                                    value: o,
+                                    groupValue: verificationFilter,
+                                    title: Text(o),
+                                    onChanged: (v) => Navigator.pop(ctx, v),
+                                  )),
+                            ],
+                          ),
+                        ),
+                      );
+                      if (res != null) {
+                        setState(() => verificationFilter = res);
+                        await _filterImages();
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.verified_user, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            verificationFilter == 'All' ? 'Verification: All' : verificationFilter,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Review button
+                FilledButton.icon(
+                  onPressed: () async {
+                    if (verificationFilter == 'All') {
+                      setState(() => verificationFilter = 'Unverified (any)');
+                      await _filterImages();
+                    }
+                    if (images.isNotEmpty) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ReviewViewer(images: images, initialIndex: 0, sortOption: selectedSortOption),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No unverified entries in this state')));
+                    }
+                  },
+                  icon: const Icon(Icons.rule_folder_outlined),
+                  label: const Text('Review unverified'),
+                ),
+              ],
+            ),
           ),
-          _buildOrderToggle(),
+          const SizedBox(height: 8),
+
+          // Row 2: search + sort + order
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Search',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                    onChanged: (value) {
+                      searchQuery = value;
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(const Duration(milliseconds: 220), () {
+                        if (!mounted) return;
+                        _filterImages();
+                      });
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Sort',
+                icon: const Icon(Icons.sort),
+                onPressed: () async {
+                  final res = await showModalBottomSheet<String>(
+                    context: context,
+                    builder: (ctx) => SafeArea(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          const ListTile(title: Text('Sort by', style: TextStyle(fontWeight: FontWeight.bold))),
+                          ...sortOptions.map((o) => RadioListTile<String>(
+                                value: o,
+                                groupValue: selectedSortOption,
+                                title: Text(o),
+                                onChanged: (v) => Navigator.pop(ctx, v),
+                              )),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (res != null) {
+                    selectedSortOption = res;
+                    await _applyFiltersAndSort();
+                  }
+                },
+              ),
+              _buildOrderToggle(),
+            ],
+          ),
         ],
       ),
     );
@@ -789,10 +889,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   // ---------------- Sorting/apply ----------------
   Future<void> _applyFiltersAndSort() async {
+    bool passesVerification(ContactEntry e) {
+      switch (verificationFilter) {
+        case 'Unverified (any)':
+          return !(e.addedOnSnap || e.addedOnInsta || e.addedOnDiscord);
+        case 'Unverified: Snapchat':
+          return !e.addedOnSnap;
+        case 'Unverified: Instagram':
+          return !e.addedOnInsta;
+        case 'Unverified: Discord':
+          return !e.addedOnDiscord;
+        case 'All':
+        default:
+          return true;
+      }
+    }
+
     final filtered = SearchService.searchEntries(allImages, searchQuery).where((img) {
       final tag = img.state ?? path.basename(path.dirname(img.imagePath));
       final matchesState = selectedState == 'All' || tag == selectedState;
-      return matchesState;
+      return matchesState && passesVerification(img);
     }).toList();
 
     int compare(ContactEntry a, ContactEntry b) {
@@ -1099,6 +1215,31 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         content: Text(imported > 0 ? 'Imported $imported image${imported == 1 ? '' : 's'}' : 'No new images imported'),
       ),
     );
+  }
+
+}
+
+class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _FixedHeaderDelegate({required this.minHeight, required this.maxHeight, required this.child});
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(color: Theme.of(context).colorScheme.surface, child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _FixedHeaderDelegate oldDelegate) {
+    return minHeight != oldDelegate.minHeight || maxHeight != oldDelegate.maxHeight || child != oldDelegate.child;
   }
 }
 
