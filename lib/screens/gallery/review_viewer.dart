@@ -18,6 +18,14 @@ class ReviewViewer extends StatefulWidget {
 class _ReviewViewerState extends State<ReviewViewer> {
   late final PageController _pageController;
   late int _index;
+  bool _editorOpen = false;
+  bool _aimHighlight = false;
+  double _aimY = 0.75; // normalized 0..1 from top
+  double _dockPerc = 0.45; // 0..1 of screen height
+  final double _dockMin = 0.22;
+  final double _dockMid = 0.55;
+  final double _dockMax = 0.92;
+  ScrollController? _panelScroll;
 
   ContactEntry get _current => widget.images[_index];
 
@@ -88,10 +96,18 @@ class _ReviewViewerState extends State<ReviewViewer> {
       body: SafeArea(
         child: Stack(
           children: [
+            // Image viewer
             PageView.builder(
               controller: _pageController,
               itemCount: widget.images.length,
-              onPageChanged: (i) => setState(() => _index = i),
+              onPageChanged: (i) => setState(() {
+                _index = i;
+                _aimHighlight = false; // reset aim when switching entries
+                if (_editorOpen) {
+                  _panelScroll?.dispose();
+                  _panelScroll = ScrollController();
+                }
+              }),
               itemBuilder: (context, index) {
                 final entry = widget.images[index];
                 return PhotoView(
@@ -102,6 +118,10 @@ class _ReviewViewerState extends State<ReviewViewer> {
                 );
               },
             ),
+            if (_editorOpen && _aimHighlight)
+              Positioned.fill(
+                child: _AimBandOverlay(centerY: _aimY, bandHeightFraction: 0.18),
+              ),
             Positioned(
               top: 0,
               left: 0,
@@ -151,12 +171,9 @@ class _ReviewViewerState extends State<ReviewViewer> {
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
-                      onPressed: () async {
-                        await showHandlesSheet(context, _current);
-                        setState(() {});
-                      },
+                      onPressed: () => setState(() => _editorOpen = !_editorOpen),
                       icon: const Icon(Icons.manage_accounts),
-                      label: const Text('Handles'),
+                      label: Text(_editorOpen ? 'Hide handles' : 'Handles'),
                       style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
                     ),
                     const Spacer(),
@@ -178,9 +195,131 @@ class _ReviewViewerState extends State<ReviewViewer> {
                 ),
               ),
             ),
+            if (_editorOpen)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: MediaQuery.of(context).size.height * _dockPerc,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).canvasColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, -2))],
+                  ),
+                  child: Column(
+                    children: [
+                      // Drag handle area: only this area resizes the panel
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onVerticalDragUpdate: (d) {
+                          final h = MediaQuery.of(context).size.height;
+                          setState(() {
+                            _dockPerc = (_dockPerc - d.primaryDelta! / h).clamp(_dockMin, _dockMax);
+                          });
+                        },
+                        onVerticalDragEnd: (_) {
+                          // snap to nearest
+                          final targets = [_dockMin, _dockMid, _dockMax];
+                          double closest = targets.first;
+                          for (final t in targets) {
+                            if ((t - _dockPerc).abs() < (closest - _dockPerc).abs()) closest = t;
+                          }
+                          setState(() => _dockPerc = closest);
+                          // light haptic
+                          // ignore: deprecated_member_use
+                          Feedback.forTap(context);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 8),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 4,
+                                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+                              ),
+                              const SizedBox(height: 6),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.manage_accounts),
+                                    const SizedBox(width: 8),
+                                    const Text('Handles & Verification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                                    const Spacer(),
+                                    TextButton(
+                                      onPressed: () => setState(() => _editorOpen = false),
+                                      child: const Text('Hide'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: HandlesEditorPanel(
+                          key: ValueKey(widget.images[_index].imagePath),
+                          contact: _current,
+                          scrollController: _panelScroll ??= ScrollController(),
+                          showHeader: false,
+                          showPreview: false,
+                          onAim: (y) => setState(() => _aimY = y),
+                          onAimHighlight: (v) => setState(() => _aimHighlight = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _AimBandOverlay extends StatelessWidget {
+  final double centerY; // 0..1
+  final double bandHeightFraction; // 0..1
+  const _AimBandOverlay({required this.centerY, this.bandHeightFraction = 0.2});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _AimBandPainter(centerY: centerY, bandHeightFraction: bandHeightFraction),
+    );
+  }
+}
+
+class _AimBandPainter extends CustomPainter {
+  final double centerY;
+  final double bandHeightFraction;
+  _AimBandPainter({required this.centerY, required this.bandHeightFraction});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.black54;
+    final rect = Offset.zero & size;
+    final bandHeight = size.height * bandHeightFraction;
+    final center = size.height * centerY;
+    final bandRect = Rect.fromLTWH(0, (center - bandHeight / 2).clamp(0.0, size.height - bandHeight), size.width, bandHeight);
+
+    // Darken whole screen
+    canvas.drawRect(rect, paint);
+    // Clear a horizontal band
+    final clearPaint = Paint()..blendMode = BlendMode.clear;
+    canvas.saveLayer(rect, Paint());
+    canvas.drawRect(rect, paint);
+    canvas.drawRect(bandRect, clearPaint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _AimBandPainter old) {
+    return old.centerY != centerY || old.bandHeightFraction != bandHeightFraction;
   }
 }
