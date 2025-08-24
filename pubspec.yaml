@@ -47,8 +47,11 @@ dependencies:
 
   sn_progress_dialog: ^1.0.8
 
-  # Photo gallery functionality
-  photo_view: ^0.14.0
+  # Photo gallery functionality (use fork with tap-centered double-tap zoom)
+  photo_view:
+    git:
+      url: https://github.com/farrerdev/photo_view.git
+      ref: feat/double_tap_zoom
 
   crop_your_image: ^2.0.0
 
