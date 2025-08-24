@@ -1024,11 +1024,12 @@ packages:
   photo_view:
     dependency: "direct main"
     description:
-      name: photo_view
-      sha256: "8036802a00bae2a78fc197af8a158e3e2f7b500561ed23b4c458107685e645bb"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.14.0"
+      path: "."
+      ref: "feat/double_tap_zoom"
+      resolved-ref: "7ec6f54b4f6c77d60712135d7843f2e8e6324843"
+      url: "https://github.com/farrerdev/photo_view.git"
+    source: git
+    version: "0.15.0"
   platform:
     dependency: transitive
     description:
