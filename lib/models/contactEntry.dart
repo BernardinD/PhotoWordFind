@@ -444,8 +444,10 @@ abstract class _ContactEntry with Store {
     }
     // Update primary field
     snapUsername = snapchat;
-    // Keep aggregated map in sync
+  // Keep aggregated map in sync
     _ensureHandlesMap()[SubKeys.SnapUsername] = snapchat;
+  // Changing the handle invalidates any prior verification
+  verifiedOnSnapAt = null;
   }
 
   @action
@@ -456,7 +458,8 @@ abstract class _ContactEntry with Store {
       _ensurePrevList(SubKeys.InstaUsername).add(instaUsername!);
     }
     instaUsername = instagram;
-    _ensureHandlesMap()[SubKeys.InstaUsername] = instagram;
+  _ensureHandlesMap()[SubKeys.InstaUsername] = instagram;
+  verifiedOnInstaAt = null;
   }
 
   @action
@@ -467,7 +470,8 @@ abstract class _ContactEntry with Store {
       _ensurePrevList(SubKeys.DiscordUsername).add(discordUsername!);
     }
     discordUsername = discord;
-    _ensureHandlesMap()[SubKeys.DiscordUsername] = discord;
+  _ensureHandlesMap()[SubKeys.DiscordUsername] = discord;
+  verifiedOnDiscordAt = null;
   }
 
   @action
