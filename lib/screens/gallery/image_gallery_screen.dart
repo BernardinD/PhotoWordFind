@@ -889,16 +889,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   // ---------------- Sorting/apply ----------------
   Future<void> _applyFiltersAndSort() async {
-    bool passesVerification(ContactEntry e) {
+  bool passesVerification(ContactEntry e) {
       switch (verificationFilter) {
         case 'Unverified (any)':
-          return !(e.addedOnSnap || e.addedOnInsta || e.addedOnDiscord);
+      // Show only entries with no verification on any platform
+      return (e.verifiedOnSnapAt == null) && (e.verifiedOnInstaAt == null) && (e.verifiedOnDiscordAt == null);
         case 'Unverified: Snapchat':
-          return !e.addedOnSnap;
+          return e.verifiedOnSnapAt == null;
         case 'Unverified: Instagram':
-          return !e.addedOnInsta;
+          return e.verifiedOnInstaAt == null;
         case 'Unverified: Discord':
-          return !e.addedOnDiscord;
+          return e.verifiedOnDiscordAt == null;
         case 'All':
         default:
           return true;
@@ -1175,7 +1176,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           postProcessChatGptResult(entry, result, save: false);
         }
 
-        await StorageUtils.save(entry, backup: false);
+  await StorageUtils.save(entry);
         StorageUtils.filePaths[id] = destPath;
         newEntries.add(entry);
       } catch (e) {
