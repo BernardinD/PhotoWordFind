@@ -1164,19 +1164,20 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         }
 
         final id = path.basenameWithoutExtension(filename);
-        final entry = ContactEntry(
+        var entry = ContactEntry(
           identifier: id,
           imagePath: destPath,
           dateFound: File(destPath).lastModifiedSync(),
           json: {SubKeys.State: 'Comb'},
+          isNewImport: true,
         );
 
         final result = await ChatGPTService.processImage(imageFile: File(destPath));
         if (result != null) {
-          postProcessChatGptResult(entry, result, save: false);
+          entry = postProcessChatGptResult(entry, result, save: false);
         }
 
-  await StorageUtils.save(entry);
+        await StorageUtils.save(entry);
         StorageUtils.filePaths[id] = destPath;
         newEntries.add(entry);
       } catch (e) {

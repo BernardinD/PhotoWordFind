@@ -62,6 +62,17 @@ List<Map<String, String>>? toJsonObservableListOfMaps(
 
 typedef FieldUpdater<T> = void Function(T model, dynamic value);
 final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
+  SubKeys.Name: (model, value) {
+    model.name = (value is String && value.trim().isNotEmpty) ? value : model.name;
+  },
+  SubKeys.Age: (model, value) {
+    if (value is int) {
+      model.age = value;
+    } else if (value is String) {
+      final parsed = int.tryParse(value);
+      if (parsed != null) model.age = parsed;
+    }
+  },
   SubKeys.Sections: (model, value) {
     if (value is List && value.isNotEmpty) {
       final listOfMaps = value.map((item) {
@@ -160,8 +171,10 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       {required this.identifier,
       required String imagePath,
       required this.dateFound,
-      required Map<String, dynamic> json})
-      : super(
+      required Map<String, dynamic> json,
+      bool isNewImport = false})
+      : isNewImport = isNewImport,
+        super(
           imagePath: imagePath,
           ocr: json[SubKeys.OCR],
           state: json[SubKeys.State] ?? path.basename(path.dirname(imagePath)),
@@ -217,6 +230,9 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
   }
   final String identifier;
   final DateTime dateFound;
+  // Transient flag: true when this instance was just created during import.
+  // Not persisted; used to gate first-time post-processing behavior.
+  final bool isNewImport;
 
   /// Factory constructor to create a ContactEntry from JSON data.
   /// But note, this version is meant for the initial migration from the shared preferences implementation,
@@ -400,10 +416,10 @@ abstract class _ContactEntry with Store {
   @observable
   String? notes;
 
-  // New chatGPT responses
-  final String? name;
+  // New chatGPT responses (mutable to allow post-processing fill-in)
+  String? name;
 
-  final int? age;
+  int? age;
 
   Location? location;
 

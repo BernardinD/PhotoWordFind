@@ -42,6 +42,12 @@ ContactEntry postProcessChatGptResult(
     response[SubKeys.Sections].addAll(originalSections);
   }
 
+  // If this isn't a new import, don't let post-processing overwrite name/age.
+  if (entry.isNewImport != true) {
+    response.remove(SubKeys.Name);
+    response.remove(SubKeys.Age);
+  }
+
   entry.mergeFromJson(response, save);
   return entry;
 }
