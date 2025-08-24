@@ -153,45 +153,86 @@ class _ReviewViewerState extends State<ReviewViewer> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black54],
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black54],
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _showDetailsSheet,
-                      icon: const Icon(Icons.description_outlined),
-                      label: const Text('Details'),
+                  child: SizedBox(
+                    height: 52,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Button row with reserved edge space for arrows
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 56.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: _showDetailsSheet,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      minimumSize: const Size(0, 44),
+                                    ),
+                                    icon: const Icon(Icons.description_outlined),
+                                    label: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text('Details'),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => setState(() => _editorOpen = !_editorOpen),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      side: const BorderSide(color: Colors.white70),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      minimumSize: const Size(0, 44),
+                                    ),
+                                    icon: const Icon(Icons.manage_accounts),
+                                    label: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text('Handles'),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            color: Colors.white,
+                            icon: const Icon(Icons.chevron_left, size: 30),
+                            onPressed: _index > 0
+                                ? () => _pageController.animateToPage(_index - 1, duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
+                                : null,
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            color: Colors.white,
+                            icon: const Icon(Icons.chevron_right, size: 30),
+                            onPressed: _index < widget.images.length - 1
+                                ? () => _pageController.animateToPage(_index + 1, duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
+                                : null,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: () => setState(() => _editorOpen = !_editorOpen),
-                      icon: const Icon(Icons.manage_accounts),
-                      label: Text(_editorOpen ? 'Hide handles' : 'Handles'),
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      color: Colors.white,
-                      icon: const Icon(Icons.chevron_left, size: 30),
-                      onPressed: _index > 0
-                          ? () => _pageController.animateToPage(_index - 1, duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
-                          : null,
-                    ),
-                    IconButton(
-                      color: Colors.white,
-                      icon: const Icon(Icons.chevron_right, size: 30),
-                      onPressed: _index < widget.images.length - 1
-                          ? () => _pageController.animateToPage(_index + 1, duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
-                          : null,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
