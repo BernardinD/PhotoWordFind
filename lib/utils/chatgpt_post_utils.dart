@@ -7,8 +7,8 @@ import 'package:timezone/timezone.dart' as tz;
 /// into [entry]. This avoids overwriting sensitive information and ensures
 /// new sections are appended without duplication.
 ContactEntry postProcessChatGptResult(
-    ContactEntry entry, Map<String, dynamic> response,
-    {bool save = true}) {
+  ContactEntry entry, Map<String, dynamic> response,
+  {bool save = true, bool allowNameAgeUpdate = false}) {
   // Avoid overriding an existing location
   if (entry.location != null && response[SubKeys.Location] != null) {
     response.remove(SubKeys.Location);
@@ -42,8 +42,9 @@ ContactEntry postProcessChatGptResult(
     response[SubKeys.Sections].addAll(originalSections);
   }
 
-  // If this isn't a new import, don't let post-processing overwrite name/age.
-  if (entry.isNewImport != true) {
+  // If this isn't a new import, don't let post-processing overwrite name/age
+  // unless a one-time override is explicitly allowed (e.g., from Redo OCR).
+  if (entry.isNewImport != true && allowNameAgeUpdate != true) {
     response.remove(SubKeys.Name);
     response.remove(SubKeys.Age);
   }
