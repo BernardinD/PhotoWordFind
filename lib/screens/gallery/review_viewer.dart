@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
+import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
+import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 
 class ReviewViewer extends StatefulWidget {
   final List<ContactEntry> images;
@@ -153,6 +156,39 @@ class _ReviewViewerState extends State<ReviewViewer> {
                     const SizedBox(width: 8),
                     Text('${_index + 1} / ${widget.images.length}', style: const TextStyle(color: Colors.white)),
                     const Spacer(),
+                    // Redo text extraction for the current item
+                    IconButton(
+                      tooltip: 'Redo text extraction',
+                      color: Colors.white,
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () async {
+                        final entry = _current;
+                        final result = await Navigator.of(context).push<Map<String, dynamic>>(
+                          MaterialPageRoute(
+                            builder: (_) => RedoCropScreen(
+                              imageFile: File(entry.imagePath),
+                              contact: entry,
+                              initialAllowNameAgeUpdate: (entry.name == null || entry.name!.isEmpty || entry.age == null),
+                            ),
+                          ),
+                        );
+                        if (result != null) {
+                          final response = result['response'] as Map<String, dynamic>?;
+                          final allowNameAgeUpdate = result['allowNameAgeUpdate'] == true;
+                          if (response != null) {
+                            setState(() {
+                              postProcessChatGptResult(
+                                entry,
+                                response,
+                                save: false,
+                                allowNameAgeUpdate: allowNameAgeUpdate,
+                              );
+                            });
+                            await StorageUtils.save(entry);
+                          }
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),

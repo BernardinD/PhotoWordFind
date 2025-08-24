@@ -508,6 +508,7 @@ class _ImageTileState extends State<ImageTile> {
                         maxScale: PhotoViewComputedScale.covered * 2.5,
                       ),
                     ),
+                  // Top-right: menu button (moved here from bottom bar)
                   Positioned(
                     top: 8,
                     right: 8,
@@ -517,19 +518,13 @@ class _ImageTileState extends State<ImageTile> {
                       elevation: 4,
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () async {
-                          await _redoTextExtraction();
-                        },
+                        onTap: () => _showPopupMenu(context, widget.imagePath),
                         child: Container(
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF4F8CFF), Color(0xFF8F5CFF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            color: Colors.black.withOpacity(0.55),
                             border: Border.all(color: Colors.white, width: 2),
                             boxShadow: const [
                               BoxShadow(
@@ -541,7 +536,7 @@ class _ImageTileState extends State<ImageTile> {
                           ),
                           child: const Center(
                             child: Icon(
-                              Icons.refresh,
+                              Icons.more_vert,
                               color: Colors.white,
                               size: 20,
                             ),
@@ -679,14 +674,7 @@ class _ImageTileState extends State<ImageTile> {
                                       setState(() {});
                                     },
                                   ),
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                    icon: const Icon(Icons.more_vert),
-                                    onPressed: () => _showPopupMenu(context, widget.imagePath),
-                                  ),
+                                  // Menu moved to top-right; remove from bottom bar to avoid duplication
                                 ],
                               ),
                             ),
