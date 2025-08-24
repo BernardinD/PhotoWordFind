@@ -78,7 +78,7 @@ class StorageUtils {
   // If any save() requests backup=true, queue a single cloud update after a
   // short delay; subsequent requests extend the delay.
   static Timer? _cloudDebounceTimer;
-  static const Duration _cloudDebounceDuration = Duration(seconds: 2);
+  static const Duration _cloudDebounceDuration = Duration(seconds: 30);
 
   static Future<void> init() async {
     filePaths = (await readJson()).cast<String, String>();
