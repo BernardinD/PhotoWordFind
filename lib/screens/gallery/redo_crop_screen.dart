@@ -9,11 +9,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
+import 'package:PhotoWordFind/models/contactEntry.dart';
 
 class RedoCropScreen extends StatefulWidget {
-	const RedoCropScreen({super.key, required this.imageFile});
+	const RedoCropScreen({super.key, required this.imageFile, this.initialAllowNameAgeUpdate, this.contact});
 
 	final File imageFile;
+  final bool? initialAllowNameAgeUpdate;
+  final ContactEntry? contact;
 
 	@override
 	State<RedoCropScreen> createState() => _RedoCropScreenState();
@@ -24,6 +27,8 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 	bool _processing = false;
 	static bool _hintShown = false;
 	late bool _showHint;
+	// One-time override: allow updating name/age from this redo
+	bool _allowNameAgeUpdate = false;
   
 	// Crop area state
 	Rect _cropRect = const Rect.fromLTWH(50, 100, 200, 200);
@@ -37,6 +42,7 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 		super.initState();
 		_showHint = !_hintShown;
 		_hintShown = true;
+    _allowNameAgeUpdate = widget.initialAllowNameAgeUpdate ?? false;
     
 		// Set initial crop area to center of screen
 		WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -49,9 +55,7 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 				);
 			});
 		});
-	}
-
-	@override
+	}	@override
 	void dispose() {
 		_photoController.dispose();
 		super.dispose();
@@ -129,7 +133,10 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 
 			final response = await ChatGPTService.processImage(imageFile: file);
 			if (!mounted) return;
-			Navigator.pop(context, response);
+			Navigator.pop(context, {
+          'response': response,
+          'allowNameAgeUpdate': _allowNameAgeUpdate,
+        });
 		} catch (e) {
 			if (mounted) {
 				ScaffoldMessenger.of(context).showSnackBar(
@@ -183,54 +190,52 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 						maxScale: PhotoViewComputedScale.covered * 3.0,
 						controller: _photoController,
 						enableRotation: false,
-						filterQuality: FilterQuality.high,
-					),
-          
-					// Crop overlay
-					Positioned.fill(
-						child: GestureDetector(
-							onPanStart: (details) {
-								final localPosition = details.localPosition;
-								final handle = _getResizeHandle(localPosition);
-                
-								if (handle != null) {
+							filterQuality: FilterQuality.high,
+						),
+
+						Positioned.fill(
+							child: GestureDetector(
+								onPanStart: (details) {
+									final localPosition = details.localPosition;
+									final handle = _getResizeHandle(localPosition);
+									if (handle != null) {
+										setState(() {
+											_isResizing = true;
+											_resizeHandle = handle;
+											_dragStart = localPosition;
+										});
+									} else if (_cropRect.contains(localPosition)) {
+										setState(() {
+											_isDragging = true;
+											_dragStart = localPosition;
+										});
+									}
+								},
+								onPanUpdate: (details) {
+									if (_isDragging && _dragStart != null) {
+										final delta = details.localPosition - _dragStart!;
+										setState(() {
+											_cropRect = _cropRect.translate(delta.dx, delta.dy);
+											_dragStart = details.localPosition;
+										});
+									} else if (_isResizing && _dragStart != null && _resizeHandle != null) {
+										_handleResize(details.localPosition);
+									}
+								},
+								onPanEnd: (details) {
 									setState(() {
-										_isResizing = true;
-										_resizeHandle = handle;
-										_dragStart = localPosition;
+										_isDragging = false;
+										_isResizing = false;
+										_dragStart = null;
+										_resizeHandle = null;
 									});
-								} else if (_cropRect.contains(localPosition)) {
-									setState(() {
-										_isDragging = true;
-										_dragStart = localPosition;
-									});
-								}
-							},
-							onPanUpdate: (details) {
-								if (_isDragging && _dragStart != null) {
-									final delta = details.localPosition - _dragStart!;
-									setState(() {
-										_cropRect = _cropRect.translate(delta.dx, delta.dy);
-										_dragStart = details.localPosition;
-									});
-								} else if (_isResizing && _dragStart != null && _resizeHandle != null) {
-									_handleResize(details.localPosition);
-								}
-							},
-							onPanEnd: (details) {
-								setState(() {
-									_isDragging = false;
-									_isResizing = false;
-									_dragStart = null;
-									_resizeHandle = null;
-								});
-							},
-							child: CustomPaint(
-								painter: CropOverlayPainter(_cropRect, _isResizing, _resizeHandle),
-								child: Container(),
+								},
+								child: CustomPaint(
+									painter: CropOverlayPainter(_cropRect, _isResizing, _resizeHandle),
+									child: Container(),
+								),
 							),
 						),
-					),
           
 					if (_showHint)
 						Positioned(
@@ -292,26 +297,57 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 												],
 											),
 										)
-									: Row(
-											mainAxisSize: MainAxisSize.min,
-											children: [
-												TextButton.icon(
-													onPressed: () => Navigator.pop(context),
-													icon: const Icon(Icons.close, color: Colors.white),
-													label: const Text('Cancel', style: TextStyle(color: Colors.white)),
-												),
-												const SizedBox(width: 16),
-												ElevatedButton.icon(
-													onPressed: _captureCroppedArea,
-													icon: const Icon(Icons.crop),
-													label: const Text('Redo OCR'),
-													style: ElevatedButton.styleFrom(
-														backgroundColor: Colors.blue,
-														foregroundColor: Colors.white,
-													),
-												),
-											],
-										),
+									: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Only show toggle if name or age are missing
+                      if (widget.contact != null && 
+                          (widget.contact!.name == null || widget.contact!.name!.isEmpty || widget.contact!.age == null))
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Switch(
+                                  value: _allowNameAgeUpdate,
+                                  onChanged: (v) => setState(() => _allowNameAgeUpdate = v),
+                                ),
+                                const SizedBox(width: 8),
+                                const Flexible(
+                                  child: Text(
+                                    'Allow updating name/age from this redo',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            label: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            onPressed: _captureCroppedArea,
+                            icon: const Icon(Icons.crop),
+                            label: const Text('Redo OCR'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
 						),
 					),
 				],

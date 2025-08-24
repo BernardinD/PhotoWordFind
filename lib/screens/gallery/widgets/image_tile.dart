@@ -236,14 +236,27 @@ class _ImageTileState extends State<ImageTile> {
   Future<void> _redoTextExtraction() async {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (_) => RedoCropScreen(imageFile: File(widget.imagePath)),
+        builder: (_) => RedoCropScreen(
+          imageFile: File(widget.imagePath),
+          contact: widget.contact,
+          initialAllowNameAgeUpdate: (widget.contact.name == null || widget.contact.name!.isEmpty || widget.contact.age == null),
+        ),
       ),
     );
     if (result != null) {
-      setState(() {
-        postProcessChatGptResult(widget.contact, result, save: false);
-      });
-      await StorageUtils.save(widget.contact);
+      final response = result['response'] as Map<String, dynamic>?;
+      final allowNameAgeUpdate = result['allowNameAgeUpdate'] == true;
+      if (response != null) {
+        setState(() {
+          postProcessChatGptResult(
+            widget.contact,
+            response,
+            save: false,
+            allowNameAgeUpdate: allowNameAgeUpdate,
+          );
+        });
+        await StorageUtils.save(widget.contact);
+      }
     }
   }
 
