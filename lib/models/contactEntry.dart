@@ -422,10 +422,14 @@ abstract class _ContactEntry with Store {
   // Enable autosave for this action; we intentionally LEAVE it enabled
   // at the end so the reaction can trigger a debounced save.
   _suppressAutoSave = false;
+    // Track previous handle
     if (snapUsername != null && snapUsername!.isNotEmpty) {
-      previousHandles?[SubKeys.SnapUsername]?.add(snapUsername!);
+      _ensurePrevList(SubKeys.SnapUsername).add(snapUsername!);
     }
+    // Update primary field
     snapUsername = snapchat;
+    // Keep aggregated map in sync
+    _ensureHandlesMap()[SubKeys.SnapUsername] = snapchat;
   }
 
   @action
@@ -433,9 +437,10 @@ abstract class _ContactEntry with Store {
   // Enable autosave and keep it enabled for reaction/debounced persistence.
   _suppressAutoSave = false;
     if (instaUsername != null && instaUsername!.isNotEmpty) {
-      previousHandles?[SubKeys.InstaUsername]?.add(instaUsername!);
+      _ensurePrevList(SubKeys.InstaUsername).add(instaUsername!);
     }
     instaUsername = instagram;
+    _ensureHandlesMap()[SubKeys.InstaUsername] = instagram;
   }
 
   @action
@@ -443,9 +448,10 @@ abstract class _ContactEntry with Store {
   // Enable autosave and keep it enabled for reaction/debounced persistence.
   _suppressAutoSave = false;
     if (discordUsername != null && discordUsername!.isNotEmpty) {
-      previousHandles?[SubKeys.DiscordUsername]?.add(discordUsername!);
+      _ensurePrevList(SubKeys.DiscordUsername).add(discordUsername!);
     }
     discordUsername = discord;
+    _ensureHandlesMap()[SubKeys.DiscordUsername] = discord;
   }
 
   @action
@@ -566,5 +572,21 @@ abstract class _ContactEntry with Store {
   }) {
     this.previousHandles = ObservableMap.of(previousHandles ?? {});
     // this.sections = ObservableList.of(sections ?? []);
+  }
+
+  // ---- Helpers to ensure observable containers are initialized ----
+  ObservableMap<String, String?> _ensureHandlesMap() {
+    return socialMediaHandles ??= ObservableMap<String, String?>();
+  }
+
+  ObservableList<String> _ensurePrevList(String key) {
+    previousHandles ??= ObservableMap<String, ObservableList<String>>();
+    final list = previousHandles![key];
+    if (list == null) {
+      final newList = ObservableList<String>();
+      previousHandles![key] = newList;
+      return newList;
+    }
+    return list;
   }
 }

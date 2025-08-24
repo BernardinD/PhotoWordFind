@@ -137,6 +137,54 @@ mixin _$ContactEntry on _ContactEntry, Store {
     });
   }
 
+  late final _$verifiedOnSnapAtAtom =
+      Atom(name: '_ContactEntry.verifiedOnSnapAt', context: context);
+
+  @override
+  DateTime? get verifiedOnSnapAt {
+    _$verifiedOnSnapAtAtom.reportRead();
+    return super.verifiedOnSnapAt;
+  }
+
+  @override
+  set verifiedOnSnapAt(DateTime? value) {
+    _$verifiedOnSnapAtAtom.reportWrite(value, super.verifiedOnSnapAt, () {
+      super.verifiedOnSnapAt = value;
+    });
+  }
+
+  late final _$verifiedOnInstaAtAtom =
+      Atom(name: '_ContactEntry.verifiedOnInstaAt', context: context);
+
+  @override
+  DateTime? get verifiedOnInstaAt {
+    _$verifiedOnInstaAtAtom.reportRead();
+    return super.verifiedOnInstaAt;
+  }
+
+  @override
+  set verifiedOnInstaAt(DateTime? value) {
+    _$verifiedOnInstaAtAtom.reportWrite(value, super.verifiedOnInstaAt, () {
+      super.verifiedOnInstaAt = value;
+    });
+  }
+
+  late final _$verifiedOnDiscordAtAtom =
+      Atom(name: '_ContactEntry.verifiedOnDiscordAt', context: context);
+
+  @override
+  DateTime? get verifiedOnDiscordAt {
+    _$verifiedOnDiscordAtAtom.reportRead();
+    return super.verifiedOnDiscordAt;
+  }
+
+  @override
+  set verifiedOnDiscordAt(DateTime? value) {
+    _$verifiedOnDiscordAtAtom.reportWrite(value, super.verifiedOnDiscordAt, () {
+      super.verifiedOnDiscordAt = value;
+    });
+  }
+
   late final _$addedOnSnapAtom =
       Atom(name: '_ContactEntry.addedOnSnap', context: context);
 
@@ -311,6 +359,28 @@ mixin _$ContactEntry on _ContactEntry, Store {
   }
 
   @override
+  dynamic verifySnapchat() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.verifySnapchat');
+    try {
+      return super.verifySnapchat();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic unverifySnapchat() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.unverifySnapchat');
+    try {
+      return super.unverifySnapchat();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   dynamic addInstagram() {
     final _$actionInfo = _$_ContactEntryActionController.startAction(
         name: '_ContactEntry.addInstagram');
@@ -322,11 +392,55 @@ mixin _$ContactEntry on _ContactEntry, Store {
   }
 
   @override
+  dynamic verifyInstagram() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.verifyInstagram');
+    try {
+      return super.verifyInstagram();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic unverifyInstagram() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.unverifyInstagram');
+    try {
+      return super.unverifyInstagram();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   dynamic addDiscord() {
     final _$actionInfo = _$_ContactEntryActionController.startAction(
         name: '_ContactEntry.addDiscord');
     try {
       return super.addDiscord();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic verifyDiscord() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.verifyDiscord');
+    try {
+      return super.verifyDiscord();
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  dynamic unverifyDiscord() {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.unverifyDiscord');
+    try {
+      return super.unverifyDiscord();
     } finally {
       _$_ContactEntryActionController.endAction(_$actionInfo);
     }
@@ -376,6 +490,9 @@ discordUsername: ${discordUsername},
 dateAddedOnSnap: ${dateAddedOnSnap},
 dateAddedOnInsta: ${dateAddedOnInsta},
 dateAddedOnDiscord: ${dateAddedOnDiscord},
+verifiedOnSnapAt: ${verifiedOnSnapAt},
+verifiedOnInstaAt: ${verifiedOnInstaAt},
+verifiedOnDiscordAt: ${verifiedOnDiscordAt},
 addedOnSnap: ${addedOnSnap},
 addedOnInsta: ${addedOnInsta},
 addedOnDiscord: ${addedOnDiscord},
