@@ -72,6 +72,26 @@ class _ImageTileState extends State<ImageTile> {
     }
   }
 
+  SocialType? _getPrimarySocial() {
+    if (widget.contact.snapUsername?.isNotEmpty == true) return SocialType.Snapchat;
+    if (widget.contact.instaUsername?.isNotEmpty == true) return SocialType.Instagram;
+    if (widget.contact.discordUsername?.isNotEmpty == true) return SocialType.Discord;
+    return null;
+  }
+
+  String? _getPrimaryUsername(SocialType social) {
+    switch (social) {
+      case SocialType.Snapchat:
+        return widget.contact.snapUsername;
+      case SocialType.Instagram:
+        return widget.contact.instaUsername;
+      case SocialType.Discord:
+        return widget.contact.discordUsername;
+      default:
+        return null;
+    }
+  }
+
   void _showPopupMenu(BuildContext context, String imagePath) {
     showModalBottomSheet(
       context: context,
@@ -607,77 +627,64 @@ class _ImageTileState extends State<ImageTile> {
                               style: const TextStyle(color: Colors.white),
                             ),
                           ),
-                          Flexible(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  if (widget.contact.snapUsername?.isNotEmpty ?? false)
-                                    IconButton(
-                                      iconSize: 22,
-                                      color: Colors.white,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                      onPressed: () => _openSocial(
-                                        SocialType.Snapchat,
-                                        widget.contact.snapUsername!,
-                                      ),
-                                      icon: SocialIcon.snapchatIconButton!.socialIcon,
-                                    ),
-                                  if (widget.contact.instaUsername?.isNotEmpty ?? false)
-                                    IconButton(
-                                      iconSize: 22,
-                                      color: Colors.white,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                      onPressed: () => _openSocial(
-                                        SocialType.Instagram,
-                                        widget.contact.instaUsername!,
-                                      ),
-                                      icon: SocialIcon.instagramIconButton!.socialIcon,
-                                    ),
-                                  if (widget.contact.discordUsername?.isNotEmpty ?? false)
-                                    IconButton(
-                                      iconSize: 22,
-                                      color: Colors.white,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                      onPressed: () => _openSocial(
-                                        SocialType.Discord,
-                                        widget.contact.discordUsername!,
-                                      ),
-                                      icon: SocialIcon.discordIconButton!.socialIcon,
-                                    ),
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                    icon: const Icon(Icons.note_alt_outlined),
-                                    onPressed: () async {
-                                      await showNoteDialog(
-                                        context,
-                                        widget.contact.identifier,
-                                        widget.contact,
-                                        existingNotes: widget.contact.notes,
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () async {
-                                      await showHandlesSheet(context, widget.contact);
-                                      setState(() {});
-                                    },
-                                  ),
-                                  // Menu moved to top-right; remove from bottom bar to avoid duplication
-                                ],
+                          // Compact primary actions: primary social, notes, handles
+                          Row(
+                            children: [
+                              if (_getPrimarySocial() != null)
+                                IconButton(
+                                  tooltip: 'Open ${_getPrimarySocial()!.name}',
+                                  iconSize: 22,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                  onPressed: () {
+                                    final s = _getPrimarySocial()!;
+                                    final u = _getPrimaryUsername(s);
+                                    if (u != null && u.isNotEmpty) _openSocial(s, u);
+                                  },
+                                  icon: () {
+                                    final s = _getPrimarySocial()!;
+                                    switch (s) {
+                                      case SocialType.Snapchat:
+                                        return SocialIcon.snapchatIconButton!.socialIcon;
+                                      case SocialType.Instagram:
+                                        return SocialIcon.instagramIconButton!.socialIcon;
+                                      case SocialType.Discord:
+                                        return SocialIcon.discordIconButton!.socialIcon;
+                                      default:
+                                        return const Icon(Icons.open_in_new);
+                                    }
+                                  }(),
+                                ),
+                              IconButton(
+                                tooltip: 'Notes',
+                                iconSize: 22,
+                                color: Colors.white,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                icon: const Icon(Icons.note_alt_outlined),
+                                onPressed: () async {
+                                  await showNoteDialog(
+                                    context,
+                                    widget.contact.identifier,
+                                    widget.contact,
+                                    existingNotes: widget.contact.notes,
+                                  );
+                                },
                               ),
-                            ),
+                              IconButton(
+                                tooltip: 'Handles & Verification',
+                                iconSize: 22,
+                                color: Colors.white,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                icon: const Icon(Icons.manage_accounts),
+                                onPressed: () async {
+                                  await showHandlesSheet(context, widget.contact);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
