@@ -389,6 +389,51 @@ class StorageUtils {
     await Hive.openBox('contacts');
   }
 
+  /// One-time migration: populate verification dates from existing platform
+  /// "added" dates. Prior to separating concepts, "added" was often used as
+  /// a proxy for verification. To preserve that signal, copy any existing
+  /// dateAddedOn* into verifiedOn*At when verification is currently null.
+  /// Returns the number of entries updated. Safe to call on every startup; it
+  /// runs once and is idempotent via a SharedPreferences flag.
+  static Future<int> migrateVerificationDatesIfNeeded() async {
+    const String flagKey = 'migrated_verification_dates_v1';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(flagKey) == true) return 0;
+
+    int updated = 0;
+    final keys = getKeys();
+    for (final key in keys) {
+      try {
+        final entry = await get(key);
+        if (entry == null) continue;
+        bool changed = false;
+
+        if (entry.verifiedOnSnapAt == null && entry.dateAddedOnSnap != null) {
+          entry.verifiedOnSnapAt = entry.dateAddedOnSnap;
+          changed = true;
+        }
+        if (entry.verifiedOnInstaAt == null && entry.dateAddedOnInsta != null) {
+          entry.verifiedOnInstaAt = entry.dateAddedOnInsta;
+          changed = true;
+        }
+        if (entry.verifiedOnDiscordAt == null && entry.dateAddedOnDiscord != null) {
+          entry.verifiedOnDiscordAt = entry.dateAddedOnDiscord;
+          changed = true;
+        }
+
+        if (changed) {
+          updated++;
+          await save(entry);
+        }
+      } catch (e) {
+        debugPrint('Verification migration skipped key $key due to error: $e');
+      }
+    }
+
+    await prefs.setBool(flagKey, true);
+    return updated;
+  }
+
   /// Migrate all SharedPreferences contact entries to Hive
   static Future<void> migrateSharedPrefsToHive() async {
     final box = Hive.box('contacts');
