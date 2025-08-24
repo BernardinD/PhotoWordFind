@@ -144,22 +144,22 @@ class HandlesEditorPanel extends StatefulWidget {
   void _toggleVerified(String platform) {
     setState(() {
       if (platform == SubKeys.SnapUsername) {
-        if (widget.contact.addedOnSnap) {
-          widget.contact.resetSnapchatAdd();
+        if (widget.contact.verifiedOnSnapAt != null) {
+          widget.contact.unverifySnapchat();
         } else {
-          widget.contact.addSnapchat();
+          widget.contact.verifySnapchat();
         }
       } else if (platform == SubKeys.InstaUsername) {
-        if (widget.contact.addedOnInsta) {
-          widget.contact.resetInstagramAdd();
+        if (widget.contact.verifiedOnInstaAt != null) {
+          widget.contact.unverifyInstagram();
         } else {
-          widget.contact.addInstagram();
+          widget.contact.verifyInstagram();
         }
       } else if (platform == SubKeys.DiscordUsername) {
-        if (widget.contact.addedOnDiscord) {
-          widget.contact.resetDiscordAdd();
+        if (widget.contact.verifiedOnDiscordAt != null) {
+          widget.contact.unverifyDiscord();
         } else {
-          widget.contact.addDiscord();
+          widget.contact.verifyDiscord();
         }
       }
     });
@@ -430,24 +430,24 @@ class HandlesEditorPanel extends StatefulWidget {
                 title: 'Snapchat',
                 platformKey: SubKeys.SnapUsername,
                 controller: _snap,
-                verified: widget.contact.addedOnSnap,
-                verifiedAt: widget.contact.dateAddedOnSnap,
+                verified: widget.contact.verifiedOnSnapAt != null,
+                verifiedAt: widget.contact.verifiedOnSnapAt,
                 onAimTap: () => _aimFor(_snapKey),
               ).withKey(_snapKey),
               _platformSection(
                 title: 'Instagram',
                 platformKey: SubKeys.InstaUsername,
                 controller: _insta,
-                verified: widget.contact.addedOnInsta,
-                verifiedAt: widget.contact.dateAddedOnInsta,
+                verified: widget.contact.verifiedOnInstaAt != null,
+                verifiedAt: widget.contact.verifiedOnInstaAt,
                 onAimTap: () => _aimFor(_instaKey),
               ).withKey(_instaKey),
               _platformSection(
                 title: 'Discord',
                 platformKey: SubKeys.DiscordUsername,
                 controller: _discord,
-                verified: widget.contact.addedOnDiscord,
-                verifiedAt: widget.contact.dateAddedOnDiscord,
+                verified: widget.contact.verifiedOnDiscordAt != null,
+                verifiedAt: widget.contact.verifiedOnDiscordAt,
                 onAimTap: () => _aimFor(_discordKey),
               ).withKey(_discordKey),
               const SizedBox(height: 8),

@@ -68,8 +68,18 @@ Future<void> initializeApp() async {
 
   await StorageUtils.init();
 
-  // Ensure cloud backup is synced when the app starts
+  // Ensure cloud backup is ready before any optional migration-triggered sync
   await CloudUtils.firstSignIn();
+
+  // One-time migration: copy platform added dates to verification dates where missing
+  try {
+    final migrated = await StorageUtils.migrateVerificationDatesIfNeeded();
+    if (migrated > 0) {
+      debugPrint('Verification migration updated $migrated entries.');
+    }
+  } catch (e) {
+    debugPrint('Verification migration error: $e');
+  }
 
   // await StorageUtils.resetImagePaths();
 }

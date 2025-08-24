@@ -243,7 +243,7 @@ class _ImageTileState extends State<ImageTile> {
       setState(() {
         postProcessChatGptResult(widget.contact, result, save: false);
       });
-      await StorageUtils.save(widget.contact, backup: false);
+      await StorageUtils.save(widget.contact);
     }
   }
 
