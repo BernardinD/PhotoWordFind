@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:flutter/services.dart';
+// ignore_for_file: unused_import
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
@@ -60,7 +61,6 @@ class HandlesEditorPanel extends StatefulWidget {
   final ContactEntry contact;
   final ScrollController scrollController;
   final bool showHeader;
-  final bool showPreview;
   final VoidCallback? onClose;
   final ValueChanged<double>? onAim; // 0..1 of screen height
   final ValueChanged<bool>? onAimHighlight;
@@ -69,7 +69,6 @@ class HandlesEditorPanel extends StatefulWidget {
     required this.contact,
     required this.scrollController,
     this.showHeader = true,
-    this.showPreview = true,
     this.onClose,
     this.onAim,
     this.onAimHighlight,
@@ -89,9 +88,7 @@ class HandlesEditorPanel extends StatefulWidget {
   final _snapKey = GlobalKey();
   final _instaKey = GlobalKey();
   final _discordKey = GlobalKey();
-  final TransformationController _previewTc = TransformationController();
-  bool _previewExpanded = false;
-  double _previewHeight = 140;
+  // Preview removed per UX decision; keep minimal state only for editor.
 
   @override
   void initState() {
@@ -232,18 +229,32 @@ class HandlesEditorPanel extends StatefulWidget {
     required TextEditingController controller,
     required bool verified,
     DateTime? verifiedAt,
-    VoidCallback? onAimTap,
+    required bool added,
+    DateTime? addedAt,
+    required VoidCallback onToggleAdd,
   }) {
   final suggestions = _candidatesFor(platformKey).toList();
+  String? current;
+  if (platformKey == SubKeys.SnapUsername) current = widget.contact.snapUsername;
+  if (platformKey == SubKeys.InstaUsername) current = widget.contact.instaUsername;
+  if (platformKey == SubKeys.DiscordUsername) current = widget.contact.discordUsername;
+  final hasText = (controller.text.trim().isNotEmpty);
+  final pendingChange = controller.text.trim() != (current ?? '');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // Use Wrap so chips flow to the next line on small screens (prevents overflow)
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(right: 2.0),
+                child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
               if (verified)
                 Chip(
                   visualDensity: VisualDensity.compact,
@@ -251,12 +262,24 @@ class HandlesEditorPanel extends StatefulWidget {
                   backgroundColor: Colors.green.shade600,
                   label: Text(verifiedAt != null ? 'Verified ${_fmt(verifiedAt)}' : 'Verified', style: const TextStyle(color: Colors.white)),
                 ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Aim band here',
-                icon: const Icon(Icons.center_focus_weak),
-                onPressed: onAimTap,
-              ),
+              if (!verified && hasText)
+                Chip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: const Icon(Icons.edit, size: 14),
+                  label: const Text('Unverified'),
+                ),
+              if (hasText)
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: Icon(added ? Icons.add_task : Icons.add, size: 16),
+                  label: Text(
+                    added
+                        ? (addedAt != null ? 'Added • ${_fmt(addedAt)}' : 'Added')
+                        : 'Add',
+                  ),
+                  onPressed: onToggleAdd,
+                  backgroundColor: added ? Colors.blue.shade50 : null,
+                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -265,20 +288,38 @@ class HandlesEditorPanel extends StatefulWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
+                  readOnly: verified, // keep normal styling but block edits
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
                     isDense: true,
                     labelText: 'Username',
+                    filled: verified,
+                    fillColor: verified ? Colors.grey.shade100 : null,
+                    suffixIcon: verified
+                        ? const Tooltip(message: 'Verified — editing locked', child: Icon(Icons.lock_outline))
+                        : null,
+                    helperText: verified ? 'Verified — unverify to edit' : null,
                   ),
+                  onTap: () {
+                    if (verified) {
+                      HapticFeedback.selectionClick();
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Editing is locked for verified handles. Unverify to make changes.')),
+                      );
+                    }
+                  },
                   onSubmitted: (v) => _setCurrent(platformKey, v.trim()),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Set current',
-                onPressed: () => _setCurrent(platformKey, controller.text.trim()),
-                icon: const Icon(Icons.check_circle_outline),
-              ),
+              if (pendingChange && !verified)
+                IconButton(
+                  tooltip: 'Save',
+                  onPressed: () => _setCurrent(platformKey, controller.text.trim()),
+                  icon: const Icon(Icons.check_circle_outline),
+                ),
               IconButton(
                 tooltip: 'Open',
                 onPressed: () => _openExternal(platformKey),
@@ -354,8 +395,16 @@ class HandlesEditorPanel extends StatefulWidget {
                   children: [
                     const Icon(Icons.manage_accounts),
                     const SizedBox(width: 8),
-                    const Text('Handles & Verification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                    const Spacer(),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Handles & Verification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                          if ((widget.contact.name ?? '').isNotEmpty)
+                            Text(widget.contact.name!, style: TextStyle(color: Colors.grey.shade600)),
+                        ],
+                      ),
+                    ),
                     TextButton(
                       onPressed: () {
                         if (widget.onClose != null) {
@@ -370,51 +419,6 @@ class HandlesEditorPanel extends StatefulWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              if (widget.showPreview && File(widget.contact.imagePath).existsSync())
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    height: _previewHeight,
-                    width: double.infinity,
-                    child: InteractiveViewer(
-                      minScale: 1.0,
-                      maxScale: 4.0,
-                      transformationController: _previewTc,
-                      child: Image.file(
-                        File(widget.contact.imagePath),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-              if (widget.showPreview && File(widget.contact.imagePath).existsSync())
-                Padding(
-                  padding: const EdgeInsets.only(top: 6.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        tooltip: 'Reset zoom',
-                        icon: const Icon(Icons.center_focus_strong),
-                        onPressed: () {
-                          _previewTc.value = Matrix4.identity();
-                          HapticFeedback.selectionClick();
-                        },
-                      ),
-                      IconButton(
-                        tooltip: _previewExpanded ? 'Shrink preview' : 'Expand preview',
-                        icon: Icon(_previewExpanded ? Icons.unfold_less : Icons.unfold_more),
-                        onPressed: () {
-                          setState(() {
-                            _previewExpanded = !_previewExpanded;
-                            _previewHeight = _previewExpanded ? 220 : 140;
-                          });
-                          HapticFeedback.lightImpact();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
               const SizedBox(height: 12),
               // Quick-jump tabs
               Row(
@@ -432,7 +436,17 @@ class HandlesEditorPanel extends StatefulWidget {
                 controller: _snap,
                 verified: widget.contact.verifiedOnSnapAt != null,
                 verifiedAt: widget.contact.verifiedOnSnapAt,
-                onAimTap: () => _aimFor(_snapKey),
+                added: widget.contact.addedOnSnap,
+                addedAt: widget.contact.dateAddedOnSnap,
+                onToggleAdd: () {
+                  setState(() {
+                    if (widget.contact.addedOnSnap) {
+                      widget.contact.resetSnapchatAdd();
+                    } else {
+                      widget.contact.addSnapchat();
+                    }
+                  });
+                },
               ).withKey(_snapKey),
               _platformSection(
                 title: 'Instagram',
@@ -440,7 +454,17 @@ class HandlesEditorPanel extends StatefulWidget {
                 controller: _insta,
                 verified: widget.contact.verifiedOnInstaAt != null,
                 verifiedAt: widget.contact.verifiedOnInstaAt,
-                onAimTap: () => _aimFor(_instaKey),
+                added: widget.contact.addedOnInsta,
+                addedAt: widget.contact.dateAddedOnInsta,
+                onToggleAdd: () {
+                  setState(() {
+                    if (widget.contact.addedOnInsta) {
+                      widget.contact.resetInstagramAdd();
+                    } else {
+                      widget.contact.addInstagram();
+                    }
+                  });
+                },
               ).withKey(_instaKey),
               _platformSection(
                 title: 'Discord',
@@ -448,7 +472,17 @@ class HandlesEditorPanel extends StatefulWidget {
                 controller: _discord,
                 verified: widget.contact.verifiedOnDiscordAt != null,
                 verifiedAt: widget.contact.verifiedOnDiscordAt,
-                onAimTap: () => _aimFor(_discordKey),
+                added: widget.contact.addedOnDiscord,
+                addedAt: widget.contact.dateAddedOnDiscord,
+                onToggleAdd: () {
+                  setState(() {
+                    if (widget.contact.addedOnDiscord) {
+                      widget.contact.resetDiscordAdd();
+                    } else {
+                      widget.contact.addDiscord();
+                    }
+                  });
+                },
               ).withKey(_discordKey),
               const SizedBox(height: 8),
             ],

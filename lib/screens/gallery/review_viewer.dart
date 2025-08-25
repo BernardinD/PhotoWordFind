@@ -31,11 +31,14 @@ class _ReviewViewerState extends State<ReviewViewer> {
   final double _dockMax = 0.92;
   ScrollController? _panelScroll;
 
-  // Compatibility: legacy private fields referenced by older code paths/tests.
-  // These no-ops prevent intermittent analyzer/cache issues during test runs.
+  // Legacy compatibility: keep these fields to placate potential stale analyzer/build
+  // references observed intermittently in test runs. They are not used in logic.
   int? _animatingIndex;
   Tween<double>? _scaleTween;
   Tween<Offset>? _posTween;
+
+  // Note: This screen no longer uses legacy zoom animation fields. Keep a benign
+  // constant animation to avoid any stale references in tooling caches.
   final Animation<double> _zoomAnim = const AlwaysStoppedAnimation<double>(1.0);
 
   ContactEntry get _current => widget.images[_index];
@@ -46,9 +49,9 @@ class _ReviewViewerState extends State<ReviewViewer> {
     _index = widget.initialIndex.clamp(0, widget.images.length - 1);
     _pageController = PageController(initialPage: _index);
     // Touch legacy fields in debug to keep analyzer/state consistent during hot test runs.
+    // no-op: keep a reference alive for debug-only consistency
     assert(() {
-      _legacyNoopRefs();
-      return true;
+      return _zoomAnim.value == 1.0;
     }());
   }
 
@@ -105,20 +108,7 @@ class _ReviewViewerState extends State<ReviewViewer> {
     );
   }
 
-  // References legacy private fields to avoid intermittent analyzer cache issues during tests.
-  // No side-effects and stripped in release because it is called inside an assert.
-  void _legacyNoopRefs() {
-  final _ = [
-      _animatingIndex,
-      _scaleTween?.evaluate(_zoomAnim),
-      _posTween?.evaluate(_zoomAnim),
-    ];
-  if (_.isEmpty) {
-      // unreachable; quiets lints
-      // ignore: dead_code
-      debugPrint('noop');
-    }
-  }
+  // (legacy helper removed)
 
   @override
   Widget build(BuildContext context) {
@@ -371,7 +361,6 @@ class _ReviewViewerState extends State<ReviewViewer> {
                           contact: _current,
                           scrollController: _panelScroll ??= ScrollController(),
                           showHeader: false,
-                          showPreview: false,
                           onAim: (y) => setState(() => _aimY = y),
                           onAimHighlight: (v) => setState(() => _aimHighlight = v),
                         ),
