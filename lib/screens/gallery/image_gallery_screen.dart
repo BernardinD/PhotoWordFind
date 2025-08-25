@@ -20,6 +20,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:PhotoWordFind/screens/gallery/review_viewer.dart';
 
+// Platform "added" filter: Any, Added, or Not added
+enum AddedFilter { any, added, notAdded }
+
 class ImageGalleryScreen extends StatefulWidget {
   const ImageGalleryScreen({super.key});
 
@@ -44,6 +47,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   String selectedState = 'All';
   List<String> states = ['All'];
 
+  // Advanced filters (compact header -> bottom sheet)
+  final Set<String> _selectedStatesMulti = <String>{};
+  AddedFilter _snapAddedFilter = AddedFilter.any;
+  AddedFilter _instaAddedFilter = AddedFilter.any;
+
   // Verification filter
   String verificationFilter = 'All';
   final List<String> verificationOptions = const [
@@ -65,6 +73,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   bool _controlsExpanded = false; // compact by default
   bool _isInitializing = true;
   String? _initializationError;
+  bool _filtersCollapsed = false; // compact header collapse for split screen
 
   // Sync
   bool _syncing = false;
@@ -72,6 +81,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   // Debounce
   Timer? _searchDebounce;
+  final TextEditingController _searchController = TextEditingController();
 
   // Feature flags
   static const bool kUseCompactHeader = true;
@@ -79,6 +89,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // Persisted keys
   static const String _lastStateKey = 'last_selected_state';
   static const String _importDirKey = 'import_directory';
+  // New persisted keys for advanced filters/header state
+  static const String _filtersCollapsedKey = 'gallery_filters_collapsed_v1';
+  static const String _verificationFilterKey = 'gallery_verification_filter_v1';
+  static const String _snapAddedKey = 'gallery_snap_added_filter_v1';
+  static const String _instaAddedKey = 'gallery_insta_added_filter_v1';
+  static const String _multiStatesKey = 'gallery_selected_states_multi_v1';
   String? _importDirPath;
 
   @override
@@ -93,6 +109,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void dispose() {
     _searchDebounce?.cancel();
+  _searchController.dispose();
     super.dispose();
   }
 
@@ -102,6 +119,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       await _ensureSignedIn();
       await _loadImportDirectory();
       await _loadImages();
+  await _restorePersistedFilters();
       await _applyFiltersAndSort();
       setState(() => _isInitializing = false);
     } catch (e) {
@@ -335,8 +353,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         SliverPersistentHeader(
           pinned: true,
           delegate: _FixedHeaderDelegate(
-            minHeight: 120,
-            maxHeight: 120,
+            // True minimized single-row when collapsed
+            minHeight: _filtersCollapsed ? 48 : 120,
+            maxHeight: _filtersCollapsed ? 48 : 120,
             child: _buildSlimFilterBar(),
           ),
         ),
@@ -434,98 +453,68 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Widget _buildSlimFilterBar() {
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row 1: chips (scrollable to avoid overflow)
-          SizedBox(
-            height: 36,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                // State chip
-                InkWell(
-                  onTap: _showStatePicker,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.label, size: 18),
-                        SizedBox(width: 6),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Center(child: Text(selectedState, style: const TextStyle(fontWeight: FontWeight.w600))),
-                const SizedBox(width: 12),
-
-                // Verification chip
-                Tooltip(
-                  message: 'Verification filter',
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () async {
-                      final res = await showModalBottomSheet<String>(
-                        context: context,
-                        builder: (ctx) => SafeArea(
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: [
-                              const ListTile(title: Text('Verification filter', style: TextStyle(fontWeight: FontWeight.bold))),
-                              ...verificationOptions.map((o) => RadioListTile<String>(
-                                    value: o,
-                                    groupValue: verificationFilter,
-                                    title: Text(o),
-                                    onChanged: (v) => Navigator.pop(ctx, v),
-                                  )),
-                            ],
-                          ),
-                        ),
-                      );
-                      if (res != null) {
-                        setState(() => verificationFilter = res);
-                        await _filterImages();
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.10),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+    final surface = Theme.of(context).colorScheme.surface;
+    if (_filtersCollapsed) {
+      // True minimized: single-row toolbar with small height.
+      return Container(
+        color: surface,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          height: 40,
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Filters',
+                icon: const Icon(Icons.tune),
+                onPressed: _openFiltersSheet,
+              ),
+              IconButton(
+                tooltip: 'Search',
+                icon: const Icon(Icons.search),
+                onPressed: _showSearchDialog,
+              ),
+              IconButton(
+                tooltip: 'Sort',
+                icon: const Icon(Icons.sort),
+                onPressed: () async {
+                  final res = await showModalBottomSheet<String>(
+                    context: context,
+                    builder: (ctx) => SafeArea(
+                      child: ListView(
+                        shrinkWrap: true,
                         children: [
-                          const Icon(Icons.verified_user, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            verificationFilter == 'All' ? 'Verification: All' : verificationFilter,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
+                          const ListTile(title: Text('Sort by', style: TextStyle(fontWeight: FontWeight.bold))),
+                          ...sortOptions.map((o) => RadioListTile<String>(
+                                value: o,
+                                groupValue: selectedSortOption,
+                                title: Text(o),
+                                onChanged: (v) => Navigator.pop(ctx, v),
+                              )),
                         ],
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Review button
-                FilledButton.icon(
-                  onPressed: () async {
-                    if (verificationFilter == 'All') {
-                      setState(() => verificationFilter = 'Unverified (any)');
-                      await _filterImages();
-                    }
+                  );
+                  if (res != null) {
+                    selectedSortOption = res;
+                    await _applyFiltersAndSort();
+                  }
+                },
+              ),
+              _buildOrderToggle(),
+              const Spacer(),
+              IconButton(
+                tooltip: verificationFilter.startsWith('Unverified') ? 'Show all' : 'Review unverified',
+                icon: const Icon(Icons.fact_check_outlined),
+                onPressed: () async {
+                  if (verificationFilter.startsWith('Unverified')) {
+                    setState(() => verificationFilter = 'All');
+                    await _persistFilters();
+                    await _filterImages();
+                  } else {
+                    setState(() => verificationFilter = 'Unverified (any)');
+                    await _persistFilters();
+                    await _filterImages();
                     if (images.isNotEmpty) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -533,30 +522,97 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No unverified entries in this state')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No unverified entries in current filters')));
                     }
-                  },
-                  icon: const Icon(Icons.rule_folder_outlined),
-                  label: const Text('Review unverified'),
-                ),
-              ],
-            ),
+                  }
+                },
+              ),
+              IconButton(
+                tooltip: 'Expand controls',
+                icon: const Icon(Icons.unfold_more),
+                onPressed: () async {
+                  setState(() => _filtersCollapsed = false);
+                  await _persistFilters();
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+        ),
+      );
+    }
 
-          // Row 2: search + sort + order
+    // Expanded: two-row layout with full search field.
+    return Container
+      (
+      color: surface,
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildFiltersChip(),
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip: verificationFilter.startsWith('Unverified') ? 'Show all' : 'Review unverified',
+                icon: const Icon(Icons.fact_check_outlined),
+                onPressed: () async {
+                  if (verificationFilter.startsWith('Unverified')) {
+                    setState(() => verificationFilter = 'All');
+                    await _persistFilters();
+                    await _filterImages();
+                  } else {
+                    setState(() => verificationFilter = 'Unverified (any)');
+                    await _persistFilters();
+                    await _filterImages();
+                    if (images.isNotEmpty) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ReviewViewer(images: images, initialIndex: 0, sortOption: selectedSortOption),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No unverified entries in current filters')));
+                    }
+                  }
+                },
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Collapse controls',
+                icon: const Icon(Icons.unfold_less),
+                onPressed: () async {
+                  setState(() => _filtersCollapsed = true);
+                  await _persistFilters();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 36,
+                  height: 40,
                   child: TextField(
-                    decoration: const InputDecoration(
+                    controller: _searchController,
+                    decoration: InputDecoration(
                       hintText: 'Search',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search),
                       isDense: true,
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      suffixIcon: (_searchController.text.isNotEmpty)
+                          ? IconButton(
+                              tooltip: 'Clear',
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => searchQuery = '');
+                                _filterImages();
+                              },
+                            )
+                          : null,
                     ),
                     onChanged: (value) {
                       searchQuery = value;
@@ -565,6 +621,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         if (!mounted) return;
                         _filterImages();
                       });
+                      setState(() {});
                     },
                   ),
                 ),
@@ -603,6 +660,155 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         ],
       ),
     );
+  }
+
+  // Shows a small Filters chip with an active count badge.
+  Widget _buildFiltersChip() {
+    final activeCount = _activeFilterCount();
+    return InkWell(
+      onTap: _openFiltersSheet,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.tune, size: 18),
+            const SizedBox(width: 6),
+            const Text('Filters'),
+            if (activeCount > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('$activeCount', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 12)),
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+
+  int _activeFilterCount() {
+    var c = 0;
+  if (selectedState != 'All') c++;
+  if (verificationFilter != 'All') c++;
+  if (_snapAddedFilter != AddedFilter.any) c++;
+  if (_instaAddedFilter != AddedFilter.any) c++;
+    return c;
+  }
+
+  Future<void> _openFiltersSheet() async {
+    // local mutable copies
+    String tempSelectedState = selectedState;
+    String tempVerification = verificationFilter;
+    AddedFilter tempSnapFilter = _snapAddedFilter;
+    AddedFilter tempInstaFilter = _instaAddedFilter;
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final media = MediaQuery.of(ctx);
+        return SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: media.size.height < 700 ? 0.85 : 0.6,
+            minChildSize: 0.4,
+            builder: (c, scroll) => StatefulBuilder(
+              builder: (innerCtx, innerSetState) => Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: ListView(
+                  controller: scroll,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            innerSetState(() {
+                              tempSelectedState = 'All';
+                              tempVerification = 'All';
+                              tempSnapFilter = AddedFilter.any;
+                              tempInstaFilter = AddedFilter.any;
+                            });
+                          },
+                          child: const Text('Reset'),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('State', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final s in states)
+                          ChoiceChip(
+                            label: Text(s),
+                            selected: tempSelectedState == s,
+                            onSelected: (_) => innerSetState(() => tempSelectedState = s),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Verification', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ...verificationOptions.map((o) => RadioListTile<String>(
+                          dense: true,
+                          value: o,
+                          groupValue: tempVerification,
+                          title: Text(o),
+                          onChanged: (v) => innerSetState(() => tempVerification = v ?? 'All'),
+                        )),
+                    const SizedBox(height: 8),
+                    const Text('Added on', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    _AddedFilterRow(
+                      label: 'Snapchat',
+                      value: tempSnapFilter,
+                      onChanged: (v) => innerSetState(() => tempSnapFilter = v),
+                    ),
+                    _AddedFilterRow(
+                      label: 'Instagram',
+                      value: tempInstaFilter,
+                      onChanged: (v) => innerSetState(() => tempInstaFilter = v),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Apply filters'),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result == true) {
+      setState(() {
+        selectedState = tempSelectedState;
+        verificationFilter = tempVerification;
+        _snapAddedFilter = tempSnapFilter;
+        _instaAddedFilter = tempInstaFilter;
+      });
+      await _saveLastSelectedState(selectedState);
+      await _persistFilters();
+      await _filterImages();
+    }
   }
 
   Widget _buildControls() {
@@ -719,6 +925,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         ),
       );
     });
+
   }
 
   Widget _buildMinimizedControls() {
@@ -865,6 +1072,52 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     await prefs.setString(_lastStateKey, value);
   }
 
+  // ---------------- Persist/restore advanced filters ----------------
+  Future<void> _restorePersistedFilters() async {
+    final prefs = await SharedPreferences.getInstance();
+    _filtersCollapsed = prefs.getBool(_filtersCollapsedKey) ?? _filtersCollapsed;
+    verificationFilter = prefs.getString(_verificationFilterKey) ?? verificationFilter;
+    _snapAddedFilter = _parseAddedFilter(prefs.getString(_snapAddedKey));
+    _instaAddedFilter = _parseAddedFilter(prefs.getString(_instaAddedKey));
+    final savedStates = prefs.getStringList(_multiStatesKey) ?? const <String>[];
+    _selectedStatesMulti
+      ..clear()
+      ..addAll(savedStates.where((s) => s != 'All' && states.contains(s)));
+  }
+
+  AddedFilter _parseAddedFilter(String? v) {
+    switch (v) {
+      case 'added':
+        return AddedFilter.added;
+      case 'notAdded':
+        return AddedFilter.notAdded;
+      case 'any':
+      default:
+        return AddedFilter.any;
+    }
+  }
+
+  String _addedFilterToString(AddedFilter v) {
+    switch (v) {
+      case AddedFilter.added:
+        return 'added';
+      case AddedFilter.notAdded:
+        return 'notAdded';
+      case AddedFilter.any:
+      default:
+        return 'any';
+    }
+  }
+
+  Future<void> _persistFilters() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_filtersCollapsedKey, _filtersCollapsed);
+    await prefs.setString(_verificationFilterKey, verificationFilter);
+    await prefs.setString(_snapAddedKey, _addedFilterToString(_snapAddedFilter));
+    await prefs.setString(_instaAddedKey, _addedFilterToString(_instaAddedFilter));
+    await prefs.setStringList(_multiStatesKey, _selectedStatesMulti.toList());
+  }
+
   // ---------------- Import helpers ----------------
   Future<AssetPathEntity?> _getImportAlbum() async {
     if (_importDirPath == null) return null;
@@ -908,8 +1161,38 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     final filtered = SearchService.searchEntries(allImages, searchQuery).where((img) {
       final tag = img.state ?? path.basename(path.dirname(img.imagePath));
-      final matchesState = selectedState == 'All' || tag == selectedState;
-      return matchesState && passesVerification(img);
+  // Single-select state filter
+  final matchesLegacyState = selectedState == 'All' || tag == selectedState;
+
+  final matchesVerification = passesVerification(img);
+
+  bool matchSnap;
+      switch (_snapAddedFilter) {
+        case AddedFilter.added:
+          matchSnap = img.addedOnSnap == true;
+          break;
+        case AddedFilter.notAdded:
+          matchSnap = img.addedOnSnap != true;
+          break;
+        case AddedFilter.any:
+        default:
+          matchSnap = true;
+      }
+
+      bool matchInsta;
+      switch (_instaAddedFilter) {
+        case AddedFilter.added:
+          matchInsta = img.addedOnInsta == true;
+          break;
+        case AddedFilter.notAdded:
+          matchInsta = img.addedOnInsta != true;
+          break;
+        case AddedFilter.any:
+        default:
+          matchInsta = true;
+      }
+
+  return matchesLegacyState && matchesVerification && matchSnap && matchInsta;
     }).toList();
 
     int compare(ContactEntry a, ContactEntry b) {
@@ -1219,6 +1502,49 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     );
   }
 
+}
+
+class _AddedFilterRow extends StatelessWidget {
+  final String label;
+  final AddedFilter value;
+  final ValueChanged<AddedFilter> onChanged;
+
+  const _AddedFilterRow({required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Any'),
+              selected: value == AddedFilter.any,
+              onSelected: (_) => onChanged(AddedFilter.any),
+            ),
+            ChoiceChip(
+              label: const Text('Added'),
+              selected: value == AddedFilter.added,
+              onSelected: (_) => onChanged(AddedFilter.added),
+            ),
+            ChoiceChip(
+              label: const Text('Not added'),
+              selected: value == AddedFilter.notAdded,
+              onSelected: (_) => onChanged(AddedFilter.notAdded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Divider(color: theme.dividerColor.withOpacity(0.4)),
+      ],
+    );
+  }
 }
 
 class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
