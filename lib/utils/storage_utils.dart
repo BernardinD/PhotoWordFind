@@ -68,6 +68,12 @@ class StorageUtils {
     'last_selected_state',
     'import_directory',
     'migrated_verification_dates_v1',
+    // Gallery UI/filter preferences (skip during contacts migration)
+    'gallery_filters_collapsed_v1',
+    'gallery_verification_filter_v1',
+    'gallery_snap_added_filter_v1',
+    'gallery_insta_added_filter_v1',
+    'gallery_selected_states_multi_v1',
   };
 
   // --- Debounced save coalescing (per-entry) ---
