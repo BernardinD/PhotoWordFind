@@ -44,6 +44,7 @@ class ImageGallery extends StatelessWidget {
               controller: kGalleryPageController,
               itemCount: images.length,
               onPageChanged: onPageChanged,
+              allowImplicitScrolling: false,
               itemBuilder: (context, index) {
                 return ImageTile(
                   imagePath: images[index].imagePath,
@@ -65,9 +66,9 @@ class ImageGallery extends StatelessWidget {
 
     // Masonry grid variant
     final media = MediaQuery.of(context);
-    final width = media.size.width;
-    // Aim for tiles ~180dp wide with clamped column count
-    final int columns = width ~/ 180.0 > 0 ? width ~/ 180.0 : 1;
+  final width = media.size.width;
+  // Aim for tiles ~180dp wide with clamped column count
+  final int columns = (width / 180).floor().clamp(1, 8);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -77,11 +78,14 @@ class ImageGallery extends StatelessWidget {
             crossAxisCount: columns,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
+            // Limit offscreen cache to reduce memory pressure
+            cacheExtent: 600,
             padding: const EdgeInsets.only(bottom: 96, top: 8),
             itemCount: images.length,
-            itemBuilder: (context, index) {
+      itemBuilder: (context, index) {
               final item = images[index];
               return ImageTile(
+        key: ValueKey(item.identifier),
                 imagePath: item.imagePath,
                 isSelected: selectedImages.contains(item.identifier),
                 extractedText: item.extractedText ?? '',
@@ -174,8 +178,8 @@ class SliverImageGallery extends StatelessWidget {
     }
 
     final media = MediaQuery.of(context);
-    final width = media.size.width;
-    final int columns = width ~/ 180.0 > 0 ? width ~/ 180.0 : 1;
+  final width = media.size.width;
+  final int columns = (width / 180).floor().clamp(1, 8);
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
@@ -183,10 +187,12 @@ class SliverImageGallery extends StatelessWidget {
         crossAxisCount: columns,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
+        // Sliver scroller uses parent cache; spacing remains.
         childCount: images.length,
-        itemBuilder: (context, index) {
+    itemBuilder: (context, index) {
           final item = images[index];
           return ImageTile(
+      key: ValueKey(item.identifier),
             imagePath: item.imagePath,
             isSelected: selectedImages.contains(item.identifier),
             extractedText: item.extractedText ?? '',

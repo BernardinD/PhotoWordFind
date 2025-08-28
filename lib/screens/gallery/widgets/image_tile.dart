@@ -13,6 +13,7 @@ import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
 import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
+import 'package:PhotoWordFind/utils/memory_utils.dart';
 
 class ImageTile extends StatefulWidget {
   final String imagePath;
@@ -45,6 +46,12 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> {
+  ImageProvider _providerForWidth(double logicalWidth) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    // Clamp to a sane range to avoid decoding very large bitmaps in list/grid
+    final targetWidth = (logicalWidth * dpr).clamp(64.0, 2048.0).round();
+    return ResizeImage(FileImage(File(widget.imagePath)), width: targetWidth);
+  }
   String get _truncatedText {
     const maxChars = 120;
     if (widget.extractedText.length <= maxChars) return widget.extractedText;
@@ -416,6 +423,8 @@ class _ImageTileState extends State<ImageTile> {
   }
 
   void _openSocial(SocialType social, String username) async {
+  // Proactively free decoded images to reduce memory pressure before switching apps
+  MemoryUtils.trimImageCaches();
     Uri url;
     switch (social) {
       case SocialType.Snapchat:
@@ -479,7 +488,8 @@ class _ImageTileState extends State<ImageTile> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return RepaintBoundary(
+      child: GestureDetector(
       onTap: () async {
         if (widget.gridMode && widget.onOpenFullScreen != null) {
           widget.onOpenFullScreen!.call();
@@ -491,6 +501,8 @@ class _ImageTileState extends State<ImageTile> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final bool isGrid = widget.gridMode;
+          final logicalWidth = isGrid ? constraints.maxWidth : (constraints.maxWidth * 0.8);
+          final imageProvider = _providerForWidth(logicalWidth);
           return Container(
             margin: isGrid ? const EdgeInsets.symmetric(vertical: 6, horizontal: 0) : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             width: isGrid ? double.infinity : constraints.maxWidth * 0.8,
@@ -513,19 +525,22 @@ class _ImageTileState extends State<ImageTile> {
                     // Fixed aspect thumbnail in grid mode to ensure a deterministic height
                     AspectRatio(
                       aspectRatio: 3 / 4,
-                      child: Image.file(
-                        File(widget.imagePath),
+                      child: Image(
+                        image: imageProvider,
                         fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (ctx, _, __) => const ColoredBox(color: Colors.black12),
                       ),
                     )
                   else
                     Positioned.fill(
-                      child: PhotoView(
-                        imageProvider: FileImage(File(widget.imagePath)),
-                        backgroundDecoration: const BoxDecoration(color: Colors.white),
-                        minScale: PhotoViewComputedScale.contained,
-                        maxScale: PhotoViewComputedScale.covered * 2.5,
+                      child: Image(
+                        image: imageProvider,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.low,
+                        errorBuilder: (ctx, _, __) => const ColoredBox(color: Colors.black12),
                       ),
                     ),
                   // Top-right: menu button (moved here from bottom bar)
@@ -554,13 +569,7 @@ class _ImageTileState extends State<ImageTile> {
                               ),
                             ],
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.more_vert,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
+                          child: const Center(child: Icon(Icons.more_vert, color: Colors.white, size: 20)),
                         ),
                       ),
                     ),
@@ -695,6 +704,7 @@ class _ImageTileState extends State<ImageTile> {
             ),
           );
         },
+      ),
       ),
     );
   }

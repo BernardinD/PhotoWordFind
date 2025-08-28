@@ -13,12 +13,14 @@ import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:PhotoWordFind/screens/gallery/review_viewer.dart';
+import 'package:PhotoWordFind/utils/memory_utils.dart';
 
 // Platform "added" filter: Any, Added, or Not added
 enum AddedFilter { any, added, notAdded }
@@ -31,7 +33,7 @@ class ImageGalleryScreen extends StatefulWidget {
 }
 
 class _ImageGalleryScreenState extends State<ImageGalleryScreen>
-    with TickerProviderStateMixin {
+  with TickerProviderStateMixin, WidgetsBindingObserver {
   // Filters/sort/search state
   String searchQuery = '';
   String selectedSortOption = 'Name';
@@ -96,10 +98,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   static const String _instaAddedKey = 'gallery_insta_added_filter_v1';
   static const String _multiStatesKey = 'gallery_selected_states_multi_v1';
   String? _importDirPath;
+  // Cached file sizes to avoid repeated sync I/O in comparators
+  final Map<String, int> _sizeCache = <String, int>{};
+  // Sign-in state to avoid repeated futures in AppBar
+  bool _signedIn = false;
+  // ImageCache budget backup
+  int? _oldCacheItems;
+  int? _oldCacheBytes;
 
   @override
   void initState() {
     super.initState();
+  WidgetsBinding.instance.addObserver(this);
+    // Downsize the global image cache while this memory-heavy screen is active
+    try {
+      final cache = PaintingBinding.instance.imageCache;
+      _oldCacheItems = cache.maximumSize;
+      _oldCacheBytes = cache.maximumSizeBytes;
+      cache.maximumSize = 300; // default ~1000; reduce retained decodes
+      cache.maximumSizeBytes = 48 * 1024 * 1024; // ~48MB
+    } catch (_) {}
     CloudUtils.progressCallback = ({double? value, String? message, bool done = false, bool error = false}) {
       // Reserved hook for future UI progress
     };
@@ -110,7 +128,31 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   void dispose() {
     _searchDebounce?.cancel();
   _searchController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    // Restore global image cache budgets
+    try {
+      final cache = PaintingBinding.instance.imageCache;
+      if (_oldCacheItems != null) cache.maximumSize = _oldCacheItems!;
+      if (_oldCacheBytes != null) cache.maximumSizeBytes = _oldCacheBytes!;
+    } catch (_) {}
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Proactively trim caches when backgrounding or coming back
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      MemoryUtils.trimImageCaches();
+    } else if (state == AppLifecycleState.resumed) {
+      // Also clear any stale decodes on resume
+      MemoryUtils.trimImageCaches();
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    // Android signaled low memory; free decoded bitmaps immediately
+    MemoryUtils.trimImageCaches();
   }
 
   // ---------------- Initialization ----------------
@@ -136,9 +178,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       if (!signed) {
         await CloudUtils.firstSignIn();
       }
+  if (mounted) setState(() => _signedIn = true);
       return true;
     } catch (e) {
       _initializationError = 'Sign-in failed: $e';
+  if (mounted) setState(() => _signedIn = false);
       return false;
     }
   }
@@ -163,11 +207,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   // ---------------- Data load & persistence ----------------
   Future<void> _loadImages() async {
-    final List<ContactEntry> loaded = [];
-    for (final id in StorageUtils.getKeys()) {
-      final contact = await StorageUtils.get(id);
-      if (contact != null) loaded.add(contact);
-    }
+    final keys = List<String>.from(StorageUtils.getKeys());
+    // Load in parallel to reduce total latency
+    final results = await Future.wait(keys.map((id) => StorageUtils.get(id)));
+    final List<ContactEntry> loaded = [
+      for (final c in results)
+        if (c != null) c,
+    ];
     allImages = loaded;
     _updateStates(allImages);
     await _restoreLastSelectedState();
@@ -339,6 +385,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     // Compact header with CustomScrollView and slivers
     return CustomScrollView(
+      // Limit offscreen cache to control memory usage
+      cacheExtent: 800,
       slivers: [
         SliverAppBar(
           title: const Text('Image Gallery'),
@@ -400,22 +448,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           }
         },
       ),
-      if (_isInitializing)
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0),
-          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-        )
-      else
-        FutureBuilder<bool>(
-          future: CloudUtils.isSignedin(),
-          builder: (ctx, snap) {
-            final signed = snap.data == true;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Icon(signed ? Icons.cloud_done : Icons.cloud_off, color: signed ? Colors.green : Colors.redAccent),
-            );
-          },
-        ),
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+    child: _isInitializing
+    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+    : Icon(_signedIn ? Icons.cloud_done : Icons.cloud_off, color: _signedIn ? Colors.green : Colors.redAccent),
+  ),
       if (!_isInitializing)
         IconButton(
           icon: const Icon(Icons.settings),
@@ -439,7 +477,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     try {
                       await CloudUtils.signOut();
                     } catch (_) {}
-                    setState(() {});
+        if (mounted) setState(() => _signedIn = false);
                   },
                   lastSyncTime: _lastSyncTime,
                   syncing: _syncing,
@@ -1142,6 +1180,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   // ---------------- Sorting/apply ----------------
   Future<void> _applyFiltersAndSort() async {
+  // Helper to evaluate verification filter
   bool passesVerification(ContactEntry e) {
       switch (verificationFilter) {
         case 'Unverified (any)':
@@ -1195,6 +1234,20 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   return matchesLegacyState && matchesVerification && matchSnap && matchInsta;
     }).toList();
 
+    // Precompute file sizes once when sorting by size to avoid repeated sync I/O
+    if (selectedSortOption == 'Size') {
+      for (final e in filtered) {
+        _sizeCache.putIfAbsent(e.imagePath, () {
+          try {
+            final stat = FileStat.statSync(e.imagePath);
+            return stat.size;
+          } catch (_) {
+            return 0;
+          }
+        });
+      }
+    }
+
     int compare(ContactEntry a, ContactEntry b) {
       int result;
       switch (selectedSortOption) {
@@ -1202,7 +1255,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           result = a.dateFound.compareTo(b.dateFound);
           break;
         case 'Size':
-          result = File(a.imagePath).lengthSync().compareTo(File(b.imagePath).lengthSync());
+          final sa = _sizeCache[a.imagePath] ?? 0;
+          final sb = _sizeCache[b.imagePath] ?? 0;
+          result = sa.compareTo(sb);
           break;
         case 'Snap Added Date':
           result = (a.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0))
