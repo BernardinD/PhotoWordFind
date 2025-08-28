@@ -89,6 +89,7 @@ ContactEntry postProcessChatGptResult(
     isVerified: entry.verifiedOnDiscordAt != null,
   );
 
+  // Create/merge and save
   entry.mergeFromJson(response, save);
   return entry;
 }

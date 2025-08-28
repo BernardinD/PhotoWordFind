@@ -1,3 +1,67 @@
+/*
+ Overview of app features
+ - Dual UI modes: modern gallery UI and legacy interface with in-app toggle.
+ - Gallery browsing: masonry grid (sliver) with full-screen review and swipe.
+ - Search, filter, sort: rich search; filters for state, verification, platform added; multiple sort options with order toggle.
+ - Handles management: edit/view Snapchat, Instagram, Discord; verify/unverify with timestamps; mark added/reset added.
+ - OCR & AI: ChatGPT-based extraction; manual crop/redo flow; safe post-processing to preserve verified data.
+ - Import workflow: pick from device albums for a chosen import directory; move/copy into DCIM/Comb; auto-process and save.
+ - Data & persistence: Hive storage with autosave; migrations from SharedPreferences; legacy path recovery.
+ - Cloud backup: Google Drive JSON backup; sign-in/out; merge cloud→local; explicit sync and pull-to-refresh.
+ - Notes & actions: edit notes; open socials; guided unfriend flows with timestamped notes.
+ - Settings: manage import directory, cloud account, view last sync time.
+ - Performance & reliability: cache trimming on lifecycle/memory pressure; targeted image decoding; progress and error feedback; crash reporting.
+*/
+/*
+ App feature summary (as of 2025-08-27)
+
+ - UI modes
+   - Modern gallery UI with compact, pinnable controls and legacy UI; users can switch between them from the AppBar.
+
+ - Image gallery & navigation
+   - Masonry grid (sliver-based) with PageView fallback; counter overlay; full-screen review on tap in grid.
+   - Search across filename, identifier, state, name, usernames, previous handles, sections, and OCR/extracted text.
+   - Filters: State, Verification (Unverified any/Snap/Instagram/Discord), and per-platform “Added” (Snap/Instagram: Any/Added/Not added).
+   - Sorting: Name, Date found, File size, Snap/Instagram Added dates, and Added flags; ascending/descending toggle.
+   - Selection and bulk actions: select tiles and move to a state; single-item move supported.
+   - Quick entry point to “Review unverified” that narrows to unverified items and opens the full-screen viewer.
+
+ - Full-screen review (ReviewViewer)
+   - Zoomable photo viewer with swipe navigation.
+   - “Details” bottom sheet shows the full OCR/extracted text.
+   - Handles & Verification editor panel:
+     - Edit Snapchat/Instagram/Discord usernames (with verified handles locked until unverified).
+     - Mark Verified/Unverified with timestamps; mark Added/Reset Added with dates per platform.
+     - Suggestions sourced from detected handles (aggregated map), previous handles history, and section content.
+     - Quick-open social profiles/apps for verification; haptic feedback on panel snap points.
+
+ - Redo OCR / crop (RedoCropScreen)
+   - Manual crop UI with corner handles, grid overlay, and zoomable background.
+   - Sends cropped image to ChatGPT OCR; optional one-time name/age update when missing.
+   - Safe post-processing preserves verified handles, merges sections without duplicates, and avoids overwriting an existing location.
+
+ - Import pipeline
+   - Choose/persist an import directory; pick images via device album matching the directory name (Android bucketId filter).
+   - Permission handling; move/copy images to DCIM/Comb; create entries with initial state; run ChatGPT extraction per image.
+   - Persist to Hive and a file-path map; progress via snackbars; final cloud sync after import.
+
+ - Data model & storage
+   - ContactEntry persisted in Hive with autosave via MobX reactions and debounced cloud backup.
+   - Tracks usernames, platform Added flags and dates, Verification dates, previous handles, notes, sections, name/age, location.
+   - Migrations: SharedPreferences → Hive, legacy image-path recovery, and one-time verification date backfill from added dates.
+
+ - Cloud backup & settings
+   - Google Sign-In with Drive JSON backup (create/get/update); merge cloud → local; explicit sync; pull-to-refresh in gallery.
+   - Settings for sign-in/out, last sync time, and import directory management.
+
+ - Social actions & notes
+   - Open Snapchat/Instagram/Discord (Discord copies handle to clipboard before opening app).
+   - Quick unfriend flows with confirmation and timestamped note entries; dedicated Notes editor dialog.
+
+ - Performance & resilience
+   - Proactive image cache trimming on lifecycle/memory pressure; width-targeted image decoding for grids.
+   - Cached file-size lookup for sorting; error banners; progress callbacks; crash reporting via Catcher.
+*/
 import 'dart:async';
 import 'dart:io';
 
