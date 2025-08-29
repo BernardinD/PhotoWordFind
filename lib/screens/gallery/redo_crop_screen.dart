@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 
@@ -12,11 +13,14 @@ import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 
 class RedoCropScreen extends StatefulWidget {
-	const RedoCropScreen({super.key, required this.imageFile, this.initialAllowNameAgeUpdate, this.contact});
+	const RedoCropScreen({super.key, required this.imageFile, this.initialAllowNameAgeUpdate, this.contact, this.forceShowFullRedo = false});
+
 
 	final File imageFile;
-  final bool? initialAllowNameAgeUpdate;
-  final ContactEntry? contact;
+	final bool? initialAllowNameAgeUpdate;
+	final ContactEntry? contact;
+	// Testing aid: when true, always expose a top-right Full redo action
+	final bool forceShowFullRedo;
 
 	@override
 	State<RedoCropScreen> createState() => _RedoCropScreenState();
@@ -29,6 +33,22 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 	late bool _showHint;
 	// One-time override: allow updating name/age from this redo
 	bool _allowNameAgeUpdate = false;
+	// Session-only preference to skip the full redo confirmation
+	static bool _skipFullRedoConfirm = false;
+  
+		bool get _shouldShowFullRedo {
+			final c = widget.contact;
+			if (c == null) return false;
+			final hasText = (c.extractedText?.trim().isNotEmpty ?? false);
+			final hasName = (c.name?.trim().isNotEmpty ?? false);
+			final hasAge = c.age != null;
+			final hasSnap = (c.snapUsername?.trim().isNotEmpty ?? false);
+			final hasInsta = (c.instaUsername?.trim().isNotEmpty ?? false);
+			final hasDiscord = (c.discordUsername?.trim().isNotEmpty ?? false);
+			final hasSections = (c.sections?.isNotEmpty ?? false);
+			// Show only when we believe prior OCR/import yielded nothing meaningful
+			return !(hasText || hasName || hasAge || hasSnap || hasInsta || hasDiscord || hasSections);
+		}
   
 	// Crop area state
 	Rect _cropRect = const Rect.fromLTWH(50, 100, 200, 200);
@@ -147,6 +167,74 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 			if (mounted) {
 				setState(() => _processing = false);
 			}
+		}
+	}
+
+	Future<void> _redoFullImage() async {
+		setState(() => _processing = true);
+		try {
+			final response = await ChatGPTService.processImage(imageFile: widget.imageFile);
+			if (!mounted) return;
+			Navigator.pop(context, {
+				'response': response,
+				'allowNameAgeUpdate': _allowNameAgeUpdate,
+				'full': true,
+			});
+		} catch (e) {
+			if (mounted) {
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(content: Text('Failed to reprocess image: $e')),
+				);
+			}
+		} finally {
+			if (mounted) setState(() => _processing = false);
+		}
+	}
+
+	Future<void> _confirmAndRedoFullImage() async {
+		if (_skipFullRedoConfirm) {
+			return _redoFullImage();
+		}
+		bool dontAskAgain = false;
+		final confirmed = await showDialog<bool>(
+			context: context,
+			builder: (ctx) {
+				return AlertDialog(
+					title: const Text('Run full file redo?'),
+					content: Column(
+						mainAxisSize: MainAxisSize.min,
+						crossAxisAlignment: CrossAxisAlignment.start,
+						children: [
+							const Text(
+								'This reprocesses the entire image from the top of the OCR workflow. Use when the initial import missed content. It can be slower and uses more quota.'),
+							const SizedBox(height: 12),
+							StatefulBuilder(
+								builder: (context, setSB) => CheckboxListTile(
+									value: dontAskAgain,
+									onChanged: (v) => setSB(() => dontAskAgain = v ?? false),
+									contentPadding: EdgeInsets.zero,
+									title: const Text("Don't ask again for this session"),
+									controlAffinity: ListTileControlAffinity.leading,
+								),
+							),
+						],
+					),
+					actions: [
+						TextButton(
+							onPressed: () => Navigator.pop(ctx, false),
+							child: const Text('Cancel'),
+						),
+						FilledButton(
+							onPressed: () => Navigator.pop(ctx, true),
+							child: const Text('Run full redo'),
+						),
+					],
+				);
+			},
+		);
+		if (confirmed == true) {
+			if (dontAskAgain) _skipFullRedoConfirm = true;
+			await _redoFullImage();
 		}
 	}
 
@@ -274,6 +362,26 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
 								),
 							),
 						),
+
+					// Top-right test access to Full redo so it's always reachable during testing
+					if (widget.forceShowFullRedo || kDebugMode)
+						Positioned(
+							top: MediaQuery.of(context).padding.top + 8,
+							right: 8,
+							child: SafeArea(
+								child: Tooltip(
+									message: 'Full file redo (test access)',
+									child: Material(
+										color: Colors.transparent,
+										child: IconButton(
+											icon: const Icon(Icons.autorenew, color: Colors.white),
+											onPressed: _processing ? null : _confirmAndRedoFullImage,
+											tooltip: 'Full file redo',
+										),
+									),
+								),
+							),
+						),
           
 					// Control buttons
 					Align(
@@ -335,15 +443,28 @@ class _RedoCropScreenState extends State<RedoCropScreen> {
                             label: const Text('Cancel', style: TextStyle(color: Colors.white)),
                           ),
                           const SizedBox(width: 16),
-                          ElevatedButton.icon(
-                            onPressed: _captureCroppedArea,
-                            icon: const Icon(Icons.crop),
-                            label: const Text('Redo OCR'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
+								ElevatedButton.icon(
+									onPressed: _processing ? null : _captureCroppedArea,
+									icon: const Icon(Icons.crop),
+									label: const Text('Redo (Crop)'),
+									style: ElevatedButton.styleFrom(
+										backgroundColor: Colors.blue,
+										foregroundColor: Colors.white,
+									),
+								),
+								const SizedBox(width: 12),
+													if (_shouldShowFullRedo)
+														Tooltip(
+															message: 'Rarely needed. Use if auto import missed content. Slower and uses more quota.',
+															child: OutlinedButton.icon(
+																onPressed: _processing ? null : _confirmAndRedoFullImage,
+																icon: const Icon(Icons.autorenew, color: Colors.white),
+																label: const Text('Full file redo', style: TextStyle(color: Colors.white)),
+																style: OutlinedButton.styleFrom(
+																	side: const BorderSide(color: Colors.white70),
+																),
+															),
+														),
                         ],
                       ),
                     ],

@@ -273,6 +273,7 @@ class _ImageTileState extends State<ImageTile> {
     if (result != null) {
       final response = result['response'] as Map<String, dynamic>?;
       final allowNameAgeUpdate = result['allowNameAgeUpdate'] == true;
+      final didFullRedo = result['full'] == true;
       if (response != null) {
         setState(() {
           postProcessChatGptResult(
@@ -283,6 +284,12 @@ class _ImageTileState extends State<ImageTile> {
           );
         });
         await StorageUtils.save(widget.contact);
+        if (didFullRedo && mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Full file redo applied.')),
+          );
+        }
       }
     }
   }
