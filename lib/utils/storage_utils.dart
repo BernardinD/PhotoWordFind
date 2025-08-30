@@ -74,6 +74,9 @@ class StorageUtils {
     'gallery_snap_added_filter_v1',
     'gallery_insta_added_filter_v1',
     'gallery_selected_states_multi_v1',
+  // Sorting preferences
+  'gallery_sort_option_v1',
+  'gallery_sort_ascending_v1',
   };
 
   // --- Debounced save coalescing (per-entry) ---

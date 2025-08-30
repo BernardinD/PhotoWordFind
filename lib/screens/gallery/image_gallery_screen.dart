@@ -109,7 +109,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     'Snap Added Date',
     'Instagram Added Date',
     'Added on Snapchat',
-    'Added on Instagram'
+  'Added on Instagram',
+  'Location',
   ];
   String selectedState = 'All';
   List<String> states = ['All'];
@@ -171,6 +172,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   static const String _snapAddedKey = 'gallery_snap_added_filter_v1';
   static const String _instaAddedKey = 'gallery_insta_added_filter_v1';
   static const String _multiStatesKey = 'gallery_selected_states_multi_v1';
+  // Persist sort option and direction
+  static const String _sortOptionKey = 'gallery_sort_option_v1';
+  static const String _sortAscendingKey = 'gallery_sort_ascending_v1';
   String? _importDirPath;
   // Cached file sizes to avoid repeated sync I/O in comparators
   final Map<String, int> _sizeCache = <String, int>{};
@@ -807,6 +811,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   if (res != null) {
                     selectedSortOption = res;
                     await _applyFiltersAndSort();
+                    await _persistFilters();
                   }
                 },
               ),
@@ -960,6 +965,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   if (res != null) {
                     selectedSortOption = res;
                     await _applyFiltersAndSort();
+                    await _persistFilters();
                   }
                 },
               ),
@@ -1017,13 +1023,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Future<void> _openFiltersSheet() async {
-    // local mutable copies
-    String tempSelectedState = selectedState;
-    String tempVerification = verificationFilter;
-    AddedFilter tempSnapFilter = _snapAddedFilter;
-    AddedFilter tempInstaFilter = _instaAddedFilter;
-
-    final result = await showModalBottomSheet<bool>(
+    // Immediate-apply filter sheet; updates happen as you toggle, with Done to close.
+    await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
@@ -1044,13 +1045,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const Spacer(),
                         TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Done'),
+                        ),
+                        TextButton(
                           onPressed: () {
-                            innerSetState(() {
-                              tempSelectedState = 'All';
-                              tempVerification = 'All';
-                              tempSnapFilter = AddedFilter.any;
-                              tempInstaFilter = AddedFilter.any;
+                            // Reset to defaults and apply immediately
+                            innerSetState(() {});
+                            this.setState(() {
+                              selectedState = 'All';
+                              verificationFilter = 'All';
+                              _snapAddedFilter = AddedFilter.any;
+                              _instaAddedFilter = AddedFilter.any;
                             });
+                            _saveLastSelectedState(selectedState);
+                            _persistFilters();
+                            _filterImages();
                           },
                           child: const Text('Reset'),
                         )
@@ -1066,8 +1076,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         for (final s in states)
                           ChoiceChip(
                             label: Text(s),
-                            selected: tempSelectedState == s,
-                            onSelected: (_) => innerSetState(() => tempSelectedState = s),
+                            selected: selectedState == s,
+                            onSelected: (_) async {
+                              innerSetState(() {});
+                              this.setState(() => selectedState = s);
+                              await _saveLastSelectedState(selectedState);
+                              await _persistFilters();
+                              await _filterImages();
+                            },
                           ),
                       ],
                     ),
@@ -1076,28 +1092,48 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     ...verificationOptions.map((o) => RadioListTile<String>(
                           dense: true,
                           value: o,
-                          groupValue: tempVerification,
+                          groupValue: verificationFilter,
                           title: Text(o),
-                          onChanged: (v) => innerSetState(() => tempVerification = v ?? 'All'),
+                          onChanged: (v) async {
+                            innerSetState(() {});
+                            this.setState(() => verificationFilter = v ?? 'All');
+                            await _persistFilters();
+                            await _filterImages();
+                          },
                         )),
                     const SizedBox(height: 8),
                     const Text('Added on', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     _AddedFilterRow(
                       label: 'Snapchat',
-                      value: tempSnapFilter,
-                      onChanged: (v) => innerSetState(() => tempSnapFilter = v),
+                      value: _snapAddedFilter,
+                      onChanged: (v) async {
+                        innerSetState(() {});
+                        this.setState(() => _snapAddedFilter = v);
+                        await _persistFilters();
+                        await _filterImages();
+                      },
                     ),
                     _AddedFilterRow(
                       label: 'Instagram',
-                      value: tempInstaFilter,
-                      onChanged: (v) => innerSetState(() => tempInstaFilter = v),
+                      value: _instaAddedFilter,
+                      onChanged: (v) async {
+                        innerSetState(() {});
+                        this.setState(() => _instaAddedFilter = v);
+                        await _persistFilters();
+                        await _filterImages();
+                      },
                     ),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Apply filters'),
-                    )
+                      child: const Text('Done'),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Done'),
+                    ),
                   ],
                 ),
               ),
@@ -1106,18 +1142,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         );
       },
     );
-
-    if (result == true) {
-      setState(() {
-        selectedState = tempSelectedState;
-        verificationFilter = tempVerification;
-        _snapAddedFilter = tempSnapFilter;
-        _instaAddedFilter = tempInstaFilter;
-      });
-      await _saveLastSelectedState(selectedState);
-      await _persistFilters();
-      await _filterImages();
-    }
   }
 
   Widget _buildControls() {
@@ -1347,6 +1371,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           onPressed: () async {
             isAscending = !isAscending;
             await _applyFiltersAndSort();
+            await _persistFilters();
           },
         ),
       ),
@@ -1388,6 +1413,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     verificationFilter = prefs.getString(_verificationFilterKey) ?? verificationFilter;
     _snapAddedFilter = _parseAddedFilter(prefs.getString(_snapAddedKey));
     _instaAddedFilter = _parseAddedFilter(prefs.getString(_instaAddedKey));
+  selectedSortOption = prefs.getString(_sortOptionKey) ?? selectedSortOption;
+  isAscending = prefs.getBool(_sortAscendingKey) ?? isAscending;
     final savedStates = prefs.getStringList(_multiStatesKey) ?? const <String>[];
     _selectedStatesMulti
       ..clear()
@@ -1425,6 +1452,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     await prefs.setString(_snapAddedKey, _addedFilterToString(_snapAddedFilter));
     await prefs.setString(_instaAddedKey, _addedFilterToString(_instaAddedFilter));
     await prefs.setStringList(_multiStatesKey, _selectedStatesMulti.toList());
+  await prefs.setString(_sortOptionKey, selectedSortOption);
+  await prefs.setBool(_sortAscendingKey, isAscending);
   }
 
   // ---------------- Import helpers ----------------
@@ -1543,6 +1572,44 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           break;
         case 'Added on Instagram':
           result = (a.addedOnInsta ? 1 : 0).compareTo(b.addedOnInsta ? 1 : 0);
+          break;
+        case 'Location':
+          // Sort by relative timezone delta vs device time.
+          int? offA = a.location?.utcOffset;
+          int? offB = b.location?.utcOffset;
+          int normalize(int raw) {
+            final abs = raw.abs();
+            const maxMinutes = 18 * 60;      // 1080
+            const maxSeconds = 18 * 3600;    // 64800
+            const maxMillis  = maxSeconds * 1000;     // 64,800,000
+            const maxMicros  = maxMillis * 1000;      // 64,800,000,000
+            if (abs <= maxMinutes) return raw * 60;          // minutes
+            if (abs <= maxSeconds) return raw;                // seconds
+            if (abs <= maxMillis)  return (raw / 1000).round();   // ms
+            if (abs <= maxMicros)  return (raw / 1000000).round();// µs
+            return 0; // fallback
+          }
+          int? secA = offA != null ? normalize(offA) : null;
+          int? secB = offB != null ? normalize(offB) : null;
+          final local = DateTime.now().timeZoneOffset.inSeconds;
+          int? deltaA = secA != null ? (secA - local) : null;
+          int? deltaB = secB != null ? (secB - local) : null;
+
+          if (deltaA == null && deltaB == null) {
+            result = 0;
+          } else if (deltaA == null) {
+            result = 1; // a (unknown) goes after b
+          } else if (deltaB == null) {
+            result = -1; // b (unknown) goes after a
+          } else {
+            result = deltaA.compareTo(deltaB);
+            if (result == 0) {
+              // Stable tie-breaker by name to ensure deterministic order
+              final na = path.basename(a.imagePath);
+              final nb = path.basename(b.imagePath);
+              result = na.compareTo(nb);
+            }
+          }
           break;
         case 'Name':
         default:
