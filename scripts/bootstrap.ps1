@@ -21,7 +21,7 @@ function Refresh-SessionPath {
 
 # Returns $true when the given winget package id is installed
 function Is-WingetPackageInstalled($id) {
-    $out = winget list --id $id -e 2>$null
+    $out = winget list --id $id -e --accept-source-agreements --disable-interactivity 2>$null
     return ($LASTEXITCODE -eq 0 -and $out -and $out -notmatch 'No installed')
 }
 
@@ -103,13 +103,22 @@ function Ensure-CommandPersistence {
     return (Ensure-PathEntry -Dir $dir -ToolName $ToolName)
 }
 
+# Pre-warm winget sources to avoid first-run prompts/hangs
+try {
+    $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
+    if ($wingetCmd) {
+        Write-Host "Pre-warming winget sources..." -ForegroundColor Cyan
+        winget source list --accept-source-agreements --disable-interactivity | Out-Null
+    }
+} catch { }
+
 # Ensure JDK 17 is installed and available
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 $jdkInstalled = Is-WingetPackageInstalled $jdkPackage
 if (-not $javaCmd -or -not $jdkInstalled) {
     Write-Host "Installing JDK 17 via winget..."
-    winget install -e --id $jdkPackage
+    winget install -e --id $jdkPackage --accept-source-agreements --accept-package-agreements --disable-interactivity
     $null = Ensure-CommandPersistence -CommandName 'java' -ToolName 'JDK 17'
     $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 } else {
@@ -134,7 +143,7 @@ $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 $studioInstalled = Is-WingetPackageInstalled $studioPackage
 if (-not $studioCmd -or -not $studioInstalled) {
     Write-Host "Installing Android Studio via winget..."
-    winget install -e --id $studioPackage
+    winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity
     $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
     $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 } else {
@@ -206,44 +215,12 @@ if (Test-Path $adbPathEntry) {
     $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools'
 }
 
-# Ensure Flutter is installed and on PATH
-$flutterPackage = 'Flutter.Flutter'
+# Kick off Flutter SDK setup via VS Code (non-blocking). Actual pinning happens after Android Studio wizard closes.
 $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
-$flutterInstalled = Is-WingetPackageInstalled $flutterPackage
-if (-not $flutterCmd -or -not $flutterInstalled) {
-    Write-Host "Installing Flutter via winget..."
-    winget install -e --id $flutterPackage
-    $null = Ensure-CommandPersistence -CommandName 'flutter' -ToolName 'Flutter'
-    $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
-} else {
-    Write-Host "Flutter is already installed and available." -ForegroundColor Green
-}
 if (-not $flutterCmd) {
-    $searchDirs = @(
-        "$env:LOCALAPPDATA\Programs\flutter\bin",
-        "$env:ProgramFiles\flutter\bin",
-        "$env:ProgramFiles(x86)\flutter\bin"
-    )
-    foreach ($d in $searchDirs) {
-        $candidate = Join-Path $d 'flutter.bat'
-        if (Test-Path $candidate) { $flutterCmd = @{ Source = $candidate }; break }
-    }
-}
-if ($flutterCmd) {
-    $flutterBin = Split-Path $flutterCmd.Source
-    $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter'
-    Push-Location (Split-Path $flutterBin -Parent)
-    $desiredFlutterVersion = "3.24.5"
-    $currentFlutterVersion = (& $flutterCmd.Source --version 2>$null | Select-String -Pattern "^Flutter\s+([0-9\.]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value })[0]
-    if ($currentFlutterVersion -ne $desiredFlutterVersion) {
-        git fetch --tags
-        git checkout $desiredFlutterVersion
-    } else {
-        Write-Host "Flutter $desiredFlutterVersion already checked out." -ForegroundColor Green
-    }
-    Pop-Location
-} else {
-    Write-Host "Flutter executable not found" -ForegroundColor Yellow
+    Write-Host "Triggering Flutter extension to set up the SDK (you may see prompts in VS Code)..." -ForegroundColor Cyan
+    try { Start-Process "vscode://command/flutter.changeSdk" 2>$null | Out-Null } catch { }
+    try { Start-Process "vscode://command/flutter.doctor" 2>$null | Out-Null } catch { }
 }
 
 # Install Firebase CLI if missing
@@ -252,7 +229,7 @@ $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
 $firebaseInstalled = Is-WingetPackageInstalled $firebasePackage
 if (-not $firebaseCmd -or -not $firebaseInstalled) {
     Write-Host "Installing Firebase CLI via winget..."
-    winget install -e --id $firebasePackage
+    winget install -e --id $firebasePackage --accept-source-agreements --accept-package-agreements --disable-interactivity
     $null = Ensure-CommandPersistence -CommandName 'firebase' -ToolName 'Firebase CLI'
     $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
 } else {
@@ -354,6 +331,55 @@ if ($studioProcess) {
     } else {
         Write-Host "SDK manager still not found" -ForegroundColor Yellow
     }
+}
+
+# After Android Studio setup, pause briefly, then check Flutter once and pin if available
+Write-Host "Preparing to finalize Flutter SDK setup..." -ForegroundColor Yellow
+$resp = Read-Host "Press Enter to wait 5 seconds, or type 's' to skip the wait if Flutter is already installed"
+if (($resp | ForEach-Object { $_.ToString().Trim().ToLower() }) -ne 's') {
+    Write-Host "Sleeping 5 seconds before checking for Flutter..." -ForegroundColor DarkYellow
+    Start-Sleep -Seconds 5
+}
+
+Refresh-SessionPath
+$flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
+if ($flutterCmd) {
+    try {
+        $verText = & $flutterCmd.Source --version 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $verText) { throw "Flutter command not ready" }
+    } catch {
+        Write-Host "Flutter command found but not ready. Skipping version pin for now." -ForegroundColor Yellow
+        $flutterCmd = $null
+    }
+}
+
+if ($flutterCmd) {
+    $flutterBin = Split-Path $flutterCmd.Source
+    $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter'
+    $flutterRoot = (Split-Path $flutterBin -Parent)
+    $desiredFlutterVersion = "3.24.5"
+    $currentFlutterVersion = (& $flutterCmd.Source --version 2>$null | Select-String -Pattern "^Flutter\s+([0-9\.]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value })[0]
+    $gitDir = Join-Path $flutterRoot '.git'
+    if (Test-Path $gitDir) {
+        if ($currentFlutterVersion -ne $desiredFlutterVersion) {
+            Push-Location $flutterRoot
+            try {
+                git fetch --tags
+                git checkout $desiredFlutterVersion
+            } catch {
+                Write-Host "Warning: Failed to switch Flutter to $desiredFlutterVersion. Continuing with current version." -ForegroundColor Yellow
+            }
+            Pop-Location
+        } else {
+            Write-Host "Flutter $desiredFlutterVersion already checked out." -ForegroundColor Green
+        }
+    } else {
+        if ($currentFlutterVersion -and $currentFlutterVersion -ne $desiredFlutterVersion) {
+            Write-Host "Flutter SDK is not a git checkout; cannot pin to $desiredFlutterVersion automatically. Current: $currentFlutterVersion" -ForegroundColor Yellow
+        }
+    }
+} else {
+    Write-Host "Flutter not detected after brief wait; skipping version pin." -ForegroundColor Yellow
 }
 
 # Mark bootstrap complete
