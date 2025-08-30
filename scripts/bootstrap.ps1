@@ -336,7 +336,7 @@ if ($studioProcess) {
 # After Android Studio setup, pause briefly, then check Flutter once and pin if available
 Write-Host "Preparing to finalize Flutter SDK setup..." -ForegroundColor Yellow
 $resp = Read-Host "Press Enter to wait 5 seconds, or type 's' to skip the wait if Flutter is already installed"
-if (($resp | ForEach-Object { $_.ToString().Trim().ToLower() }) -ne 's') {
+if ($resp.Trim().ToLower() -ne 's') {
     Write-Host "Sleeping 5 seconds before checking for Flutter..." -ForegroundColor DarkYellow
     Start-Sleep -Seconds 5
 }
