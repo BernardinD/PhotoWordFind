@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:PhotoWordFind/services/redo_job_manager.dart';
 
 /// Opens a bottom sheet to view, edit, and verify usernames for a contact entry.
 Future<void> showHandlesSheet(BuildContext context, ContactEntry contact) async {
@@ -419,72 +420,155 @@ class HandlesEditorPanel extends StatefulWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              const SizedBox(height: 12),
-              // Quick-jump tabs
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _JumpChip(icon: Icons.snapchat, label: 'Snap', onTap: () => _jumpTo(_snapKey)),
-                  _JumpChip(icon: Icons.camera_alt_outlined, label: 'Insta', onTap: () => _jumpTo(_instaKey)),
-                  _JumpChip(icon: Icons.chat_bubble_outline, label: 'Discord', onTap: () => _jumpTo(_discordKey)),
-                ],
+              // Redo status indicator (shown with or without header)
+              ValueListenableBuilder<Map<String, RedoJobStatus>>(
+                valueListenable: RedoJobManager.instance.statuses,
+                builder: (context, map, _) {
+                  final st = map[widget.contact.identifier];
+                  if (st == null) return const SizedBox.shrink();
+                  final failed = !st.processing && st.message == 'Failed';
+                  final queued = !st.processing && st.message == 'Queued';
+                  final processing = st.processing;
+                  if (failed) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ActionChip(
+                          avatar: const Icon(Icons.error_outline, size: 16, color: Colors.white),
+                          backgroundColor: Colors.deepOrange,
+                          label: const Text('Redo failed — Retry', style: TextStyle(color: Colors.white)),
+                          onPressed: () => RedoJobManager.instance.retry(widget.contact.identifier),
+                        ),
+                      ),
+                    );
+                  }
+                  if (processing || queued) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: processing
+                                    ? const CircularProgressIndicator(strokeWidth: 2)
+                                    : const Icon(Icons.schedule, size: 14, color: Colors.blue),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                processing ? 'Updating… Redo in progress' : 'Redo queued…',
+                                style: const TextStyle(color: Colors.blue),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
-              const SizedBox(height: 8),
-              _platformSection(
-                title: 'Snapchat',
-                platformKey: SubKeys.SnapUsername,
-                controller: _snap,
-                verified: widget.contact.verifiedOnSnapAt != null,
-                verifiedAt: widget.contact.verifiedOnSnapAt,
-                added: widget.contact.addedOnSnap,
-                addedAt: widget.contact.dateAddedOnSnap,
-                onToggleAdd: () {
-                  setState(() {
-                    if (widget.contact.addedOnSnap) {
-                      widget.contact.resetSnapchatAdd();
-                    } else {
-                      widget.contact.addSnapchat();
-                    }
-                  });
+              // Lockable form area: disable interactions while queued/processing
+              ValueListenableBuilder<Map<String, RedoJobStatus>>(
+                valueListenable: RedoJobManager.instance.statuses,
+                builder: (context, map, _) {
+                  final st = map[widget.contact.identifier];
+                  final locked = st != null && (st.processing || st.message == 'Queued');
+                  final content = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+                      // Quick-jump tabs
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _JumpChip(icon: Icons.snapchat, label: 'Snap', onTap: () => _jumpTo(_snapKey)),
+                          _JumpChip(icon: Icons.camera_alt_outlined, label: 'Insta', onTap: () => _jumpTo(_instaKey)),
+                          _JumpChip(icon: Icons.chat_bubble_outline, label: 'Discord', onTap: () => _jumpTo(_discordKey)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _platformSection(
+                        title: 'Snapchat',
+                        platformKey: SubKeys.SnapUsername,
+                        controller: _snap,
+                        verified: widget.contact.verifiedOnSnapAt != null,
+                        verifiedAt: widget.contact.verifiedOnSnapAt,
+                        added: widget.contact.addedOnSnap,
+                        addedAt: widget.contact.dateAddedOnSnap,
+                        onToggleAdd: () {
+                          setState(() {
+                            if (widget.contact.addedOnSnap) {
+                              widget.contact.resetSnapchatAdd();
+                            } else {
+                              widget.contact.addSnapchat();
+                            }
+                          });
+                        },
+                      ).withKey(_snapKey),
+                      _platformSection(
+                        title: 'Instagram',
+                        platformKey: SubKeys.InstaUsername,
+                        controller: _insta,
+                        verified: widget.contact.verifiedOnInstaAt != null,
+                        verifiedAt: widget.contact.verifiedOnInstaAt,
+                        added: widget.contact.addedOnInsta,
+                        addedAt: widget.contact.dateAddedOnInsta,
+                        onToggleAdd: () {
+                          setState(() {
+                            if (widget.contact.addedOnInsta) {
+                              widget.contact.resetInstagramAdd();
+                            } else {
+                              widget.contact.addInstagram();
+                            }
+                          });
+                        },
+                      ).withKey(_instaKey),
+                      _platformSection(
+                        title: 'Discord',
+                        platformKey: SubKeys.DiscordUsername,
+                        controller: _discord,
+                        verified: widget.contact.verifiedOnDiscordAt != null,
+                        verifiedAt: widget.contact.verifiedOnDiscordAt,
+                        added: widget.contact.addedOnDiscord,
+                        addedAt: widget.contact.dateAddedOnDiscord,
+                        onToggleAdd: () {
+                          setState(() {
+                            if (widget.contact.addedOnDiscord) {
+                              widget.contact.resetDiscordAdd();
+                            } else {
+                              widget.contact.addDiscord();
+                            }
+                          });
+                        },
+                      ).withKey(_discordKey),
+                      const SizedBox(height: 8),
+                    ],
+                  );
+                  if (!locked) return content;
+                  return Stack(
+                    children: [
+                      IgnorePointer(ignoring: true, child: content),
+                      Positioned.fill(
+                        child: Container(
+                          color: Theme.of(context).colorScheme.surface.withOpacity(0.03),
+                        ),
+                      ),
+                    ],
+                  );
                 },
-              ).withKey(_snapKey),
-              _platformSection(
-                title: 'Instagram',
-                platformKey: SubKeys.InstaUsername,
-                controller: _insta,
-                verified: widget.contact.verifiedOnInstaAt != null,
-                verifiedAt: widget.contact.verifiedOnInstaAt,
-                added: widget.contact.addedOnInsta,
-                addedAt: widget.contact.dateAddedOnInsta,
-                onToggleAdd: () {
-                  setState(() {
-                    if (widget.contact.addedOnInsta) {
-                      widget.contact.resetInstagramAdd();
-                    } else {
-                      widget.contact.addInstagram();
-                    }
-                  });
-                },
-              ).withKey(_instaKey),
-              _platformSection(
-                title: 'Discord',
-                platformKey: SubKeys.DiscordUsername,
-                controller: _discord,
-                verified: widget.contact.verifiedOnDiscordAt != null,
-                verifiedAt: widget.contact.verifiedOnDiscordAt,
-                added: widget.contact.addedOnDiscord,
-                addedAt: widget.contact.dateAddedOnDiscord,
-                onToggleAdd: () {
-                  setState(() {
-                    if (widget.contact.addedOnDiscord) {
-                      widget.contact.resetDiscordAdd();
-                    } else {
-                      widget.contact.addDiscord();
-                    }
-                  });
-                },
-              ).withKey(_discordKey),
-              const SizedBox(height: 8),
+              ),
             ],
           ),
         ),

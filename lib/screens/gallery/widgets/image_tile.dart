@@ -570,35 +570,39 @@ class _ImageTileState extends State<ImageTile> {
                       ),
                     ),
                   ),
-                  // Processing overlay badge
+                  // Processing/failed overlay and interaction control
                   Positioned.fill(
                     child: ValueListenableBuilder<Map<String, RedoJobStatus>>(
                       valueListenable: RedoJobManager.instance.statuses,
                       builder: (context, map, _) {
                         final status = map[widget.contact.identifier];
                         if (status == null) return const SizedBox.shrink();
-                        if (status.processing) {
-                          return Container(
-                            color: Colors.black38,
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white24),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text('Redoing...', style: TextStyle(color: Colors.white)),
-                                  ],
+                        if (status.processing || status.message == 'Queued') {
+                          // Absorb interactions while queued/processing
+                          return AbsorbPointer(
+                            absorbing: true,
+                            child: Container(
+                              color: Colors.black38,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black87,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white24),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Redoing...', style: TextStyle(color: Colors.white)),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

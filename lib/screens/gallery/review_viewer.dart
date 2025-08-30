@@ -6,6 +6,7 @@ import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
 import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
 import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
+import 'package:PhotoWordFind/services/redo_job_manager.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 
 class ReviewViewer extends StatefulWidget {
@@ -167,11 +168,16 @@ class _ReviewViewerState extends State<ReviewViewer> {
                     Text('${_index + 1} / ${widget.images.length}', style: const TextStyle(color: Colors.white)),
                     const Spacer(),
                     // Redo text extraction for the current item
-                    IconButton(
-                      tooltip: 'Redo text extraction',
-                      color: Colors.white,
-                      icon: const Icon(Icons.refresh),
-                      onPressed: () async {
+                    ValueListenableBuilder<Map<String, RedoJobStatus>>(
+                      valueListenable: RedoJobManager.instance.statuses,
+                      builder: (context, map, _) {
+                        final st = map[_current.identifier];
+                        final busy = st != null && (st.processing || st.message == 'Queued');
+                        return IconButton(
+                          tooltip: busy ? 'Redo in progress' : 'Redo text extraction',
+                          color: Colors.white,
+                          icon: const Icon(Icons.refresh),
+                          onPressed: busy ? null : () async {
                         final entry = _current;
                         final result = await Navigator.of(context).push<Map<String, dynamic>>(
                           MaterialPageRoute(
@@ -197,10 +203,75 @@ class _ReviewViewerState extends State<ReviewViewer> {
                             await StorageUtils.save(entry);
                           }
                         }
+                          },
+                        );
                       },
                     ),
                   ],
                 ),
+              ),
+            ),
+            // Non-blocking redo status banner for current image
+            Positioned(
+              top: 42,
+              left: 8,
+              right: 8,
+              child: ValueListenableBuilder<Map<String, RedoJobStatus>>(
+                valueListenable: RedoJobManager.instance.statuses,
+                builder: (context, map, _) {
+                  final st = map[_current.identifier];
+                  if (st == null) return const SizedBox.shrink();
+                  final failed = !st.processing && st.message == 'Failed';
+                  final queued = !st.processing && st.message == 'Queued';
+                  final processing = st.processing;
+                  Color bg;
+                  Color fg;
+                  Widget leading;
+                  String text;
+                  if (failed) {
+                    bg = Colors.deepOrange.withOpacity(0.15);
+                    fg = Colors.deepOrange;
+                    leading = const Icon(Icons.error_outline, size: 16, color: Colors.deepOrange);
+                    text = 'Redo failed — open panel to retry';
+                  } else if (processing) {
+                    bg = Colors.blue.withOpacity(0.15);
+                    fg = Colors.blue;
+                    leading = const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2));
+                    text = 'Updating… Redo in progress';
+                  } else if (queued) {
+                    bg = Colors.blueGrey.withOpacity(0.14);
+                    fg = Colors.blueGrey;
+                    leading = const Icon(Icons.schedule, size: 16, color: Colors.blueGrey);
+                    text = 'Redo queued…';
+                  } else {
+                    return const SizedBox.shrink();
+                  }
+                  return IgnorePointer(
+                    ignoring: true,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: bg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: fg.withOpacity(0.35)),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          leading,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              text,
+                              style: TextStyle(color: fg),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             Positioned(
