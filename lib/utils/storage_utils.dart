@@ -51,6 +51,12 @@ class SubKeys {
   static String get Location => "location";
   // ignore: non_constant_identifier_names
   static String get Notes => "notes";
+  // Verification dates: presence of a date indicates verified
+  // for the respective platform.
+  // Kept separate from "added" fields which indicate platform friend/follow state.
+  static String get VerifiedSnapDate => "verifiedOnSnapDate";
+  static String get VerifiedInstaDate => "verifiedOnInstaDate";
+  static String get VerifiedDiscordDate => "verifiedOnDiscordDate";
 }
 
 class StorageUtils {
@@ -61,7 +67,24 @@ class StorageUtils {
     'use_new_ui_candidate',
     'last_selected_state',
     'import_directory',
+    'migrated_verification_dates_v1',
+    // Gallery UI/filter preferences (skip during contacts migration)
+    'gallery_filters_collapsed_v1',
+    'gallery_verification_filter_v1',
+    'gallery_snap_added_filter_v1',
+    'gallery_insta_added_filter_v1',
+    'gallery_selected_states_multi_v1',
   };
+
+  // --- Debounced save coalescing (per-entry) ---
+  // Removed: per-entry Hive debounce. Hive writes are fast and safe to call
+  // directly; call sites can avoid awaiting if they don't need confirmation.
+
+  // --- Debounced cloud sync (global) ---
+  // If any save() requests backup=true, queue a single cloud update after a
+  // short delay; subsequent requests extend the delay.
+  static Timer? _cloudDebounceTimer;
+  static const Duration _cloudDebounceDuration = Duration(seconds: 30);
 
   static Future<void> init() async {
     filePaths = (await readJson()).cast<String, String>();
@@ -169,7 +192,8 @@ class StorageUtils {
 
   static Future syncLocalAndCloud() async {
     // Save to cloud
-    // TODO: Put this inside a timer that saves a few seconds after a save call
+    // Note: prefer using the debounced cloud scheduling in save() where
+    // appropriate. This method remains for explicit, immediate sync needs.
     if (await CloudUtils.isSignedin()) {
       await CloudUtils.updateCloudJson();
     }
@@ -179,22 +203,24 @@ class StorageUtils {
   /// Note: I still need to determine if this function is still needed and
   /// being used. I expect that with the new saving function of auto saving
   /// with the Contact Entry this save function is no longer needed.
-  static Future save(
+  static Future<void> save(
     ContactEntry entry, {
-    required bool backup,
     bool reload = false,
   }) async {
-    Map<String, dynamic>? map = entry.toJson();
+  // Immediate Hive write; rely on Hive internals for batching/safety.
+  final String id = entry.identifier;
+  final String rawJson = jsonEncode(entry.toJson());
+  final box = Hive.box('contacts');
+  await box.put(id, rawJson);
 
-    String rawJson = jsonEncode(map);
-    final box = Hive.box('contacts');
-    await box.put(entry.identifier, rawJson);
-
-    // Save to cloud
-    // TODO: Put this inside a timer that saves a few seconds after a save call
-    if (backup && await CloudUtils.isSignedin()) {
-      await CloudUtils.updateCloudJson();
-    }
+  // Schedule a global debounced cloud sync after local save requests.
+    _cloudDebounceTimer?.cancel();
+    _cloudDebounceTimer = Timer(_cloudDebounceDuration, () async {
+      _cloudDebounceTimer = null;
+      if (await CloudUtils.isSignedin()) {
+        await CloudUtils.updateCloudJson();
+      }
+    });
   }
 
   /// TODO: Revisit this and its use of Async, which restricts us to
@@ -260,7 +286,7 @@ class StorageUtils {
 
     if (entry.state == null || entry.state!.isEmpty) {
       entry.state = path.basename(path.dirname(entry.imagePath));
-      await save(entry, backup: false);
+      await save(entry);
     }
 
     return entry;
@@ -285,7 +311,7 @@ class StorageUtils {
             returned.containsKey('imagePath') &&
             returned['imagePath'] != null) {
           final entry = ContactEntry.fromJson2(key, returned);
-          await save(entry, backup: false);
+          await save(entry);
           debugPrint("Saving new format...");
         } else {
           await box.put(key, cloud[key]);
@@ -293,7 +319,7 @@ class StorageUtils {
           // an imagePath before saving in the newer format
           final entry = await get(key);
           if (entry != null) {
-            await save(entry, backup: false);
+            await save(entry);
           }
         }
       } else {
@@ -369,6 +395,51 @@ class StorageUtils {
     await Hive.openBox('contacts');
   }
 
+  /// One-time migration: populate verification dates from existing platform
+  /// "added" dates. Prior to separating concepts, "added" was often used as
+  /// a proxy for verification. To preserve that signal, copy any existing
+  /// dateAddedOn* into verifiedOn*At when verification is currently null.
+  /// Returns the number of entries updated. Safe to call on every startup; it
+  /// runs once and is idempotent via a SharedPreferences flag.
+  static Future<int> migrateVerificationDatesIfNeeded() async {
+    const String flagKey = 'migrated_verification_dates_v1';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(flagKey) == true) return 0;
+
+    int updated = 0;
+    final keys = getKeys();
+    for (final key in keys) {
+      try {
+        final entry = await get(key);
+        if (entry == null) continue;
+        bool changed = false;
+
+        if (entry.verifiedOnSnapAt == null && entry.dateAddedOnSnap != null) {
+          entry.verifiedOnSnapAt = entry.dateAddedOnSnap;
+          changed = true;
+        }
+        if (entry.verifiedOnInstaAt == null && entry.dateAddedOnInsta != null) {
+          entry.verifiedOnInstaAt = entry.dateAddedOnInsta;
+          changed = true;
+        }
+        if (entry.verifiedOnDiscordAt == null && entry.dateAddedOnDiscord != null) {
+          entry.verifiedOnDiscordAt = entry.dateAddedOnDiscord;
+          changed = true;
+        }
+
+        if (changed) {
+          updated++;
+          await save(entry);
+        }
+      } catch (e) {
+        debugPrint('Verification migration skipped key $key due to error: $e');
+      }
+    }
+
+    await prefs.setBool(flagKey, true);
+    return updated;
+  }
+
   /// Migrate all SharedPreferences contact entries to Hive
   static Future<void> migrateSharedPrefsToHive() async {
     final box = Hive.box('contacts');
@@ -386,7 +457,7 @@ class StorageUtils {
         // Use this to retrieve the image path if needed
         final entry = await StorageUtils.get(key);
         if (entry != null) {
-          StorageUtils.save(entry, backup: false);
+          StorageUtils.save(entry);
         }
       }
     }

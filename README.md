@@ -3,6 +3,19 @@ Flutter app for finding pictures that contain a searched word in a group of phot
 
 Note: The new gallery UI is now the default. The legacy UI remains available temporarily via a runtime toggle.
 
+## Feature overview
+- Dual UI modes: modern gallery UI and legacy interface with in‑app toggle
+- Gallery browsing: masonry grid (sliver) with full‑screen review and swipe
+- Search, filter, sort: rich search; filters for state, verification, platform added; multiple sort options with order toggle
+- Handles management: edit/view Snapchat, Instagram, Discord; verify/unverify with timestamps; mark added/reset added
+- OCR & AI: ChatGPT‑based extraction; manual crop/redo flow; safe post‑processing that preserves verified data
+- Import workflow: pick from device albums for a chosen import directory; move/copy into DCIM/Comb; auto‑process and save
+- Data & persistence: Hive storage with autosave; migrations from SharedPreferences; legacy path recovery
+- Cloud backup: Google Drive JSON backup; sign‑in/out; merge cloud→local; explicit sync and pull‑to‑refresh
+- Notes & actions: edit notes; open socials; guided unfriend flows with timestamped notes
+- Settings: manage import directory, cloud account, view last sync time
+- Performance & reliability: cache trimming on lifecycle/memory pressure; targeted image decoding; progress/error feedback; crash reporting
+
 ## Overview (Legacy vs New UI)
 The project ships with two gallery experiences that can be switched live at runtime. The new UI is the default.
 

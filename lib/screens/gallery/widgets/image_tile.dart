@@ -7,11 +7,14 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:PhotoWordFind/social_icons.dart';
-import 'package:PhotoWordFind/utils/storage_utils.dart';
-import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
+// import 'package:PhotoWordFind/utils/storage_utils.dart';
+// import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
+import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
+import 'package:PhotoWordFind/utils/memory_utils.dart';
+import 'package:PhotoWordFind/services/redo_job_manager.dart';
 
 class ImageTile extends StatefulWidget {
   final String imagePath;
@@ -22,6 +25,8 @@ class ImageTile extends StatefulWidget {
   final Function(String) onSelected;
   final Function(String, String) onMenuOptionSelected;
   final ContactEntry contact;
+  final bool gridMode;
+  final VoidCallback? onOpenFullScreen;
 
   const ImageTile({
     super.key,
@@ -33,6 +38,8 @@ class ImageTile extends StatefulWidget {
     required this.onSelected,
     required this.onMenuOptionSelected,
     required this.contact,
+    this.gridMode = false,
+  this.onOpenFullScreen,
   });
 
   @override
@@ -40,6 +47,12 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> {
+  ImageProvider _providerForWidth(double logicalWidth) {
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    // Clamp to a sane range to avoid decoding very large bitmaps in list/grid
+    final targetWidth = (logicalWidth * dpr).clamp(64.0, 2048.0).round();
+    return ResizeImage(FileImage(File(widget.imagePath)), width: targetWidth);
+  }
   String get _truncatedText {
     const maxChars = 120;
     if (widget.extractedText.length <= maxChars) return widget.extractedText;
@@ -67,6 +80,26 @@ class _ImageTileState extends State<ImageTile> {
     }
   }
 
+  SocialType? _getPrimarySocial() {
+    if (widget.contact.snapUsername?.isNotEmpty == true) return SocialType.Snapchat;
+    if (widget.contact.instaUsername?.isNotEmpty == true) return SocialType.Instagram;
+    if (widget.contact.discordUsername?.isNotEmpty == true) return SocialType.Discord;
+    return null;
+  }
+
+  String? _getPrimaryUsername(SocialType social) {
+    switch (social) {
+      case SocialType.Snapchat:
+        return widget.contact.snapUsername;
+      case SocialType.Instagram:
+        return widget.contact.instaUsername;
+      case SocialType.Discord:
+        return widget.contact.discordUsername;
+      default:
+        return null;
+    }
+  }
+
   void _showPopupMenu(BuildContext context, String imagePath) {
     showModalBottomSheet(
       context: context,
@@ -80,6 +113,15 @@ class _ImageTileState extends State<ImageTile> {
               onTap: () {
                 Navigator.pop(sheetContext);
                 _showDetailsDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.manage_accounts),
+              title: const Text('Handles & Verification'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                await showHandlesSheet(context, widget.contact);
+                setState(() {});
               },
             ),
             ListTile(
@@ -222,14 +264,22 @@ class _ImageTileState extends State<ImageTile> {
   Future<void> _redoTextExtraction() async {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (_) => RedoCropScreen(imageFile: File(widget.imagePath)),
+        builder: (_) => RedoCropScreen(
+          imageFile: File(widget.imagePath),
+          contact: widget.contact,
+          initialAllowNameAgeUpdate: (widget.contact.name == null || widget.contact.name!.isEmpty || widget.contact.age == null),
+        ),
       ),
     );
-    if (result != null) {
-      setState(() {
-        postProcessChatGptResult(widget.contact, result, save: false);
-      });
-      await StorageUtils.save(widget.contact, backup: false);
+    if (result != null && result['queued'] == true) {
+      // Background job enqueued; show a brief hint
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Redo queued and running in background.')),
+        );
+        setState(() {});
+      }
     }
   }
 
@@ -369,6 +419,8 @@ class _ImageTileState extends State<ImageTile> {
   }
 
   void _openSocial(SocialType social, String username) async {
+  // Proactively free decoded images to reduce memory pressure before switching apps
+  MemoryUtils.trimImageCaches();
     Uri url;
     switch (social) {
       case SocialType.Snapchat:
@@ -432,14 +484,24 @@ class _ImageTileState extends State<ImageTile> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showDetailsDialog(context),
+  return RepaintBoundary(
+      child: GestureDetector(
+      onTap: () async {
+        if (widget.gridMode && widget.onOpenFullScreen != null) {
+          widget.onOpenFullScreen!.call();
+        } else {
+          _showDetailsDialog(context);
+        }
+      },
       onLongPress: () => widget.onSelected(widget.identifier),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final bool isGrid = widget.gridMode;
+          final logicalWidth = isGrid ? constraints.maxWidth : (constraints.maxWidth * 0.8);
+          final imageProvider = _providerForWidth(logicalWidth);
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            width: constraints.maxWidth * 0.8,
+            margin: isGrid ? const EdgeInsets.symmetric(vertical: 6, horizontal: 0) : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            width: isGrid ? double.infinity : constraints.maxWidth * 0.8,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: widget.isSelected ? Border.all(color: Colors.blueAccent, width: 3) : null,
@@ -455,14 +517,29 @@ class _ImageTileState extends State<ImageTile> {
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
-                  Positioned.fill(
-                    child: PhotoView(
-                      imageProvider: FileImage(File(widget.imagePath)),
-                      backgroundDecoration: const BoxDecoration(color: Colors.white),
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 2.5,
+                  if (isGrid)
+                    // Fixed aspect thumbnail in grid mode to ensure a deterministic height
+                    AspectRatio(
+                      aspectRatio: 3 / 4,
+                      child: Image(
+                        image: imageProvider,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.low,
+                        errorBuilder: (ctx, _, __) => const ColoredBox(color: Colors.black12),
+                      ),
+                    )
+                  else
+                    Positioned.fill(
+                      child: Image(
+                        image: imageProvider,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.low,
+                        errorBuilder: (ctx, _, __) => const ColoredBox(color: Colors.black12),
+                      ),
                     ),
-                  ),
+                  // Top-right: menu button (moved here from bottom bar)
                   Positioned(
                     top: 8,
                     right: 8,
@@ -472,19 +549,13 @@ class _ImageTileState extends State<ImageTile> {
                       elevation: 4,
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () async {
-                          await _redoTextExtraction();
-                        },
+                        onTap: () => _showPopupMenu(context, widget.imagePath),
                         child: Container(
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF4F8CFF), Color(0xFF8F5CFF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            color: Colors.black.withOpacity(0.55),
                             border: Border.all(color: Colors.white, width: 2),
                             boxShadow: const [
                               BoxShadow(
@@ -494,15 +565,89 @@ class _ImageTileState extends State<ImageTile> {
                               ),
                             ],
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.refresh,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
+                          child: const Center(child: Icon(Icons.more_vert, color: Colors.white, size: 20)),
                         ),
                       ),
+                    ),
+                  ),
+                  // Processing/failed overlay and interaction control
+                  Positioned.fill(
+                    child: ValueListenableBuilder<Map<String, RedoJobStatus>>(
+                      valueListenable: RedoJobManager.instance.statuses,
+                      builder: (context, map, _) {
+                        final status = map[widget.contact.identifier];
+                        if (status == null) return const SizedBox.shrink();
+                        if (status.processing || status.message == 'Queued') {
+                          // Absorb interactions while queued/processing
+                          return AbsorbPointer(
+                            absorbing: true,
+                            child: Container(
+                              color: Colors.black38,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black87,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white24),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Redoing...', style: TextStyle(color: Colors.white)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        // Failed state: show a small bottom-left chip with retry
+                        if (!status.processing && status.message == 'Failed') {
+                          return Stack(
+                            children: [
+                              Positioned(
+                                left: 8,
+                                bottom: 64, // above the bottom gradient bar
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.95),
+                                      borderRadius: BorderRadius.circular(999),
+                                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.error_outline, size: 14, color: Colors.black),
+                                        const SizedBox(width: 6),
+                                        const Text('Failed', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+                                        TextButton(
+                                          style: TextButton.styleFrom(minimumSize: const Size(0, 0), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2)),
+                                          onPressed: () {
+                                            RedoJobManager.instance.retry(widget.contact.identifier);
+                                          },
+                                          child: const Text('Retry', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        // Queued or idle state: no overlay
+                        return const SizedBox.shrink();
+                      },
                     ),
                   ),
                   Positioned(
@@ -567,81 +712,64 @@ class _ImageTileState extends State<ImageTile> {
                               style: const TextStyle(color: Colors.white),
                             ),
                           ),
-                          Flexible(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  if (widget.contact.snapUsername?.isNotEmpty ?? false)
-                                    IconButton(
-                                      iconSize: 22,
-                                      color: Colors.white,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                      onPressed: () => _openSocial(
-                                        SocialType.Snapchat,
-                                        widget.contact.snapUsername!,
-                                      ),
-                                      icon: SocialIcon.snapchatIconButton!.socialIcon,
-                                    ),
-                                  if (widget.contact.instaUsername?.isNotEmpty ?? false)
-                                    IconButton(
-                                      iconSize: 22,
-                                      color: Colors.white,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                      onPressed: () => _openSocial(
-                                        SocialType.Instagram,
-                                        widget.contact.instaUsername!,
-                                      ),
-                                      icon: SocialIcon.instagramIconButton!.socialIcon,
-                                    ),
-                                  if (widget.contact.discordUsername?.isNotEmpty ?? false)
-                                    IconButton(
-                                      iconSize: 22,
-                                      color: Colors.white,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                      onPressed: () => _openSocial(
-                                        SocialType.Discord,
-                                        widget.contact.discordUsername!,
-                                      ),
-                                      icon: SocialIcon.discordIconButton!.socialIcon,
-                                    ),
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                    icon: const Icon(Icons.note_alt_outlined),
-                                    onPressed: () async {
-                                      await showNoteDialog(
-                                        context,
-                                        widget.contact.identifier,
-                                        widget.contact,
-                                        existingNotes: widget.contact.notes,
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () => _editUsernames(context),
-                                  ),
-                                  IconButton(
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-                                    icon: const Icon(Icons.more_vert),
-                                    onPressed: () => _showPopupMenu(context, widget.imagePath),
-                                  ),
-                                ],
+                          // Compact primary actions: primary social, notes, handles
+                          Row(
+                            children: [
+                              if (_getPrimarySocial() != null)
+                                IconButton(
+                                  tooltip: 'Open ${_getPrimarySocial()!.name}',
+                                  iconSize: 22,
+                                  color: Colors.white,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                  onPressed: () {
+                                    final s = _getPrimarySocial()!;
+                                    final u = _getPrimaryUsername(s);
+                                    if (u != null && u.isNotEmpty) _openSocial(s, u);
+                                  },
+                                  icon: () {
+                                    final s = _getPrimarySocial()!;
+                                    switch (s) {
+                                      case SocialType.Snapchat:
+                                        return SocialIcon.snapchatIconButton!.socialIcon;
+                                      case SocialType.Instagram:
+                                        return SocialIcon.instagramIconButton!.socialIcon;
+                                      case SocialType.Discord:
+                                        return SocialIcon.discordIconButton!.socialIcon;
+                                      default:
+                                        return const Icon(Icons.open_in_new);
+                                    }
+                                  }(),
+                                ),
+                              IconButton(
+                                tooltip: 'Notes',
+                                iconSize: 22,
+                                color: Colors.white,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                icon: const Icon(Icons.note_alt_outlined),
+                                onPressed: () async {
+                                  await showNoteDialog(
+                                    context,
+                                    widget.contact.identifier,
+                                    widget.contact,
+                                    existingNotes: widget.contact.notes,
+                                  );
+                                },
                               ),
-                            ),
+                              IconButton(
+                                tooltip: 'Handles & Verification',
+                                iconSize: 22,
+                                color: Colors.white,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                icon: const Icon(Icons.manage_accounts),
+                                onPressed: () async {
+                                  await showHandlesSheet(context, widget.contact);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -652,6 +780,7 @@ class _ImageTileState extends State<ImageTile> {
             ),
           );
         },
+      ),
       ),
     );
   }
