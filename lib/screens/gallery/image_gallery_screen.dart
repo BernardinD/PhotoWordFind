@@ -75,6 +75,7 @@ import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:PhotoWordFind/services/redo_job_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
@@ -152,6 +153,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // Feature flags
   static const bool kUseCompactHeader = true;
 
+  // Redo Mode state
+  bool _redoMode = false; // when true, show only redo candidates/failed and change FAB
+
+  // Listen to job status changes to refresh banner/mode contents
+  void _onJobsChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   // Persisted keys
   static const String _lastStateKey = 'last_selected_state';
   static const String _importDirKey = 'import_directory';
@@ -185,6 +195,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     CloudUtils.progressCallback = ({double? value, String? message, bool done = false, bool error = false}) {
       // Reserved hook for future UI progress
     };
+  // Refresh UI when background redo statuses change (affects banner and mode list)
+  RedoJobManager.instance.statuses.addListener(_onJobsChanged);
     _initializeApp();
   }
 
@@ -193,6 +205,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _searchDebounce?.cancel();
   _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
+  RedoJobManager.instance.statuses.removeListener(_onJobsChanged);
     // Restore global image cache budgets
     try {
       final cache = PaintingBinding.instance.imageCache;
@@ -346,16 +359,55 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       body: body,
       floatingActionButton: _isInitializing
           ? null
-          : selectedImages.isNotEmpty
-              ? FloatingActionButton(
-                  onPressed: () => _onMenuOptionSelected('', 'move'),
-                  child: const Icon(Icons.move_to_inbox),
+          : _redoMode
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    // In redo mode, apply full redo to all displayed candidates
+                    final Map<String, RedoJobStatus> statusMap = RedoJobManager.instance.statuses.value;
+                    bool _isRedoCandidate(ContactEntry c) {
+                      final isEmpty = ((c.extractedText?.trim().isEmpty ?? true)) &&
+                          ((c.name == null || c.name!.trim().isEmpty)) &&
+                          (c.age == null) &&
+                          ((c.snapUsername?.trim().isEmpty ?? true)) &&
+                          ((c.instaUsername?.trim().isEmpty ?? true)) &&
+                          ((c.discordUsername?.trim().isEmpty ?? true)) &&
+                          ((c.sections?.isNotEmpty ?? false) == false);
+                      final failed = statusMap[c.identifier]?.message == 'Failed';
+                      return isEmpty || failed;
+                    }
+                    final targets = images.where(_isRedoCandidate).toList();
+                    if (targets.isEmpty) return;
+                    for (final entry in targets) {
+                      try {
+                        RedoJobManager.instance.enqueueFull(
+                          entry: entry,
+                          imageFile: File(entry.imagePath),
+                          allowNameAgeUpdate: (entry.name == null || entry.name!.isEmpty || entry.age == null),
+                        );
+                      } catch (_) {}
+                    }
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Queued ${targets.length} redo job${targets.length == 1 ? '' : 's'}')),
+                    );
+                  },
+                  icon: const Icon(Icons.autorenew),
+                  label: const Text('Redo (Full)'),
                 )
-              : FloatingActionButton(
-                  onPressed: () => _importImages(navContext),
-                  tooltip: 'Import Images',
-                  child: const Icon(Icons.add),
-                ),
+              : selectedImages.isNotEmpty
+                  ? FloatingActionButton(
+                      onPressed: () {
+                        // Default bulk action: Move selected
+                        _onMenuOptionSelected('', 'move');
+                      },
+                      tooltip: 'Move selected',
+                      child: const Icon(Icons.move_to_inbox),
+                    )
+                  : FloatingActionButton(
+                      onPressed: () => _importImages(navContext),
+                      tooltip: 'Import Images',
+                      child: const Icon(Icons.add),
+                    ),
       persistentFooterButtons: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -415,16 +467,32 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Widget _buildMainContent(BuildContext navContext) {
+    // Compute the list to display (apply redo mode filtering on top of current images)
+    final Map<String, RedoJobStatus> statusMap = RedoJobManager.instance.statuses.value;
+    bool _isRedoCandidate(ContactEntry c) {
+      final isEmpty = ((c.extractedText?.trim().isEmpty ?? true)) &&
+          ((c.name == null || c.name!.trim().isEmpty)) &&
+          (c.age == null) &&
+          ((c.snapUsername?.trim().isEmpty ?? true)) &&
+          ((c.instaUsername?.trim().isEmpty ?? true)) &&
+          ((c.discordUsername?.trim().isEmpty ?? true)) &&
+          ((c.sections?.isNotEmpty ?? false) == false);
+      final failed = statusMap[c.identifier]?.message == 'Failed';
+      return isEmpty || failed;
+    }
+    final List<ContactEntry> displayedImages = _redoMode ? images.where(_isRedoCandidate).toList() : images;
+
     if (!kUseCompactHeader) {
       return LayoutBuilder(builder: (context, constraints) {
         final screenHeight = constraints.maxHeight;
         return Column(
           children: [
             if (_initializationError != null) _buildInitializationErrorBanner(context),
+            if (!_redoMode) _buildRedoBanner(),
             _buildControls(),
             Expanded(
               child: ImageGallery(
-                images: images,
+                images: displayedImages,
                 selectedImages: selectedImages,
                 sortOption: selectedSortOption,
                 onImageSelected: (String id) {
@@ -462,6 +530,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         ),
         if (_initializationError != null)
           SliverToBoxAdapter(child: _buildInitializationErrorBanner(context)),
+        if (!_redoMode)
+          SliverToBoxAdapter(child: _buildRedoBanner()),
         SliverPersistentHeader(
           pinned: true,
           delegate: _FixedHeaderDelegate(
@@ -472,7 +542,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           ),
         ),
         SliverImageGallery(
-          images: images,
+          images: displayedImages,
           selectedImages: selectedImages,
           sortOption: selectedSortOption,
           onImageSelected: (String id) {
@@ -492,6 +562,95 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   List<Widget> _buildAppBarActions(BuildContext navContext) {
     return [
+      if (_redoMode)
+        Padding(
+          padding: const EdgeInsets.only(right: 4.0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.orangeAccent.withOpacity(0.6)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.autorenew, size: 16, color: Colors.orangeAccent),
+                const SizedBox(width: 6),
+                const Text('Redo mode', style: TextStyle(color: Colors.orangeAccent)),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => setState(() => _redoMode = false),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2.0),
+                    child: Icon(Icons.close, size: 16, color: Colors.orangeAccent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      // Global jobs indicator: active/queued/failed
+      ValueListenableBuilder<RedoJobsSummary>(
+        valueListenable: RedoJobManager.instance.summary,
+        builder: (context, s, _) {
+          final hasAny = (s.active + s.queued + s.failed) > 0;
+          final color = s.failed > 0 ? Colors.orange : (hasAny ? Colors.white : Colors.white70);
+          final tooltip = 'Jobs — Active: ${s.active}, Queued: ${s.queued}, Failed: ${s.failed}';
+          return IconButton(
+            tooltip: tooltip,
+            icon: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.work_outline),
+                if (s.active > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: _Badge(count: s.active, color: Colors.lightBlueAccent),
+                  ),
+                if (s.failed > 0)
+                  Positioned(
+                    left: 0,
+                    bottom: 0,
+                    child: _Badge(count: s.failed, color: Colors.orangeAccent),
+                  ),
+              ],
+            ),
+            color: color,
+            onPressed: () {
+              showModalBottomSheet(
+                context: navContext,
+                builder: (_) {
+                  return SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Background jobs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text('Active: ${s.active}  •  Queued: ${s.queued}  •  Failed: ${s.failed}'),
+                          const SizedBox(height: 12),
+                          if (s.failed > 0)
+                            Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.orangeAccent),
+                                const SizedBox(width: 8),
+                                const Expanded(child: Text('Some jobs failed. You can retry from the failed tiles.')),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
       IconButton(
         tooltip: 'Switch to Legacy UI',
         icon: const Icon(Icons.swap_horiz),
@@ -552,6 +711,54 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           },
         ),
     ];
+  }
+
+  // Banner prompting to enter Redo mode when items need attention
+  Widget _buildRedoBanner() {
+    final statusMap = RedoJobManager.instance.statuses.value;
+    int emptyCount = 0;
+    int failedCount = 0;
+    for (final c in images) {
+      final isEmpty = ((c.extractedText?.trim().isEmpty ?? true)) &&
+          ((c.name == null || c.name!.trim().isEmpty)) &&
+          (c.age == null) &&
+          ((c.snapUsername?.trim().isEmpty ?? true)) &&
+          ((c.instaUsername?.trim().isEmpty ?? true)) &&
+          ((c.discordUsername?.trim().isEmpty ?? true)) &&
+          ((c.sections?.isNotEmpty ?? false) == false);
+      if (isEmpty) emptyCount++;
+      if (statusMap[c.identifier]?.message == 'Failed') failedCount++;
+    }
+    if (emptyCount == 0 && failedCount == 0) return const SizedBox.shrink();
+
+    final text = failedCount > 0
+        ? '$emptyCount need redo • $failedCount failed'
+        : '$emptyCount need redo';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Material(
+        color: Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => setState(() => _redoMode = true),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.orangeAccent),
+                const SizedBox(width: 10),
+                Expanded(child: Text(text)),
+                const SizedBox(width: 8),
+                const Text('Enter redo mode', style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, color: Colors.orangeAccent),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSlimFilterBar() {
@@ -1458,9 +1665,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     );
   }
 
-  Future<void> _onMenuOptionSelected(String imagePath, String option) async {
-    if (option != 'move') return;
-    final targets = <ContactEntry>[];
+  Future<void> _onMenuOptionSelected(String imagePath, String _option) async {
+  final targets = <ContactEntry>[];
 
     if (selectedImages.isNotEmpty) {
       for (final id in selectedImages) {
@@ -1472,7 +1678,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       if (match.isNotEmpty) targets.add(match.first);
     }
 
-    if (targets.isEmpty) return;
+  if (targets.isEmpty) return;
 
     String currentState = '';
     if (targets.isNotEmpty) {
@@ -1687,6 +1893,27 @@ class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _FixedHeaderDelegate oldDelegate) {
     return minHeight != oldDelegate.minHeight || maxHeight != oldDelegate.maxHeight || child != oldDelegate.child;
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final int count;
+  final Color color;
+  const _Badge({required this.count, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) return const SizedBox.shrink();
+    final text = count > 99 ? '99+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black)),
+    );
   }
 }
 

@@ -7,13 +7,14 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:PhotoWordFind/social_icons.dart';
-import 'package:PhotoWordFind/utils/storage_utils.dart';
-import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
+// import 'package:PhotoWordFind/utils/storage_utils.dart';
+// import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/widgets/note_dialog.dart';
 import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
 import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
 import 'package:PhotoWordFind/utils/memory_utils.dart';
+import 'package:PhotoWordFind/services/redo_job_manager.dart';
 
 class ImageTile extends StatefulWidget {
   final String imagePath;
@@ -270,26 +271,14 @@ class _ImageTileState extends State<ImageTile> {
         ),
       ),
     );
-    if (result != null) {
-      final response = result['response'] as Map<String, dynamic>?;
-      final allowNameAgeUpdate = result['allowNameAgeUpdate'] == true;
-      final didFullRedo = result['full'] == true;
-      if (response != null) {
-        setState(() {
-          postProcessChatGptResult(
-            widget.contact,
-            response,
-            save: false,
-            allowNameAgeUpdate: allowNameAgeUpdate,
-          );
-        });
-        await StorageUtils.save(widget.contact);
-        if (didFullRedo && mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Full file redo applied.')),
-          );
-        }
+    if (result != null && result['queued'] == true) {
+      // Background job enqueued; show a brief hint
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Redo queued and running in background.')),
+        );
+        setState(() {});
       }
     }
   }
@@ -495,7 +484,7 @@ class _ImageTileState extends State<ImageTile> {
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
+  return RepaintBoundary(
       child: GestureDetector(
       onTap: () async {
         if (widget.gridMode && widget.onOpenFullScreen != null) {
@@ -579,6 +568,82 @@ class _ImageTileState extends State<ImageTile> {
                           child: const Center(child: Icon(Icons.more_vert, color: Colors.white, size: 20)),
                         ),
                       ),
+                    ),
+                  ),
+                  // Processing overlay badge
+                  Positioned.fill(
+                    child: ValueListenableBuilder<Map<String, RedoJobStatus>>(
+                      valueListenable: RedoJobManager.instance.statuses,
+                      builder: (context, map, _) {
+                        final status = map[widget.contact.identifier];
+                        if (status == null) return const SizedBox.shrink();
+                        if (status.processing) {
+                          return Container(
+                            color: Colors.black38,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                    SizedBox(width: 10),
+                                    Text('Redoing...', style: TextStyle(color: Colors.white)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        // Failed state: show a small bottom-left chip with retry
+                        if (!status.processing && status.message == 'Failed') {
+                          return Stack(
+                            children: [
+                              Positioned(
+                                left: 8,
+                                bottom: 64, // above the bottom gradient bar
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.95),
+                                      borderRadius: BorderRadius.circular(999),
+                                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.error_outline, size: 14, color: Colors.black),
+                                        const SizedBox(width: 6),
+                                        const Text('Failed', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+                                        TextButton(
+                                          style: TextButton.styleFrom(minimumSize: const Size(0, 0), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2)),
+                                          onPressed: () {
+                                            RedoJobManager.instance.retry(widget.contact.identifier);
+                                          },
+                                          child: const Text('Retry', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        // Queued or idle state: no overlay
+                        return const SizedBox.shrink();
+                      },
                     ),
                   ),
                   Positioned(
