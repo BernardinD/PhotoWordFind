@@ -77,6 +77,9 @@ class StorageUtils {
   // Sorting preferences
   'gallery_sort_option_v1',
   'gallery_sort_ascending_v1',
+  // Time difference filter prefs
+  'gallery_time_diff_min_v1',
+  'gallery_time_diff_max_v1',
   };
 
   // --- Debounced save coalescing (per-entry) ---

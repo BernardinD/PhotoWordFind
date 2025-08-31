@@ -119,6 +119,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   final Set<String> _selectedStatesMulti = <String>{};
   AddedFilter _snapAddedFilter = AddedFilter.any;
   AddedFilter _instaAddedFilter = AddedFilter.any;
+  // Time difference filter (relative to device timezone), stored in minutes
+  // Default range: ±10 hours
+  static const int _kTimeDiffMinDefault = -600; // -10h
+  static const int _kTimeDiffMaxDefault = 600;  // +10h
+  int _timeDiffMinMinutes = _kTimeDiffMinDefault;
+  int _timeDiffMaxMinutes = _kTimeDiffMaxDefault;
 
   // Verification filter
   String verificationFilter = 'All';
@@ -172,6 +178,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   static const String _snapAddedKey = 'gallery_snap_added_filter_v1';
   static const String _instaAddedKey = 'gallery_insta_added_filter_v1';
   static const String _multiStatesKey = 'gallery_selected_states_multi_v1';
+  static const String _timeDiffMinKey = 'gallery_time_diff_min_v1';
+  static const String _timeDiffMaxKey = 'gallery_time_diff_max_v1';
   // Persist sort option and direction
   static const String _sortOptionKey = 'gallery_sort_option_v1';
   static const String _sortAscendingKey = 'gallery_sort_ascending_v1';
@@ -1019,6 +1027,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   if (verificationFilter != 'All') c++;
   if (_snapAddedFilter != AddedFilter.any) c++;
   if (_instaAddedFilter != AddedFilter.any) c++;
+  if (!(_timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault)) c++;
     return c;
   }
 
@@ -1124,6 +1133,78 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         await _filterImages();
                       },
                     ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Text('Time difference', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            innerSetState(() {});
+                            this.setState(() {
+                              _timeDiffMinMinutes = _kTimeDiffMinDefault;
+                              _timeDiffMaxMinutes = _kTimeDiffMaxDefault;
+                            });
+                            _persistFilters();
+                            _filterImages();
+                          },
+                          child: const Text('Reset'),
+                        ),
+                      ],
+                    ),
+                    Builder(builder: (_) {
+                      String _fmtMinutes(int mins) {
+                        if (mins == 0) return '0m';
+                        final sign = mins > 0 ? '+' : '-';
+                        final abs = mins.abs();
+                        final h = abs ~/ 60;
+                        final m = abs % 60;
+                        if (h > 0 && m > 0) return '$sign${h}h ${m}m';
+                        if (h > 0) return '$sign${h}h';
+                        return '$sign${m}m';
+                      }
+                      final isAny = _timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
+                      final subtitle = isAny
+                          ? 'Any'
+                          : '${_fmtMinutes(_timeDiffMinMinutes)} to ${_fmtMinutes(_timeDiffMaxMinutes)}';
+                      // Use hours for the UI RangeSlider but persist minutes
+                      final RangeValues values = RangeValues(
+                        _timeDiffMinMinutes / 60.0,
+                        _timeDiffMaxMinutes / 60.0,
+                      );
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6, bottom: 2),
+                            child: Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                          ),
+                          RangeSlider(
+                            min: -10,
+                            max: 10,
+                            divisions: 40, // 30-minute steps (hours and half-hours)
+                            labels: RangeLabels(
+                              '${values.start.toStringAsFixed(1)}h',
+                              '${values.end.toStringAsFixed(1)}h',
+                            ),
+                            values: values,
+                            onChanged: (rv) {
+                              // Round to nearest 30 minutes
+                              int round30(double hours) => ((hours * 60) / 30).round() * 30;
+                              final newMin = round30(rv.start);
+                              final newMax = round30(rv.end);
+                              innerSetState(() {});
+                              this.setState(() {
+                                _timeDiffMinMinutes = newMin;
+                                _timeDiffMaxMinutes = newMax;
+                              });
+                              _persistFilters();
+                              _filterImages();
+                            },
+                          ),
+                        ],
+                      );
+                    }),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx, true),
@@ -1415,6 +1496,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _instaAddedFilter = _parseAddedFilter(prefs.getString(_instaAddedKey));
   selectedSortOption = prefs.getString(_sortOptionKey) ?? selectedSortOption;
   isAscending = prefs.getBool(_sortAscendingKey) ?? isAscending;
+    _timeDiffMinMinutes = prefs.getInt(_timeDiffMinKey) ?? _kTimeDiffMinDefault;
+    _timeDiffMaxMinutes = prefs.getInt(_timeDiffMaxKey) ?? _kTimeDiffMaxDefault;
+    if (_timeDiffMinMinutes > _timeDiffMaxMinutes) {
+      final t = _timeDiffMinMinutes;
+      _timeDiffMinMinutes = _timeDiffMaxMinutes;
+      _timeDiffMaxMinutes = t;
+    }
     final savedStates = prefs.getStringList(_multiStatesKey) ?? const <String>[];
     _selectedStatesMulti
       ..clear()
@@ -1454,6 +1542,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     await prefs.setStringList(_multiStatesKey, _selectedStatesMulti.toList());
   await prefs.setString(_sortOptionKey, selectedSortOption);
   await prefs.setBool(_sortAscendingKey, isAscending);
+  await prefs.setInt(_timeDiffMinKey, _timeDiffMinMinutes);
+  await prefs.setInt(_timeDiffMaxKey, _timeDiffMaxMinutes);
   }
 
   // ---------------- Import helpers ----------------
@@ -1531,7 +1621,31 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           matchInsta = true;
       }
 
-  return matchesLegacyState && matchesVerification && matchSnap && matchInsta;
+      bool matchTimeDiff() {
+        // If full range, no restriction
+        final full = _timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
+        final off = img.location?.utcOffset;
+        if (full) return true;
+        if (off == null) return false; // exclude unknown when narrowed
+        int normalize(int raw) {
+          final abs = raw.abs();
+          const maxMinutes = 18 * 60;
+          const maxSeconds = 18 * 3600;
+          const maxMillis  = maxSeconds * 1000;
+          const maxMicros  = maxMillis * 1000;
+          if (abs <= maxMinutes) return raw * 60;
+          if (abs <= maxSeconds) return raw;
+          if (abs <= maxMillis)  return (raw / 1000).round();
+          if (abs <= maxMicros)  return (raw / 1000000).round();
+          return 0;
+        }
+        final sec = normalize(off);
+        final localSec = DateTime.now().timeZoneOffset.inSeconds;
+        final deltaMin = ((sec - localSec) / 60).round();
+        return deltaMin >= _timeDiffMinMinutes && deltaMin <= _timeDiffMaxMinutes;
+      }
+
+	  return matchesLegacyState && matchesVerification && matchSnap && matchInsta && matchTimeDiff();
     }).toList();
 
     // Precompute file sizes once when sorting by size to avoid repeated sync I/O
