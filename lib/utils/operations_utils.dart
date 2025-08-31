@@ -7,6 +7,7 @@ import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
+import 'package:PhotoWordFind/utils/media_scan_utils.dart';
 // import 'package:hive/hive.dart';
 
 enum Operations{
@@ -89,6 +90,7 @@ class Operation{
   }
 
   static void move(List<ContactEntry> srcList, String destDir) {
+    final List<String> toScan = [];
     for (final entry in srcList) {
       final src = entry.imagePath;
       final fileName = path.basename(src);
@@ -99,7 +101,14 @@ class Operation{
 
       // Update only the in-memory ContactEntry path per request
       entry.imagePath = dst;
+
+      // Queue both old and new paths for MediaScanner on Android
+      toScan.add(src);
+      toScan.add(dst);
     }
+
+    // Kick MediaScanner so Gallery reflects changes
+    MediaScanUtils.scanPaths(toScan);
   }
 
   static _displayImages(List? paths, BuildContext? context) async{
