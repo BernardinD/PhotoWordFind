@@ -80,6 +80,7 @@ class StorageUtils {
   // Time difference filter prefs
   'gallery_time_diff_min_v1',
   'gallery_time_diff_max_v1',
+  'import_max_selection_v1'
   };
 
   // --- Debounced save coalescing (per-entry) ---
