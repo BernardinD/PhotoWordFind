@@ -86,6 +86,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:PhotoWordFind/screens/gallery/review_viewer.dart';
 import 'package:PhotoWordFind/utils/memory_utils.dart';
+import 'package:PhotoWordFind/utils/media_scan_utils.dart';
 
 // Platform "added" filter: Any, Added, or Not added
 enum AddedFilter { any, added, notAdded }
@@ -1958,7 +1959,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           continue;
         }
 
-        try {
+  try {
+          // TODO: Consider using the package media_store_plus instead. It can supposedly
+          // do move AND update the MediaStore behind the Gallery app in one move.
           await origin.rename(destPath);
         } catch (_) {
           await origin.copy(destPath);
@@ -1966,6 +1969,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             await origin.delete();
           } catch (_) {}
         }
+
+  // Ask MediaScanner to index the new file so Gallery updates
+  await MediaScanUtils.scanPaths([destPath]);
+  await MediaScanUtils.scanPaths([origin.path]);
 
         final id = path.basenameWithoutExtension(filename);
         var entry = ContactEntry(

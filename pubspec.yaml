@@ -42,6 +42,7 @@ dependencies:
   wechat_assets_picker: ^9.5.1
   photo_manager: ^3.7.1
   flutter_staggered_grid_view: ^0.7.0
+  media_scanner: ^2.1.0
 
   flutter_isolate: ^2.0.3
 
