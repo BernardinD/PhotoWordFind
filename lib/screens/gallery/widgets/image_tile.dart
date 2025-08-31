@@ -73,11 +73,80 @@ class _ImageTileState extends State<ImageTile> {
         return widget.contact.addedOnSnap ? 'Added' : 'Not Added';
       case 'Added on Instagram':
         return widget.contact.addedOnInsta ? 'Added' : 'Not Added';
+      case 'Location':
+  final loc = widget.contact.location;
+  if (loc == null) return 'No location';
+  final relative = _formatRelativeOffset(loc.utcOffset);
+  if (relative != null) return relative;
+  // Fallbacks if offset is unavailable
+  final absLabel = _formatUtcOffset(loc.utcOffset);
+  if (absLabel != null) return absLabel;
+  if ((loc.rawLocation?.isNotEmpty ?? false)) return loc.rawLocation!;
+  return 'Location';
       case 'Name':
         return widget.contact.name ?? widget.identifier;
       default:
         return widget.identifier;
     }
+  }
+
+  String? _formatUtcOffset(int? rawOffset) {
+    if (rawOffset == null) return null;
+    final seconds = _normalizeOffsetToSeconds(rawOffset);
+    final sign = seconds >= 0 ? '+' : '-';
+    final absSec = seconds.abs();
+    final hours = absSec ~/ 3600;
+    final minutes = (absSec % 3600) ~/ 60;
+    final hh = hours.toString().padLeft(2, '0');
+    final mm = minutes.toString().padLeft(2, '0');
+    return 'UTC$sign$hh:$mm';
+  }
+
+  String? _formatRelativeOffset(int? contactRawOffset) {
+    if (contactRawOffset == null) return null;
+    // Normalize contact offset to seconds across possible units
+    final contactSec = _normalizeOffsetToSeconds(contactRawOffset);
+    final localSec = DateTime.now().timeZoneOffset.inSeconds;
+    final deltaMin = ((contactSec - localSec) / 60).round();
+    if (deltaMin == 0) return 'Same time';
+    final ahead = deltaMin > 0; // contact is ahead of local time
+    final absMin = deltaMin.abs();
+    final h = absMin ~/ 60;
+    final m = absMin % 60;
+    final parts = <String>[];
+    if (h > 0) parts.add('${h}h');
+    if (m > 0) parts.add('${m}m');
+    final span = parts.join(' ');
+    return ahead ? '$span ahead' : '$span behind';
+  }
+
+  int _normalizeOffsetToSeconds(int raw) {
+    // Offsets should be within +/- 18 hours. We infer the incoming unit by magnitude.
+    final abs = raw.abs();
+    const maxHours = 18;
+    const maxMinutes = maxHours * 60; // 1080
+    const maxSeconds = maxHours * 3600; // 64800
+    const maxMillis = maxSeconds * 1000; // 64800000
+    const maxMicros = maxMillis * 1000; // 64800000000
+
+    if (abs <= maxMinutes) {
+      // Likely minutes
+      return raw * 60;
+    }
+    if (abs <= maxSeconds) {
+      // Seconds
+      return raw;
+    }
+    if (abs <= maxMillis) {
+      // Milliseconds
+      return (raw / 1000).round();
+    }
+    if (abs <= maxMicros) {
+      // Microseconds
+      return (raw / 1000000).round();
+    }
+    // Fallback: clamp to sign * 0 to avoid absurd values
+    return raw.isNegative ? -0 : 0;
   }
 
   SocialType? _getPrimarySocial() {

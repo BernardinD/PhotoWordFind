@@ -109,7 +109,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     'Snap Added Date',
     'Instagram Added Date',
     'Added on Snapchat',
-    'Added on Instagram'
+  'Added on Instagram',
+  'Location',
   ];
   String selectedState = 'All';
   List<String> states = ['All'];
@@ -118,6 +119,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   final Set<String> _selectedStatesMulti = <String>{};
   AddedFilter _snapAddedFilter = AddedFilter.any;
   AddedFilter _instaAddedFilter = AddedFilter.any;
+  // Time difference filter (relative to device timezone), stored in minutes
+  // Default range: ±10 hours
+  static const int _kTimeDiffMinDefault = -600; // -10h
+  static const int _kTimeDiffMaxDefault = 600;  // +10h
+  int _timeDiffMinMinutes = _kTimeDiffMinDefault;
+  int _timeDiffMaxMinutes = _kTimeDiffMaxDefault;
 
   // Verification filter
   String verificationFilter = 'All';
@@ -171,6 +178,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   static const String _snapAddedKey = 'gallery_snap_added_filter_v1';
   static const String _instaAddedKey = 'gallery_insta_added_filter_v1';
   static const String _multiStatesKey = 'gallery_selected_states_multi_v1';
+  static const String _timeDiffMinKey = 'gallery_time_diff_min_v1';
+  static const String _timeDiffMaxKey = 'gallery_time_diff_max_v1';
+  // Persist sort option and direction
+  static const String _sortOptionKey = 'gallery_sort_option_v1';
+  static const String _sortAscendingKey = 'gallery_sort_ascending_v1';
   String? _importDirPath;
   // Cached file sizes to avoid repeated sync I/O in comparators
   final Map<String, int> _sizeCache = <String, int>{};
@@ -807,6 +819,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   if (res != null) {
                     selectedSortOption = res;
                     await _applyFiltersAndSort();
+                    await _persistFilters();
                   }
                 },
               ),
@@ -960,6 +973,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   if (res != null) {
                     selectedSortOption = res;
                     await _applyFiltersAndSort();
+                    await _persistFilters();
                   }
                 },
               ),
@@ -1013,17 +1027,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   if (verificationFilter != 'All') c++;
   if (_snapAddedFilter != AddedFilter.any) c++;
   if (_instaAddedFilter != AddedFilter.any) c++;
+  if (!(_timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault)) c++;
     return c;
   }
 
   Future<void> _openFiltersSheet() async {
-    // local mutable copies
-    String tempSelectedState = selectedState;
-    String tempVerification = verificationFilter;
-    AddedFilter tempSnapFilter = _snapAddedFilter;
-    AddedFilter tempInstaFilter = _instaAddedFilter;
-
-    final result = await showModalBottomSheet<bool>(
+    // Immediate-apply filter sheet; updates happen as you toggle, with Done to close.
+    await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
@@ -1044,13 +1054,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const Spacer(),
                         TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Done'),
+                        ),
+                        TextButton(
                           onPressed: () {
-                            innerSetState(() {
-                              tempSelectedState = 'All';
-                              tempVerification = 'All';
-                              tempSnapFilter = AddedFilter.any;
-                              tempInstaFilter = AddedFilter.any;
+                            // Reset to defaults and apply immediately
+                            innerSetState(() {});
+                            this.setState(() {
+                              selectedState = 'All';
+                              verificationFilter = 'All';
+                              _snapAddedFilter = AddedFilter.any;
+                              _instaAddedFilter = AddedFilter.any;
                             });
+                            _saveLastSelectedState(selectedState);
+                            _persistFilters();
+                            _filterImages();
                           },
                           child: const Text('Reset'),
                         )
@@ -1066,8 +1085,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         for (final s in states)
                           ChoiceChip(
                             label: Text(s),
-                            selected: tempSelectedState == s,
-                            onSelected: (_) => innerSetState(() => tempSelectedState = s),
+                            selected: selectedState == s,
+                            onSelected: (_) async {
+                              innerSetState(() {});
+                              this.setState(() => selectedState = s);
+                              await _saveLastSelectedState(selectedState);
+                              await _persistFilters();
+                              await _filterImages();
+                            },
                           ),
                       ],
                     ),
@@ -1076,28 +1101,120 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     ...verificationOptions.map((o) => RadioListTile<String>(
                           dense: true,
                           value: o,
-                          groupValue: tempVerification,
+                          groupValue: verificationFilter,
                           title: Text(o),
-                          onChanged: (v) => innerSetState(() => tempVerification = v ?? 'All'),
+                          onChanged: (v) async {
+                            innerSetState(() {});
+                            this.setState(() => verificationFilter = v ?? 'All');
+                            await _persistFilters();
+                            await _filterImages();
+                          },
                         )),
                     const SizedBox(height: 8),
                     const Text('Added on', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     _AddedFilterRow(
                       label: 'Snapchat',
-                      value: tempSnapFilter,
-                      onChanged: (v) => innerSetState(() => tempSnapFilter = v),
+                      value: _snapAddedFilter,
+                      onChanged: (v) async {
+                        innerSetState(() {});
+                        this.setState(() => _snapAddedFilter = v);
+                        await _persistFilters();
+                        await _filterImages();
+                      },
                     ),
                     _AddedFilterRow(
                       label: 'Instagram',
-                      value: tempInstaFilter,
-                      onChanged: (v) => innerSetState(() => tempInstaFilter = v),
+                      value: _instaAddedFilter,
+                      onChanged: (v) async {
+                        innerSetState(() {});
+                        this.setState(() => _instaAddedFilter = v);
+                        await _persistFilters();
+                        await _filterImages();
+                      },
                     ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Text('Time difference', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            innerSetState(() {});
+                            this.setState(() {
+                              _timeDiffMinMinutes = _kTimeDiffMinDefault;
+                              _timeDiffMaxMinutes = _kTimeDiffMaxDefault;
+                            });
+                            _persistFilters();
+                            _filterImages();
+                          },
+                          child: const Text('Reset'),
+                        ),
+                      ],
+                    ),
+                    Builder(builder: (_) {
+                      String _fmtMinutes(int mins) {
+                        if (mins == 0) return '0m';
+                        final sign = mins > 0 ? '+' : '-';
+                        final abs = mins.abs();
+                        final h = abs ~/ 60;
+                        final m = abs % 60;
+                        if (h > 0 && m > 0) return '$sign${h}h ${m}m';
+                        if (h > 0) return '$sign${h}h';
+                        return '$sign${m}m';
+                      }
+                      final isAny = _timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
+                      final subtitle = isAny
+                          ? 'Any'
+                          : '${_fmtMinutes(_timeDiffMinMinutes)} to ${_fmtMinutes(_timeDiffMaxMinutes)}';
+                      // Use hours for the UI RangeSlider but persist minutes
+                      final RangeValues values = RangeValues(
+                        _timeDiffMinMinutes / 60.0,
+                        _timeDiffMaxMinutes / 60.0,
+                      );
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6, bottom: 2),
+                            child: Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                          ),
+                          RangeSlider(
+                            min: -10,
+                            max: 10,
+                            divisions: 40, // 30-minute steps (hours and half-hours)
+                            labels: RangeLabels(
+                              '${values.start.toStringAsFixed(1)}h',
+                              '${values.end.toStringAsFixed(1)}h',
+                            ),
+                            values: values,
+                            onChanged: (rv) {
+                              // Round to nearest 30 minutes
+                              int round30(double hours) => ((hours * 60) / 30).round() * 30;
+                              final newMin = round30(rv.start);
+                              final newMax = round30(rv.end);
+                              innerSetState(() {});
+                              this.setState(() {
+                                _timeDiffMinMinutes = newMin;
+                                _timeDiffMaxMinutes = newMax;
+                              });
+                              _persistFilters();
+                              _filterImages();
+                            },
+                          ),
+                        ],
+                      );
+                    }),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Apply filters'),
-                    )
+                      child: const Text('Done'),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Done'),
+                    ),
                   ],
                 ),
               ),
@@ -1106,18 +1223,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         );
       },
     );
-
-    if (result == true) {
-      setState(() {
-        selectedState = tempSelectedState;
-        verificationFilter = tempVerification;
-        _snapAddedFilter = tempSnapFilter;
-        _instaAddedFilter = tempInstaFilter;
-      });
-      await _saveLastSelectedState(selectedState);
-      await _persistFilters();
-      await _filterImages();
-    }
   }
 
   Widget _buildControls() {
@@ -1347,6 +1452,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           onPressed: () async {
             isAscending = !isAscending;
             await _applyFiltersAndSort();
+            await _persistFilters();
           },
         ),
       ),
@@ -1388,6 +1494,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     verificationFilter = prefs.getString(_verificationFilterKey) ?? verificationFilter;
     _snapAddedFilter = _parseAddedFilter(prefs.getString(_snapAddedKey));
     _instaAddedFilter = _parseAddedFilter(prefs.getString(_instaAddedKey));
+  selectedSortOption = prefs.getString(_sortOptionKey) ?? selectedSortOption;
+  isAscending = prefs.getBool(_sortAscendingKey) ?? isAscending;
+    _timeDiffMinMinutes = prefs.getInt(_timeDiffMinKey) ?? _kTimeDiffMinDefault;
+    _timeDiffMaxMinutes = prefs.getInt(_timeDiffMaxKey) ?? _kTimeDiffMaxDefault;
+    if (_timeDiffMinMinutes > _timeDiffMaxMinutes) {
+      final t = _timeDiffMinMinutes;
+      _timeDiffMinMinutes = _timeDiffMaxMinutes;
+      _timeDiffMaxMinutes = t;
+    }
     final savedStates = prefs.getStringList(_multiStatesKey) ?? const <String>[];
     _selectedStatesMulti
       ..clear()
@@ -1425,6 +1540,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     await prefs.setString(_snapAddedKey, _addedFilterToString(_snapAddedFilter));
     await prefs.setString(_instaAddedKey, _addedFilterToString(_instaAddedFilter));
     await prefs.setStringList(_multiStatesKey, _selectedStatesMulti.toList());
+  await prefs.setString(_sortOptionKey, selectedSortOption);
+  await prefs.setBool(_sortAscendingKey, isAscending);
+  await prefs.setInt(_timeDiffMinKey, _timeDiffMinMinutes);
+  await prefs.setInt(_timeDiffMaxKey, _timeDiffMaxMinutes);
   }
 
   // ---------------- Import helpers ----------------
@@ -1502,7 +1621,31 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           matchInsta = true;
       }
 
-  return matchesLegacyState && matchesVerification && matchSnap && matchInsta;
+      bool matchTimeDiff() {
+        // If full range, no restriction
+        final full = _timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
+        final off = img.location?.utcOffset;
+        if (full) return true;
+        if (off == null) return false; // exclude unknown when narrowed
+        int normalize(int raw) {
+          final abs = raw.abs();
+          const maxMinutes = 18 * 60;
+          const maxSeconds = 18 * 3600;
+          const maxMillis  = maxSeconds * 1000;
+          const maxMicros  = maxMillis * 1000;
+          if (abs <= maxMinutes) return raw * 60;
+          if (abs <= maxSeconds) return raw;
+          if (abs <= maxMillis)  return (raw / 1000).round();
+          if (abs <= maxMicros)  return (raw / 1000000).round();
+          return 0;
+        }
+        final sec = normalize(off);
+        final localSec = DateTime.now().timeZoneOffset.inSeconds;
+        final deltaMin = ((sec - localSec) / 60).round();
+        return deltaMin >= _timeDiffMinMinutes && deltaMin <= _timeDiffMaxMinutes;
+      }
+
+	  return matchesLegacyState && matchesVerification && matchSnap && matchInsta && matchTimeDiff();
     }).toList();
 
     // Precompute file sizes once when sorting by size to avoid repeated sync I/O
@@ -1543,6 +1686,44 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           break;
         case 'Added on Instagram':
           result = (a.addedOnInsta ? 1 : 0).compareTo(b.addedOnInsta ? 1 : 0);
+          break;
+        case 'Location':
+          // Sort by relative timezone delta vs device time.
+          int? offA = a.location?.utcOffset;
+          int? offB = b.location?.utcOffset;
+          int normalize(int raw) {
+            final abs = raw.abs();
+            const maxMinutes = 18 * 60;      // 1080
+            const maxSeconds = 18 * 3600;    // 64800
+            const maxMillis  = maxSeconds * 1000;     // 64,800,000
+            const maxMicros  = maxMillis * 1000;      // 64,800,000,000
+            if (abs <= maxMinutes) return raw * 60;          // minutes
+            if (abs <= maxSeconds) return raw;                // seconds
+            if (abs <= maxMillis)  return (raw / 1000).round();   // ms
+            if (abs <= maxMicros)  return (raw / 1000000).round();// µs
+            return 0; // fallback
+          }
+          int? secA = offA != null ? normalize(offA) : null;
+          int? secB = offB != null ? normalize(offB) : null;
+          final local = DateTime.now().timeZoneOffset.inSeconds;
+          int? deltaA = secA != null ? (secA - local) : null;
+          int? deltaB = secB != null ? (secB - local) : null;
+
+          if (deltaA == null && deltaB == null) {
+            result = 0;
+          } else if (deltaA == null) {
+            result = 1; // a (unknown) goes after b
+          } else if (deltaB == null) {
+            result = -1; // b (unknown) goes after a
+          } else {
+            result = deltaA.compareTo(deltaB);
+            if (result == 0) {
+              // Stable tie-breaker by name to ensure deterministic order
+              final na = path.basename(a.imagePath);
+              final nb = path.basename(b.imagePath);
+              result = na.compareTo(nb);
+            }
+          }
           break;
         case 'Name':
         default:
