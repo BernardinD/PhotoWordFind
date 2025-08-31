@@ -97,16 +97,17 @@ String getKeyOfFilename(String f) {
 
 Future ocrParallel(List filesList, Size size,
     {String? query, bool findFirst = false, Map<int, String?>? replace}) async {
-  await LegacyAppShell.showProgress(autoComplete: false, limit: filesList.length);
+  await LegacyAppShell.showProgress(
+      autoComplete: false, limit: filesList.length);
   // Have a small delay in case there is no large computation to use as time buffer
   await Future.delayed(const Duration(milliseconds: 300), () {});
 
   // Reset Gallery
   if (replace == null) {
-  if (LegacyAppShell.gallery.length() > 0) {
+    if (LegacyAppShell.gallery.length() > 0) {
       LegacyAppShell.gallery.galleryController.jumpToPage(0);
     }
-  LegacyAppShell.gallery.clear();
+    LegacyAppShell.gallery.clear();
   }
 
   // Time search
@@ -352,7 +353,7 @@ Future onEachOcrResult(
   if (!skipImage) {
     // If query word has been found
     if (replace == null)
-  LegacyAppShell.gallery.addNewCell(
+      LegacyAppShell.gallery.addNewCell(
         cellBody,
         snapUsername,
         srcFile,
@@ -364,7 +365,7 @@ Future onEachOcrResult(
     else {
       var pair = replace.entries.first;
       int idx = pair.key;
-  LegacyAppShell.gallery.redoCell(
+      LegacyAppShell.gallery.redoCell(
           cellBody, snapUsername, instaUsername, discordUsername, idx);
       // Note: scrFile will always be a File for redo and ONLY redo
       (srcFile as File).delete();

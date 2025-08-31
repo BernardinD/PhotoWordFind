@@ -6,7 +6,8 @@ import 'package:PhotoWordFind/screens/gallery/widgets/image_tile.dart';
 import 'package:PhotoWordFind/screens/gallery/review_viewer.dart';
 
 // Shared page controller used by the gallery and screen logic
-final PageController kGalleryPageController = PageController(viewportFraction: 0.8);
+final PageController kGalleryPageController =
+    PageController(viewportFraction: 0.8);
 
 // Feature flag: switch between PageView carousel and Masonry grid.
 const bool kUseMasonryGrid = true;
@@ -66,9 +67,9 @@ class ImageGallery extends StatelessWidget {
 
     // Masonry grid variant
     final media = MediaQuery.of(context);
-  final width = media.size.width;
-  // Aim for tiles ~180dp wide with clamped column count
-  final int columns = (width / 180).floor().clamp(1, 8);
+    final width = media.size.width;
+    // Aim for tiles ~180dp wide with clamped column count
+    final int columns = (width / 180).floor().clamp(1, 8);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -82,10 +83,10 @@ class ImageGallery extends StatelessWidget {
             cacheExtent: 600,
             padding: const EdgeInsets.only(bottom: 96, top: 8),
             itemCount: images.length,
-      itemBuilder: (context, index) {
+            itemBuilder: (context, index) {
               final item = images[index];
               return ImageTile(
-        key: ValueKey(item.identifier),
+                key: ValueKey(item.identifier),
                 imagePath: item.imagePath,
                 isSelected: selectedImages.contains(item.identifier),
                 extractedText: item.extractedText ?? '',
@@ -98,7 +99,10 @@ class ImageGallery extends StatelessWidget {
                 onOpenFullScreen: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => ReviewViewer(images: images, initialIndex: index, sortOption: sortOption),
+                      builder: (_) => ReviewViewer(
+                          images: images,
+                          initialIndex: index,
+                          sortOption: sortOption),
                     ),
                   );
                 },
@@ -178,8 +182,8 @@ class SliverImageGallery extends StatelessWidget {
     }
 
     final media = MediaQuery.of(context);
-  final width = media.size.width;
-  final int columns = (width / 180).floor().clamp(1, 8);
+    final width = media.size.width;
+    final int columns = (width / 180).floor().clamp(1, 8);
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
@@ -189,10 +193,10 @@ class SliverImageGallery extends StatelessWidget {
         crossAxisSpacing: 12,
         // Sliver scroller uses parent cache; spacing remains.
         childCount: images.length,
-    itemBuilder: (context, index) {
+        itemBuilder: (context, index) {
           final item = images[index];
           return ImageTile(
-      key: ValueKey(item.identifier),
+            key: ValueKey(item.identifier),
             imagePath: item.imagePath,
             isSelected: selectedImages.contains(item.identifier),
             extractedText: item.extractedText ?? '',
@@ -205,7 +209,10 @@ class SliverImageGallery extends StatelessWidget {
             onOpenFullScreen: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => ReviewViewer(images: images, initialIndex: index, sortOption: sortOption),
+                  builder: (_) => ReviewViewer(
+                      images: images,
+                      initialIndex: index,
+                      sortOption: sortOption),
                 ),
               );
             },

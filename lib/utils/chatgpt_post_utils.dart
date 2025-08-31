@@ -28,8 +28,8 @@ void stripVerifiedHandle({
 /// into [entry]. This avoids overwriting sensitive information and ensures
 /// new sections are appended without duplication.
 ContactEntry postProcessChatGptResult(
-  ContactEntry entry, Map<String, dynamic> response,
-  {bool save = true, bool allowNameAgeUpdate = false}) {
+    ContactEntry entry, Map<String, dynamic> response,
+    {bool save = true, bool allowNameAgeUpdate = false}) {
   // Avoid overriding an existing location
   if (entry.location != null && response[SubKeys.Location] != null) {
     response.remove(SubKeys.Location);

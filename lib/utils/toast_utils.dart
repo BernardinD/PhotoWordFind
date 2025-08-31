@@ -1,23 +1,21 @@
-
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
-class Toasts{
+class Toasts {
   Toasts._internal();
   static final Toasts _singleton = Toasts._internal();
 
   static late FToast _fToast = FToast();
-  factory Toasts(){
+  factory Toasts() {
     return _singleton;
   }
 
-  static void initToasts(BuildContext context){
+  static void initToasts(BuildContext context) {
     _fToast.init(context);
   }
 
   /// Displays a Toast of the `selection` state of the current visible Cell in the gallery
-  static void showToast(bool state, Function message){
-
+  static void showToast(bool state, Function message) {
     // Make sure last toast has eneded
     _fToast.removeCustomToast();
 
@@ -38,8 +36,6 @@ class Toasts{
         ],
       ),
     );
-
-
 
     _fToast.showToast(
       child: toast,

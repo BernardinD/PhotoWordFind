@@ -8,7 +8,8 @@ import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
 
 /// Opens a bottom sheet to view, edit, and verify usernames for a contact entry.
-Future<void> showHandlesSheet(BuildContext context, ContactEntry contact) async {
+Future<void> showHandlesSheet(
+    BuildContext context, ContactEntry contact) async {
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -40,7 +41,8 @@ Future<void> showHandlesSheet(BuildContext context, ContactEntry contact) async 
             child: Container(
               decoration: BoxDecoration(
                 color: theme.canvasColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.2),
@@ -49,7 +51,8 @@ Future<void> showHandlesSheet(BuildContext context, ContactEntry contact) async 
                   ),
                 ],
               ),
-              child: HandlesEditorPanel(contact: contact, scrollController: scrollController),
+              child: HandlesEditorPanel(
+                  contact: contact, scrollController: scrollController),
             ),
           );
         },
@@ -79,7 +82,7 @@ class HandlesEditorPanel extends StatefulWidget {
   State<HandlesEditorPanel> createState() => HandlesEditorPanelState();
 }
 
-  class HandlesEditorPanelState extends State<HandlesEditorPanel> {
+class HandlesEditorPanelState extends State<HandlesEditorPanel> {
   late TextEditingController _snap;
   late TextEditingController _insta;
   late TextEditingController _discord;
@@ -96,7 +99,8 @@ class HandlesEditorPanel extends StatefulWidget {
     super.initState();
     _snap = TextEditingController(text: widget.contact.snapUsername ?? '');
     _insta = TextEditingController(text: widget.contact.instaUsername ?? '');
-    _discord = TextEditingController(text: widget.contact.discordUsername ?? '');
+    _discord =
+        TextEditingController(text: widget.contact.discordUsername ?? '');
   }
 
   @override
@@ -174,9 +178,12 @@ class HandlesEditorPanel extends StatefulWidget {
     }
     if (value == null || value.isEmpty) return;
     if (platform == SubKeys.SnapUsername) {
-      launchUrl(Uri.parse('https://www.snapchat.com/add/${value.toLowerCase()}'), mode: LaunchMode.externalApplication);
+      launchUrl(
+          Uri.parse('https://www.snapchat.com/add/${value.toLowerCase()}'),
+          mode: LaunchMode.externalApplication);
     } else if (platform == SubKeys.InstaUsername) {
-      launchUrl(Uri.parse('https://www.instagram.com/$value'), mode: LaunchMode.externalApplication);
+      launchUrl(Uri.parse('https://www.instagram.com/$value'),
+          mode: LaunchMode.externalApplication);
     } else if (platform == SubKeys.DiscordUsername) {
       Clipboard.setData(ClipboardData(text: value));
     }
@@ -199,13 +206,17 @@ class HandlesEditorPanel extends StatefulWidget {
       for (final map in sections) {
         for (final entry in map.entries) {
           final v = entry.value;
-          if (platform == SubKeys.InstaUsername && (entry.key.toLowerCase().contains('insta') || v.startsWith('@'))) {
+          if (platform == SubKeys.InstaUsername &&
+              (entry.key.toLowerCase().contains('insta') ||
+                  v.startsWith('@'))) {
             set.add(v.replaceFirst('@', ''));
           }
-          if (platform == SubKeys.SnapUsername && entry.key.toLowerCase().contains('snap')) {
+          if (platform == SubKeys.SnapUsername &&
+              entry.key.toLowerCase().contains('snap')) {
             set.add(v);
           }
-          if (platform == SubKeys.DiscordUsername && entry.key.toLowerCase().contains('discord')) {
+          if (platform == SubKeys.DiscordUsername &&
+              entry.key.toLowerCase().contains('discord')) {
             set.add(v);
           }
         }
@@ -234,13 +245,16 @@ class HandlesEditorPanel extends StatefulWidget {
     DateTime? addedAt,
     required VoidCallback onToggleAdd,
   }) {
-  final suggestions = _candidatesFor(platformKey).toList();
-  String? current;
-  if (platformKey == SubKeys.SnapUsername) current = widget.contact.snapUsername;
-  if (platformKey == SubKeys.InstaUsername) current = widget.contact.instaUsername;
-  if (platformKey == SubKeys.DiscordUsername) current = widget.contact.discordUsername;
-  final hasText = (controller.text.trim().isNotEmpty);
-  final pendingChange = controller.text.trim() != (current ?? '');
+    final suggestions = _candidatesFor(platformKey).toList();
+    String? current;
+    if (platformKey == SubKeys.SnapUsername)
+      current = widget.contact.snapUsername;
+    if (platformKey == SubKeys.InstaUsername)
+      current = widget.contact.instaUsername;
+    if (platformKey == SubKeys.DiscordUsername)
+      current = widget.contact.discordUsername;
+    final hasText = (controller.text.trim().isNotEmpty);
+    final pendingChange = controller.text.trim() != (current ?? '');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -254,14 +268,21 @@ class HandlesEditorPanel extends StatefulWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 2.0),
-                child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                child: Text(title,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600)),
               ),
               if (verified)
                 Chip(
                   visualDensity: VisualDensity.compact,
-                  avatar: const Icon(Icons.verified, size: 16, color: Colors.white),
+                  avatar:
+                      const Icon(Icons.verified, size: 16, color: Colors.white),
                   backgroundColor: Colors.green.shade600,
-                  label: Text(verifiedAt != null ? 'Verified ${_fmt(verifiedAt)}' : 'Verified', style: const TextStyle(color: Colors.white)),
+                  label: Text(
+                      verifiedAt != null
+                          ? 'Verified ${_fmt(verifiedAt)}'
+                          : 'Verified',
+                      style: const TextStyle(color: Colors.white)),
                 ),
               if (!verified && hasText)
                 Chip(
@@ -275,7 +296,9 @@ class HandlesEditorPanel extends StatefulWidget {
                   avatar: Icon(added ? Icons.add_task : Icons.add, size: 16),
                   label: Text(
                     added
-                        ? (addedAt != null ? 'Added • ${_fmt(addedAt)}' : 'Added')
+                        ? (addedAt != null
+                            ? 'Added • ${_fmt(addedAt)}'
+                            : 'Added')
                         : 'Add',
                   ),
                   onPressed: onToggleAdd,
@@ -297,7 +320,9 @@ class HandlesEditorPanel extends StatefulWidget {
                     filled: verified,
                     fillColor: verified ? Colors.grey.shade100 : null,
                     suffixIcon: verified
-                        ? const Tooltip(message: 'Verified — editing locked', child: Icon(Icons.lock_outline))
+                        ? const Tooltip(
+                            message: 'Verified — editing locked',
+                            child: Icon(Icons.lock_outline))
                         : null,
                     helperText: verified ? 'Verified — unverify to edit' : null,
                   ),
@@ -306,7 +331,9 @@ class HandlesEditorPanel extends StatefulWidget {
                       HapticFeedback.selectionClick();
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Editing is locked for verified handles. Unverify to make changes.')),
+                        const SnackBar(
+                            content: Text(
+                                'Editing is locked for verified handles. Unverify to make changes.')),
                       );
                     }
                   },
@@ -318,7 +345,8 @@ class HandlesEditorPanel extends StatefulWidget {
               if (pendingChange && !verified)
                 IconButton(
                   tooltip: 'Save',
-                  onPressed: () => _setCurrent(platformKey, controller.text.trim()),
+                  onPressed: () =>
+                      _setCurrent(platformKey, controller.text.trim()),
                   icon: const Icon(Icons.check_circle_outline),
                 ),
               IconButton(
@@ -329,18 +357,21 @@ class HandlesEditorPanel extends StatefulWidget {
               IconButton(
                 tooltip: verified ? 'Unmark verified' : 'Mark verified',
                 onPressed: () => _toggleVerified(platformKey),
-                icon: Icon(verified ? Icons.verified : Icons.verified_outlined, color: verified ? Colors.green : null),
+                icon: Icon(verified ? Icons.verified : Icons.verified_outlined,
+                    color: verified ? Colors.green : null),
               ),
             ],
           ),
           const SizedBox(height: 8),
           if (suggestions.isNotEmpty)
             Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
                 leading: const Icon(Icons.lightbulb_outline),
-                title: Text('Suggestions (${suggestions.length})', style: const TextStyle(fontWeight: FontWeight.w600)),
+                title: Text('Suggestions (${suggestions.length})',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 childrenPadding: EdgeInsets.zero,
                 children: [
                   Wrap(
@@ -400,9 +431,12 @@ class HandlesEditorPanel extends StatefulWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Handles & Verification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                          const Text('Handles & Verification',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w700)),
                           if ((widget.contact.name ?? '').isNotEmpty)
-                            Text(widget.contact.name!, style: TextStyle(color: Colors.grey.shade600)),
+                            Text(widget.contact.name!,
+                                style: TextStyle(color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
@@ -435,10 +469,13 @@ class HandlesEditorPanel extends StatefulWidget {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: ActionChip(
-                          avatar: const Icon(Icons.error_outline, size: 16, color: Colors.white),
+                          avatar: const Icon(Icons.error_outline,
+                              size: 16, color: Colors.white),
                           backgroundColor: Colors.deepOrange,
-                          label: const Text('Redo failed — Retry', style: TextStyle(color: Colors.white)),
-                          onPressed: () => RedoJobManager.instance.retry(widget.contact.identifier),
+                          label: const Text('Redo failed — Retry',
+                              style: TextStyle(color: Colors.white)),
+                          onPressed: () => RedoJobManager.instance
+                              .retry(widget.contact.identifier),
                         ),
                       ),
                     );
@@ -452,9 +489,11 @@ class HandlesEditorPanel extends StatefulWidget {
                           decoration: BoxDecoration(
                             color: Colors.blue.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                            border:
+                                Border.all(color: Colors.blue.withOpacity(0.3)),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -462,12 +501,16 @@ class HandlesEditorPanel extends StatefulWidget {
                                 width: 14,
                                 height: 14,
                                 child: processing
-                                    ? const CircularProgressIndicator(strokeWidth: 2)
-                                    : const Icon(Icons.schedule, size: 14, color: Colors.blue),
+                                    ? const CircularProgressIndicator(
+                                        strokeWidth: 2)
+                                    : const Icon(Icons.schedule,
+                                        size: 14, color: Colors.blue),
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                processing ? 'Updating… Redo in progress' : 'Redo queued…',
+                                processing
+                                    ? 'Updating… Redo in progress'
+                                    : 'Redo queued…',
                                 style: const TextStyle(color: Colors.blue),
                               ),
                             ],
@@ -484,7 +527,8 @@ class HandlesEditorPanel extends StatefulWidget {
                 valueListenable: RedoJobManager.instance.statuses,
                 builder: (context, map, _) {
                   final st = map[widget.contact.identifier];
-                  final locked = st != null && (st.processing || st.message == 'Queued');
+                  final locked =
+                      st != null && (st.processing || st.message == 'Queued');
                   final content = Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -493,9 +537,18 @@ class HandlesEditorPanel extends StatefulWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _JumpChip(icon: Icons.snapchat, label: 'Snap', onTap: () => _jumpTo(_snapKey)),
-                          _JumpChip(icon: Icons.camera_alt_outlined, label: 'Insta', onTap: () => _jumpTo(_instaKey)),
-                          _JumpChip(icon: Icons.chat_bubble_outline, label: 'Discord', onTap: () => _jumpTo(_discordKey)),
+                          _JumpChip(
+                              icon: Icons.snapchat,
+                              label: 'Snap',
+                              onTap: () => _jumpTo(_snapKey)),
+                          _JumpChip(
+                              icon: Icons.camera_alt_outlined,
+                              label: 'Insta',
+                              onTap: () => _jumpTo(_instaKey)),
+                          _JumpChip(
+                              icon: Icons.chat_bubble_outline,
+                              label: 'Discord',
+                              onTap: () => _jumpTo(_discordKey)),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -562,7 +615,10 @@ class HandlesEditorPanel extends StatefulWidget {
                       IgnorePointer(ignoring: true, child: content),
                       Positioned.fill(
                         child: Container(
-                          color: Theme.of(context).colorScheme.surface.withOpacity(0.03),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withOpacity(0.03),
                         ),
                       ),
                     ],
@@ -581,7 +637,8 @@ class _JumpChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _JumpChip({required this.icon, required this.label, required this.onTap});
+  const _JumpChip(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -609,6 +666,7 @@ extension _JumpExt on HandlesEditorPanelState {
     );
     HapticFeedback.selectionClick();
   }
+
   void _aimFor(GlobalKey key) {
     final ctx = key.currentContext;
     if (ctx == null) return;
@@ -616,7 +674,8 @@ extension _JumpExt on HandlesEditorPanelState {
     if (box == null) return;
     final pos = box.localToGlobal(Offset.zero);
     final size = MediaQuery.of(context).size;
-    final centerY = (pos.dy + box.size.height * 0.35) / size.height; // aim around title/field area
+    final centerY = (pos.dy + box.size.height * 0.35) /
+        size.height; // aim around title/field area
     widget.onAim?.call(centerY.clamp(0.0, 1.0));
     widget.onAimHighlight?.call(true);
     HapticFeedback.selectionClick();
@@ -625,7 +684,8 @@ extension _JumpExt on HandlesEditorPanelState {
 
 String _fmt(DateTime dt) {
   final now = DateTime.now();
-  final isSameDay = dt.year == now.year && dt.month == now.month && dt.day == now.day;
+  final isSameDay =
+      dt.year == now.year && dt.month == now.month && dt.day == now.day;
   if (isSameDay) {
     final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final m = dt.minute.toString().padLeft(2, '0');

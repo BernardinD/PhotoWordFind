@@ -88,7 +88,8 @@ class MyRootWidget extends StatefulWidget {
   const MyRootWidget({Key? key}) : super(key: key);
 
   static const String prefUseNewUi = 'use_new_ui_candidate';
-  static final GlobalKey<MyRootWidgetState> globalKey = GlobalKey<MyRootWidgetState>();
+  static final GlobalKey<MyRootWidgetState> globalKey =
+      GlobalKey<MyRootWidgetState>();
 
   @override
   State<MyRootWidget> createState() => MyRootWidgetState();
@@ -117,7 +118,7 @@ class MyRootWidgetState extends State<MyRootWidget> {
   }
 
   @override
-    void initState() {
+  void initState() {
     super.initState();
     (() async {
       await initializeApp();
@@ -128,17 +129,17 @@ class MyRootWidgetState extends State<MyRootWidget> {
 
   @override
   Widget build(BuildContext context) {
-  final theme = ThemeData(primarySwatch: Colors.blue);
-  return MaterialApp(
-    navigatorKey: Catcher.navigatorKey,
-    title: 'Photo Word Find',
-    theme: theme,
-    home: !_initialized
-      ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-      : (_useNew
-        ? ImageGalleryScreen()
-        : MyHomePage(title: 'Photo Word Find')),
-  );
+    final theme = ThemeData(primarySwatch: Colors.blue);
+    return MaterialApp(
+      navigatorKey: Catcher.navigatorKey,
+      title: 'Photo Word Find',
+      theme: theme,
+      home: !_initialized
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : (_useNew
+              ? ImageGalleryScreen()
+              : MyHomePage(title: 'Photo Word Find')),
+    );
   }
 }
 
@@ -158,7 +159,11 @@ class LegacyAppShell {
   static Gallery get gallery => _gallery;
   static Function? updateFrame; // may be null until legacy UI initializes
   static void invokeFrame(VoidCallback fn) {
-    try { updateFrame?.call(fn); } catch (e, s) { debugPrint('invokeFrame error: $e\n$s'); }
+    try {
+      updateFrame?.call(fn);
+    } catch (e, s) {
+      debugPrint('invokeFrame error: $e\n$s');
+    }
   }
 
   static Future<void> init(BuildContext context) async {
@@ -166,7 +171,8 @@ class LegacyAppShell {
     _pr = ProgressDialog(context: context);
   }
 
-  static Future<void> showProgress({required bool autoComplete, int limit = 1}) async {
+  static Future<void> showProgress(
+      {required bool autoComplete, int limit = 1}) async {
     debugPrint("Entering showProgress()...");
     if (pr.isOpen()) {
       debugPrint("Closing.");
@@ -182,7 +188,9 @@ class LegacyAppShell {
       max: limit,
       backgroundColor: Colors.white,
       elevation: 10.0,
-      msgColor: Colors.black, msgFontSize: 19.0, msgFontWeight: FontWeight.w600,
+      msgColor: Colors.black,
+      msgFontSize: 19.0,
+      msgFontWeight: FontWeight.w600,
       completed: autoComplete
           ? Completed(
               completedMsg: "Done!",
@@ -224,7 +232,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _sendToChatGPT() async {
-  LegacyAppShell.pr.show(max: _images.length);
+    LegacyAppShell.pr.show(max: _images.length);
 
     try {
       // Build File list from selected ContactEntry image paths
@@ -255,7 +263,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e, s) {
       Catcher.reportCheckedError(e, s);
     }
-  LegacyAppShell.pr.close();
+    LegacyAppShell.pr.close();
   }
 
   String? _directoryPath;
@@ -289,7 +297,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _attachLegacyProgress() {
-    CloudUtils.progressCallback = ({double? value, String? message, bool done=false, bool error=false}) {
+    CloudUtils.progressCallback = (
+        {double? value,
+        String? message,
+        bool done = false,
+        bool error = false}) {
       try {
         if (message != null) {
           if (!LegacyAppShell.pr.isOpen()) {
@@ -312,10 +324,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Ensure ProgressDialog is initialized with context
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-  await LegacyAppShell.init(context);
+      await LegacyAppShell.init(context);
     });
 
-  LegacyAppShell.updateFrame = setState;
+    LegacyAppShell.updateFrame = setState;
 
     // Initalize toast for user alerts
     Toasts.initToasts(context);
@@ -324,8 +336,8 @@ class _MyHomePageState extends State<MyHomePage> {
     requestPermissions().then((value) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // Sign into cloud account
-  LegacyAppShell.pr.show(max: 1);
-  LegacyAppShell.pr.update(value: 0, msg: "Setting up...");
+        LegacyAppShell.pr.show(max: 1);
+        LegacyAppShell.pr.update(value: 0, msg: "Setting up...");
 
         CloudUtils.firstSignIn()
             .then((bool signedIn) {
@@ -354,9 +366,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Recreate progress dialog if needed when dependencies (context) change after UI mode swap.
-  if (LegacyAppShell._pr == null) {
+    if (LegacyAppShell._pr == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-    if (mounted) await LegacyAppShell.init(context);
+        if (mounted) await LegacyAppShell.init(context);
       });
     }
   }
@@ -371,18 +383,26 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title!),
         actions: [
           IconButton(
-            tooltip: 'Switch to ${MyRootWidget.globalKey.currentState?.useNewUi == true ? 'Legacy' : 'New'} UI',
+            tooltip:
+                'Switch to ${MyRootWidget.globalKey.currentState?.useNewUi == true ? 'Legacy' : 'New'} UI',
             icon: Icon(Icons.swap_horiz),
             onPressed: () async {
-              final current = MyRootWidget.globalKey.currentState?.useNewUi ?? true;
+              final current =
+                  MyRootWidget.globalKey.currentState?.useNewUi ?? true;
               final proceed = await showDialog<bool>(
                 context: context,
                 builder: (_) => AlertDialog(
                   title: const Text('Confirm UI Switch'),
-                  content: Text('You are about to switch to the ' + (!current ? 'new' : 'legacy') + ' interface. Continue?'),
+                  content: Text('You are about to switch to the ' +
+                      (!current ? 'new' : 'legacy') +
+                      ' interface. Continue?'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Switch')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Switch')),
                   ],
                 ),
               );
@@ -407,8 +427,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPressed: null,
                       icon: Icon(Icons.cloud_upload_rounded),
                     ),
-                    onPressed: () => CloudUtils.firstSignIn()
-                        .then((value) => LegacyAppShell.updateFrame?.call(() => null)),
+                    onPressed: () => CloudUtils.firstSignIn().then((value) =>
+                        LegacyAppShell.updateFrame?.call(() => null)),
                   )
                 : ElevatedButton(
                     key: ValueKey(snapshot.data.toString()),
@@ -422,8 +442,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       );
 
                       if (!result) return;
-                      CloudUtils.possibleSignOut()
-                          .then((value) => LegacyAppShell.updateFrame?.call(() => null));
+                      CloudUtils.possibleSignOut().then((value) =>
+                          LegacyAppShell.updateFrame?.call(() => null));
                     },
                     child: IconButton(
                       onPressed: null,
@@ -552,8 +572,8 @@ class _MyHomePageState extends State<MyHomePage> {
     if (individual) {
       bool _multiPick = true;
       FileType _pickingType = FileType.image;
-  // Stopwatch timer = Stopwatch(); // removed (unused)
-  await LegacyAppShell.showProgress(autoComplete: true);
+      // Stopwatch timer = Stopwatch(); // removed (unused)
+      await LegacyAppShell.showProgress(autoComplete: true);
       paths = (await FilePicker.platform
               .pickFiles(type: _pickingType, allowMultiple: _multiPick))
           ?.files;
@@ -567,7 +587,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return null;
       }
     } else {
-  await LegacyAppShell.showProgress(autoComplete: true);
+      await LegacyAppShell.showProgress(autoComplete: true);
       paths = Directory(_directoryPath!)
           .listSync(recursive: false, followLinks: false);
     }

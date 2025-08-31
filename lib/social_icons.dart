@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 
 class SocialIcon extends StatelessWidget {
   static late final _snapchatIconButton = SocialIcon._(_snapchatUri),
-    _galleryIconButton = SocialIcon._(_galleryUri),
-    _bumbleIconButton = SocialIcon._(_bumbleUri),
-    _instagramIconButton = SocialIcon._(_instagramUri),
-    _discordIconButton = SocialIcon._(_discordUri),
-    _kikIconButton = SocialIcon._(_kikUri);
+      _galleryIconButton = SocialIcon._(_galleryUri),
+      _bumbleIconButton = SocialIcon._(_bumbleUri),
+      _instagramIconButton = SocialIcon._(_instagramUri),
+      _discordIconButton = SocialIcon._(_discordUri),
+      _kikIconButton = SocialIcon._(_kikUri);
 
   static SocialIcon? get snapchatIconButton => _snapchatIconButton;
   static SocialIcon? get galleryIconButton => _galleryIconButton;
@@ -42,12 +42,12 @@ class SocialIcon extends StatelessWidget {
       heroTag: null,
       key: ValueKey(socialUri),
       backgroundColor: Colors.white,
-      onPressed: openApp ,
+      onPressed: openApp,
       child: socialIcon,
     );
   }
 
-  void openApp(){
+  void openApp() {
     DeviceApps.openApp(socialUri);
   }
 
@@ -70,17 +70,15 @@ class SocialIcon extends StatelessWidget {
   }
 }
 
-
-enum SocialType{
+enum SocialType {
   Snapchat,
   Instagram,
   Discord,
   Kik,
-
 }
 
-extension SocialTypeExtension on SocialType{
-  Widget? get icon{
+extension SocialTypeExtension on SocialType {
+  Widget? get icon {
     switch (this) {
       case SocialType.Snapchat:
         return SocialIcon.snapchatIconButton!.socialIcon;
@@ -95,7 +93,7 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  Future<String?> getUserName(ContactEntry? entry) async{
+  Future<String?> getUserName(ContactEntry? entry) async {
     switch (this) {
       case SocialType.Snapchat:
         return entry?.snapUsername;
@@ -110,7 +108,8 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  saveUsername(ContactEntry entry, String value, {required bool overriding}) async {
+  saveUsername(ContactEntry entry, String value,
+      {required bool overriding}) async {
     switch (this) {
       case SocialType.Snapchat:
         if (overriding) {
@@ -156,7 +155,7 @@ extension SocialTypeExtension on SocialType{
     }
   }
 
-  String? userNameSubkey(){
+  String? userNameSubkey() {
     switch (this) {
       case SocialType.Snapchat:
         return SubKeys.SnapUsername;

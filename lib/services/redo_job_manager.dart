@@ -34,7 +34,8 @@ class RedoJobStatus {
   final String? message;
   const RedoJobStatus({required this.processing, this.progress, this.message});
 
-  RedoJobStatus copyWith({bool? processing, double? progress, String? message}) =>
+  RedoJobStatus copyWith(
+          {bool? processing, double? progress, String? message}) =>
       RedoJobStatus(
         processing: processing ?? this.processing,
         progress: progress ?? this.progress,
@@ -49,8 +50,8 @@ class RedoJobManager {
   // Map of entry.identifier -> status
   final ValueNotifier<Map<String, RedoJobStatus>> statuses = ValueNotifier({});
   // Global summary for quick UI indicator
-  final ValueNotifier<RedoJobsSummary> summary =
-      ValueNotifier<RedoJobsSummary>(const RedoJobsSummary(active: 0, queued: 0, failed: 0));
+  final ValueNotifier<RedoJobsSummary> summary = ValueNotifier<RedoJobsSummary>(
+      const RedoJobsSummary(active: 0, queued: 0, failed: 0));
 
   final List<RedoJob> _queue = <RedoJob>[];
   int _inFlight = 0;
@@ -104,7 +105,11 @@ class RedoJobManager {
   }) {
     if (_activeOrQueuedIds.contains(entry.identifier)) {
       // Already queued/processing; no-op to dedupe
-      try { if (croppedImageFile.existsSync()) { croppedImageFile.deleteSync(); } } catch (_) {}
+      try {
+        if (croppedImageFile.existsSync()) {
+          croppedImageFile.deleteSync();
+        }
+      } catch (_) {}
       return;
     }
     final job = RedoJob(
@@ -122,7 +127,8 @@ class RedoJobManager {
     _lastJobs[job.entry.identifier] = job;
     _activeOrQueuedIds.add(job.entry.identifier);
     // Mark as queued (not yet processing) so tiles don't show spinner, but summary can show queued count.
-    _setStatus(job.entry.identifier, const RedoJobStatus(processing: false, message: 'Queued'));
+    _setStatus(job.entry.identifier,
+        const RedoJobStatus(processing: false, message: 'Queued'));
     _updateSummary();
     _tryStartNext();
   }
@@ -144,25 +150,34 @@ class RedoJobManager {
 
   Future<void> _process(RedoJob job) async {
     try {
-      final response = await ChatGPTService.processImage(imageFile: job.imageFile);
+      final response =
+          await ChatGPTService.processImage(imageFile: job.imageFile);
       if (response != null) {
         // Merge safely into entry and save
-        postProcessChatGptResult(job.entry, response, save: false, allowNameAgeUpdate: job.allowNameAgeUpdate);
+        postProcessChatGptResult(job.entry, response,
+            save: false, allowNameAgeUpdate: job.allowNameAgeUpdate);
         await StorageUtils.save(job.entry);
       }
     } catch (e) {
       // Keep failure status for UI retry
-      _setStatus(job.entry.identifier, RedoJobStatus(processing: false, message: 'Failed'));
+      _setStatus(job.entry.identifier,
+          RedoJobStatus(processing: false, message: 'Failed'));
       // Do not delete cropped temp on failure; allow retry to reuse it
       return;
     } finally {
       final st = statuses.value[job.entry.identifier];
-      final failed = st != null && (st.message?.isNotEmpty ?? false) && st.processing == false;
+      final failed = st != null &&
+          (st.message?.isNotEmpty ?? false) &&
+          st.processing == false;
       if (!failed) {
         // Success path: clear status and cleanup
         _clearStatus(job.entry.identifier);
         if (job.type == RedoType.crop) {
-          try { if (job.imageFile.existsSync()) { job.imageFile.deleteSync(); } } catch (_) {}
+          try {
+            if (job.imageFile.existsSync()) {
+              job.imageFile.deleteSync();
+            }
+          } catch (_) {}
         }
       }
       // Allow future enqueues
@@ -195,8 +210,11 @@ class RedoJobManager {
   }
 
   void _updateSummary() {
-  final failed = statuses.value.values.where((s) => !s.processing && (s.message == 'Failed')).length;
-    summary.value = RedoJobsSummary(active: _inFlight, queued: _queue.length, failed: failed);
+    final failed = statuses.value.values
+        .where((s) => !s.processing && (s.message == 'Failed'))
+        .length;
+    summary.value = RedoJobsSummary(
+        active: _inFlight, queued: _queue.length, failed: failed);
   }
 }
 
@@ -204,5 +222,6 @@ class RedoJobsSummary {
   final int active;
   final int queued;
   final int failed;
-  const RedoJobsSummary({required this.active, required this.queued, required this.failed});
+  const RedoJobsSummary(
+      {required this.active, required this.queued, required this.failed});
 }

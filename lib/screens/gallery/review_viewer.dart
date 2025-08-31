@@ -14,7 +14,11 @@ class ReviewViewer extends StatefulWidget {
   final int initialIndex;
   final String sortOption;
 
-  const ReviewViewer({super.key, required this.images, required this.initialIndex, required this.sortOption});
+  const ReviewViewer(
+      {super.key,
+      required this.images,
+      required this.initialIndex,
+      required this.sortOption});
 
   @override
   State<ReviewViewer> createState() => _ReviewViewerState();
@@ -84,7 +88,9 @@ class _ReviewViewerState extends State<ReviewViewer> {
                       children: const [
                         Icon(Icons.description_outlined),
                         SizedBox(width: 8),
-                        Text('Image Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        Text('Image Details',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700)),
                         Spacer(),
                       ],
                     ),
@@ -97,7 +103,10 @@ class _ReviewViewerState extends State<ReviewViewer> {
                         border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: SelectableText(c.extractedText?.trim().isNotEmpty == true ? c.extractedText!.trim() : 'No text found'),
+                      child: SelectableText(
+                          c.extractedText?.trim().isNotEmpty == true
+                              ? c.extractedText!.trim()
+                              : 'No text found'),
                     ),
                   ],
                 ),
@@ -134,7 +143,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
                 final entry = widget.images[index];
                 return PhotoView(
                   imageProvider: FileImage(File(entry.imagePath)),
-                  backgroundDecoration: const BoxDecoration(color: Colors.black),
+                  backgroundDecoration:
+                      const BoxDecoration(color: Colors.black),
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 3.0,
                 );
@@ -142,7 +152,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
             ),
             if (_editorOpen && _aimHighlight)
               Positioned.fill(
-                child: _AimBandOverlay(centerY: _aimY, bandHeightFraction: 0.18),
+                child:
+                    _AimBandOverlay(centerY: _aimY, bandHeightFraction: 0.18),
               ),
             Positioned(
               top: 0,
@@ -165,45 +176,58 @@ class _ReviewViewerState extends State<ReviewViewer> {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 8),
-                    Text('${_index + 1} / ${widget.images.length}', style: const TextStyle(color: Colors.white)),
+                    Text('${_index + 1} / ${widget.images.length}',
+                        style: const TextStyle(color: Colors.white)),
                     const Spacer(),
                     // Redo text extraction for the current item
                     ValueListenableBuilder<Map<String, RedoJobStatus>>(
                       valueListenable: RedoJobManager.instance.statuses,
                       builder: (context, map, _) {
                         final st = map[_current.identifier];
-                        final busy = st != null && (st.processing || st.message == 'Queued');
+                        final busy = st != null &&
+                            (st.processing || st.message == 'Queued');
                         return IconButton(
-                          tooltip: busy ? 'Redo in progress' : 'Redo text extraction',
+                          tooltip: busy
+                              ? 'Redo in progress'
+                              : 'Redo text extraction',
                           color: Colors.white,
                           icon: const Icon(Icons.refresh),
-                          onPressed: busy ? null : () async {
-                        final entry = _current;
-                        final result = await Navigator.of(context).push<Map<String, dynamic>>(
-                          MaterialPageRoute(
-                            builder: (_) => RedoCropScreen(
-                              imageFile: File(entry.imagePath),
-                              contact: entry,
-                              initialAllowNameAgeUpdate: (entry.name == null || entry.name!.isEmpty || entry.age == null),
-                            ),
-                          ),
-                        );
-                        if (result != null) {
-                          final response = result['response'] as Map<String, dynamic>?;
-                          final allowNameAgeUpdate = result['allowNameAgeUpdate'] == true;
-                          if (response != null) {
-                            setState(() {
-                              postProcessChatGptResult(
-                                entry,
-                                response,
-                                save: false,
-                                allowNameAgeUpdate: allowNameAgeUpdate,
-                              );
-                            });
-                            await StorageUtils.save(entry);
-                          }
-                        }
-                          },
+                          onPressed: busy
+                              ? null
+                              : () async {
+                                  final entry = _current;
+                                  final result = await Navigator.of(context)
+                                      .push<Map<String, dynamic>>(
+                                    MaterialPageRoute(
+                                      builder: (_) => RedoCropScreen(
+                                        imageFile: File(entry.imagePath),
+                                        contact: entry,
+                                        initialAllowNameAgeUpdate:
+                                            (entry.name == null ||
+                                                entry.name!.isEmpty ||
+                                                entry.age == null),
+                                      ),
+                                    ),
+                                  );
+                                  if (result != null) {
+                                    final response = result['response']
+                                        as Map<String, dynamic>?;
+                                    final allowNameAgeUpdate =
+                                        result['allowNameAgeUpdate'] == true;
+                                    if (response != null) {
+                                      setState(() {
+                                        postProcessChatGptResult(
+                                          entry,
+                                          response,
+                                          save: false,
+                                          allowNameAgeUpdate:
+                                              allowNameAgeUpdate,
+                                        );
+                                      });
+                                      await StorageUtils.save(entry);
+                                    }
+                                  }
+                                },
                         );
                       },
                     ),
@@ -231,17 +255,22 @@ class _ReviewViewerState extends State<ReviewViewer> {
                   if (failed) {
                     bg = Colors.deepOrange.withOpacity(0.15);
                     fg = Colors.deepOrange;
-                    leading = const Icon(Icons.error_outline, size: 16, color: Colors.deepOrange);
+                    leading = const Icon(Icons.error_outline,
+                        size: 16, color: Colors.deepOrange);
                     text = 'Redo failed — open panel to retry';
                   } else if (processing) {
                     bg = Colors.blue.withOpacity(0.15);
                     fg = Colors.blue;
-                    leading = const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2));
+                    leading = const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2));
                     text = 'Updating… Redo in progress';
                   } else if (queued) {
                     bg = Colors.blueGrey.withOpacity(0.14);
                     fg = Colors.blueGrey;
-                    leading = const Icon(Icons.schedule, size: 16, color: Colors.blueGrey);
+                    leading = const Icon(Icons.schedule,
+                        size: 16, color: Colors.blueGrey);
                     text = 'Redo queued…';
                   } else {
                     return const SizedBox.shrink();
@@ -254,7 +283,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: fg.withOpacity(0.35)),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -281,7 +311,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
               child: SafeArea(
                 top: false,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -297,17 +328,20 @@ class _ReviewViewerState extends State<ReviewViewer> {
                         // Button row with reserved edge space for arrows
                         Positioned.fill(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 56.0),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 56.0),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: FilledButton.icon(
                                     onPressed: _showDetailsSheet,
                                     style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
                                       minimumSize: const Size(0, 44),
                                     ),
-                                    icon: const Icon(Icons.description_outlined),
+                                    icon:
+                                        const Icon(Icons.description_outlined),
                                     label: const FittedBox(
                                       fit: BoxFit.scaleDown,
                                       child: Text('Details'),
@@ -317,11 +351,14 @@ class _ReviewViewerState extends State<ReviewViewer> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: OutlinedButton.icon(
-                                    onPressed: () => setState(() => _editorOpen = !_editorOpen),
+                                    onPressed: () => setState(
+                                        () => _editorOpen = !_editorOpen),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
-                                      side: const BorderSide(color: Colors.white70),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      side: const BorderSide(
+                                          color: Colors.white70),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
                                       minimumSize: const Size(0, 44),
                                     ),
                                     icon: const Icon(Icons.manage_accounts),
@@ -341,7 +378,10 @@ class _ReviewViewerState extends State<ReviewViewer> {
                             color: Colors.white,
                             icon: const Icon(Icons.chevron_left, size: 30),
                             onPressed: _index > 0
-                                ? () => _pageController.animateToPage(_index - 1, duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
+                                ? () => _pageController.animateToPage(
+                                    _index - 1,
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut)
                                 : null,
                           ),
                         ),
@@ -351,7 +391,10 @@ class _ReviewViewerState extends State<ReviewViewer> {
                             color: Colors.white,
                             icon: const Icon(Icons.chevron_right, size: 30),
                             onPressed: _index < widget.images.length - 1
-                                ? () => _pageController.animateToPage(_index + 1, duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
+                                ? () => _pageController.animateToPage(
+                                    _index + 1,
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut)
                                 : null,
                           ),
                         ),
@@ -370,8 +413,14 @@ class _ReviewViewerState extends State<ReviewViewer> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).canvasColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, -2))],
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, -2))
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -381,7 +430,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
                         onVerticalDragUpdate: (d) {
                           final h = MediaQuery.of(context).size.height;
                           setState(() {
-                            _dockPerc = (_dockPerc - d.primaryDelta! / h).clamp(_dockMin, _dockMax);
+                            _dockPerc = (_dockPerc - d.primaryDelta! / h)
+                                .clamp(_dockMin, _dockMax);
                           });
                         },
                         onVerticalDragEnd: (_) {
@@ -389,7 +439,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
                           final targets = [_dockMin, _dockMid, _dockMax];
                           double closest = targets.first;
                           for (final t in targets) {
-                            if ((t - _dockPerc).abs() < (closest - _dockPerc).abs()) closest = t;
+                            if ((t - _dockPerc).abs() <
+                                (closest - _dockPerc).abs()) closest = t;
                           }
                           setState(() => _dockPerc = closest);
                           // light haptic
@@ -403,19 +454,26 @@ class _ReviewViewerState extends State<ReviewViewer> {
                               Container(
                                 width: 36,
                                 height: 4,
-                                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+                                decoration: BoxDecoration(
+                                    color: Colors.grey.shade400,
+                                    borderRadius: BorderRadius.circular(2)),
                               ),
                               const SizedBox(height: 6),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0),
                                 child: Row(
                                   children: [
                                     const Icon(Icons.manage_accounts),
                                     const SizedBox(width: 8),
-                                    const Text('Handles & Verification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                                    const Text('Handles & Verification',
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700)),
                                     const Spacer(),
                                     TextButton(
-                                      onPressed: () => setState(() => _editorOpen = false),
+                                      onPressed: () =>
+                                          setState(() => _editorOpen = false),
                                       child: const Text('Hide'),
                                     ),
                                   ],
@@ -433,7 +491,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
                           scrollController: _panelScroll ??= ScrollController(),
                           showHeader: false,
                           onAim: (y) => setState(() => _aimY = y),
-                          onAimHighlight: (v) => setState(() => _aimHighlight = v),
+                          onAimHighlight: (v) =>
+                              setState(() => _aimHighlight = v),
                         ),
                       ),
                     ],
@@ -455,7 +514,8 @@ class _AimBandOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _AimBandPainter(centerY: centerY, bandHeightFraction: bandHeightFraction),
+      painter: _AimBandPainter(
+          centerY: centerY, bandHeightFraction: bandHeightFraction),
     );
   }
 }
@@ -471,7 +531,11 @@ class _AimBandPainter extends CustomPainter {
     final rect = Offset.zero & size;
     final bandHeight = size.height * bandHeightFraction;
     final center = size.height * centerY;
-    final bandRect = Rect.fromLTWH(0, (center - bandHeight / 2).clamp(0.0, size.height - bandHeight), size.width, bandHeight);
+    final bandRect = Rect.fromLTWH(
+        0,
+        (center - bandHeight / 2).clamp(0.0, size.height - bandHeight),
+        size.width,
+        bandHeight);
 
     // Darken whole screen
     canvas.drawRect(rect, paint);
@@ -485,6 +549,7 @@ class _AimBandPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AimBandPainter old) {
-    return old.centerY != centerY || old.bandHeightFraction != bandHeightFraction;
+    return old.centerY != centerY ||
+        old.bandHeightFraction != bandHeightFraction;
   }
 }
