@@ -1,6 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class _ImportLimitTile extends StatefulWidget {
+	const _ImportLimitTile();
+
+	@override
+	State<_ImportLimitTile> createState() => _ImportLimitTileState();
+}
+
+class _ImportLimitTileState extends State<_ImportLimitTile> {
+	static const String _key = 'import_max_selection_v1';
+	final List<int> _options = const [20, 50, 100, 200, 500, -1];
+	int? _current; // null while loading
+
+	@override
+	void initState() {
+		super.initState();
+		_load();
+	}
+
+	Future<void> _load() async {
+		final prefs = await SharedPreferences.getInstance();
+		setState(() => _current = prefs.getInt(_key) ?? 200);
+	}
+
+	Future<void> _set(int value) async {
+		final prefs = await SharedPreferences.getInstance();
+		await prefs.setInt(_key, value);
+		if (!mounted) return;
+		setState(() => _current = value);
+		ScaffoldMessenger.of(context).showSnackBar(
+			SnackBar(content: Text(value < 0 ? 'Import selection set to Unlimited' : 'Import selection limit set to $value')),
+		);
+	}
+
+	String _labelFor(int v) => v < 0 ? 'Unlimited' : v.toString();
+
+	@override
+	Widget build(BuildContext context) {
+		final current = _current;
+		return ListTile(
+			title: const Text('Import selection limit'),
+			subtitle: Text(current == null ? 'Loading...' : 'Current: ${_labelFor(current)}'),
+			onTap: () async {
+				final result = await showModalBottomSheet<int>(
+					context: context,
+					builder: (ctx) => SafeArea(
+						child: ListView(
+							shrinkWrap: true,
+							children: [
+								const ListTile(title: Text('Select max images per import', style: TextStyle(fontWeight: FontWeight.bold))),
+								..._options.map((v) => RadioListTile<int>(
+											value: v,
+											groupValue: current ?? 200,
+											title: Text(_labelFor(v)),
+											onChanged: (val) => Navigator.pop(ctx, val),
+										)),
+							],
+						),
+					),
+				);
+				if (result != null) {
+					await _set(result);
+				}
+			},
+		);
+	}
+}
 
 class SettingsScreen extends StatelessWidget {
 	final Future<void> Function()? onResetImportDir;
@@ -47,6 +115,8 @@ class SettingsScreen extends StatelessWidget {
 							],
 						),
 					),
+					const Divider(),
+					const _ImportLimitTile(),
 					const Divider(),
 					FutureBuilder<bool>(
 						future: CloudUtils.isSignedin(),

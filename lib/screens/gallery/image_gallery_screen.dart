@@ -159,6 +159,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   // Feature flags
   static const bool kUseCompactHeader = true;
+  // Max number of images user can select in one import batch (wechat_assets_picker default is 9)
+  static const int kMaxImportSelection = 200;
+  static const String _importMaxSelectionKey = 'import_max_selection_v1';
 
   // Redo Mode state
   bool _redoMode = false; // when true, show only redo candidates/failed and change FAB
@@ -353,6 +356,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_importDirKey);
     setState(() => _importDirPath = null);
+  }
+
+  Future<int> _resolveImportMaxSelection() async {
+    // Returns the effective max selection for the picker.
+    // If user sets Unlimited (stored as -1), return a very high number.
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getInt(_importMaxSelectionKey);
+    if (v == null) return kMaxImportSelection; // default
+    if (v < 0) return 999999; // practical "unlimited"
+    return v;
   }
 
   // ---------------- UI ----------------
@@ -1898,9 +1911,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       return;
     }
 
+    final maxSel = await _resolveImportMaxSelection();
     final config = AssetPickerConfig(
       requestType: RequestType.image,
       filterOptions: filter,
+      maxAssets: maxSel,
       textDelegate: const EnglishAssetPickerTextDelegate(),
     );
 
