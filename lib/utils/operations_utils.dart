@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:PhotoWordFind/main.dart';
 import 'package:PhotoWordFind/utils/files_utils.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
+import 'package:PhotoWordFind/utils/android_media_store.dart';
+import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 // import 'package:hive/hive.dart';
@@ -88,17 +90,40 @@ class Operation{
     debugPrint("Leaving find()...");
   }
 
-  static void move(List<ContactEntry> srcList, String destDir) {
+  static Future<void> move(List<ContactEntry> srcList, String destDir) async {
+    bool mappingChanged = false;
     for (final entry in srcList) {
       final src = entry.imagePath;
       final fileName = path.basename(src);
       final dst = path.join(destDir, fileName);
 
-      // Move the physical file first
-      File(src).renameSync(dst);
+      String? newPath;
 
-      // Update only the in-memory ContactEntry path per request
-      entry.imagePath = dst;
+      // Prefer MediaStore move on Android so Gallery updates immediately.
+      try {
+  newPath = await AndroidMediaStoreHelper.moveImageTo(src, destDir);
+      } catch (_) {
+        // ignore, will fallback
+      }
+
+      if (newPath == null) {
+        // Fallback: filesystem rename.
+        File(src).renameSync(dst);
+        newPath = dst;
+      }
+
+      // Persist path change on the ContactEntry and cached mapping.
+      entry.imagePath = newPath;
+      try {
+        StorageUtils.filePaths[entry.identifier] = newPath;
+        mappingChanged = true;
+      } catch (_) {}
+      entry
+        ..extractedText = entry.extractedText // trigger MobX reaction
+        ;
+    }
+    if (mappingChanged) {
+      try { await StorageUtils.writeJson(StorageUtils.filePaths); } catch (_) {}
     }
   }
 
