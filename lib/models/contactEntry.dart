@@ -63,7 +63,8 @@ List<Map<String, String>>? toJsonObservableListOfMaps(
 typedef FieldUpdater<T> = void Function(T model, dynamic value);
 final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
   SubKeys.Name: (model, value) {
-    model.name = (value is String && value.trim().isNotEmpty) ? value : model.name;
+    model.name =
+        (value is String && value.trim().isNotEmpty) ? value : model.name;
   },
   SubKeys.Age: (model, value) {
     if (value is int) {
@@ -199,26 +200,29 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
               : null,
           // Verification dates are separate from platform add flags
           verifiedOnSnapAt: (json[SubKeys.VerifiedSnapDate] is String &&
-              (json[SubKeys.VerifiedSnapDate] as String).isNotEmpty)
-            ? DateTime.parse(json[SubKeys.VerifiedSnapDate])
-            : null,
+                  (json[SubKeys.VerifiedSnapDate] as String).isNotEmpty)
+              ? DateTime.parse(json[SubKeys.VerifiedSnapDate])
+              : null,
           verifiedOnInstaAt: (json[SubKeys.VerifiedInstaDate] is String &&
-              (json[SubKeys.VerifiedInstaDate] as String).isNotEmpty)
-            ? DateTime.parse(json[SubKeys.VerifiedInstaDate])
-            : null,
+                  (json[SubKeys.VerifiedInstaDate] as String).isNotEmpty)
+              ? DateTime.parse(json[SubKeys.VerifiedInstaDate])
+              : null,
           verifiedOnDiscordAt: (json[SubKeys.VerifiedDiscordDate] is String &&
-              (json[SubKeys.VerifiedDiscordDate] as String).isNotEmpty)
-            ? DateTime.parse(json[SubKeys.VerifiedDiscordDate])
-            : null,
+                  (json[SubKeys.VerifiedDiscordDate] as String).isNotEmpty)
+              ? DateTime.parse(json[SubKeys.VerifiedDiscordDate])
+              : null,
           addedOnSnap: json[SubKeys.AddedOnSnap] ?? false,
           addedOnInsta: json[SubKeys.AddedOnInsta] ?? false,
           addedOnDiscord: json[SubKeys.AddedOnDiscord] ?? false,
           previousHandles: ObservableMap.of(
               (json[SubKeys.PreviousUsernames] as Map<String, dynamic>?)?.map(
                     (key, value) => MapEntry(
-                      key, value != null
-                        ? ObservableList<String>.of((value as List<dynamic>).nonNulls.cast<String>())
-                        : ObservableList<String>()),
+                        key,
+                        value != null
+                            ? ObservableList<String>.of((value as List<dynamic>)
+                                .nonNulls
+                                .cast<String>())
+                            : ObservableList<String>()),
                   ) ??
                   <String, ObservableList<String>>{
                     SubKeys.SnapUsername: ObservableList<String>(),
@@ -255,9 +259,8 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
   /// Factory constructor to create a ContactEntry from JSON data.
   /// This version of the factory constructor is meant to be used with the
   /// new implementation of the ContactEntry, which already stores the image path
-  /// the Json data 
-  factory ContactEntry.fromJson2(
-      String storageKey, Map<String, dynamic> json,
+  /// the Json data
+  factory ContactEntry.fromJson2(String storageKey, Map<String, dynamic> json,
       {bool save = false}) {
     final imageFilePath = json['imagePath'] as String;
     var instance = ContactEntry(
@@ -335,7 +338,6 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
   Future<void> _saveToPreferences() async {
     await StorageUtils.save(this);
   }
-
 }
 
 /// This class represents the data parsed from each image and has an update tracking
@@ -390,16 +392,19 @@ abstract class _ContactEntry with Store {
   DateTime? verifiedOnDiscordAt;
 
   @observable
+
   /// Indicates that a friend request on Snapchat was believed to succeed.
   /// Because the app cannot verify the add directly, this may need to be
   /// reset manually if the request was never accepted.
   bool addedOnSnap;
 
   @observable
+
   /// Same as [addedOnSnap] but for Instagram.
   bool addedOnInsta;
 
   @observable
+
   /// Same as [addedOnSnap] but for Discord.
   bool addedOnDiscord;
 
@@ -435,51 +440,51 @@ abstract class _ContactEntry with Store {
 
   @action
   updateSnapchat(String snapchat) {
-  // Enable autosave for this action; we intentionally LEAVE it enabled
-  // at the end so the reaction can trigger a debounced save.
-  _suppressAutoSave = false;
+    // Enable autosave for this action; we intentionally LEAVE it enabled
+    // at the end so the reaction can trigger a debounced save.
+    _suppressAutoSave = false;
     // Track previous handle
     if (snapUsername != null && snapUsername!.isNotEmpty) {
       _ensurePrevList(SubKeys.SnapUsername).add(snapUsername!);
     }
     // Update primary field
     snapUsername = snapchat;
-  // Keep aggregated map in sync
+    // Keep aggregated map in sync
     _ensureHandlesMap()[SubKeys.SnapUsername] = snapchat;
-  // Changing the handle invalidates any prior verification
-  verifiedOnSnapAt = null;
+    // Changing the handle invalidates any prior verification
+    verifiedOnSnapAt = null;
   }
 
   @action
   updateInstagram(String instagram) {
-  // Enable autosave and keep it enabled for reaction/debounced persistence.
-  _suppressAutoSave = false;
+    // Enable autosave and keep it enabled for reaction/debounced persistence.
+    _suppressAutoSave = false;
     if (instaUsername != null && instaUsername!.isNotEmpty) {
       _ensurePrevList(SubKeys.InstaUsername).add(instaUsername!);
     }
     instaUsername = instagram;
-  _ensureHandlesMap()[SubKeys.InstaUsername] = instagram;
-  verifiedOnInstaAt = null;
+    _ensureHandlesMap()[SubKeys.InstaUsername] = instagram;
+    verifiedOnInstaAt = null;
   }
 
   @action
   updateDiscord(String discord) {
-  // Enable autosave and keep it enabled for reaction/debounced persistence.
-  _suppressAutoSave = false;
+    // Enable autosave and keep it enabled for reaction/debounced persistence.
+    _suppressAutoSave = false;
     if (discordUsername != null && discordUsername!.isNotEmpty) {
       _ensurePrevList(SubKeys.DiscordUsername).add(discordUsername!);
     }
     discordUsername = discord;
-  _ensureHandlesMap()[SubKeys.DiscordUsername] = discord;
-  verifiedOnDiscordAt = null;
+    _ensureHandlesMap()[SubKeys.DiscordUsername] = discord;
+    verifiedOnDiscordAt = null;
   }
 
   @action
   addSnapchat() {
-  // Keep autosave enabled so both fields get persisted in a single debounced save.
-  _suppressAutoSave = false;
-  dateAddedOnSnap = DateTime.now();
-  addedOnSnap = true;
+    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    _suppressAutoSave = false;
+    dateAddedOnSnap = DateTime.now();
+    addedOnSnap = true;
   }
 
   // Verification toggles (separate from platform add status)
@@ -497,10 +502,10 @@ abstract class _ContactEntry with Store {
 
   @action
   addInstagram() {
-  // Keep autosave enabled so both fields get persisted in a single debounced save.
-  _suppressAutoSave = false;
-  dateAddedOnInsta = DateTime.now();
-  addedOnInsta = true;
+    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    _suppressAutoSave = false;
+    dateAddedOnInsta = DateTime.now();
+    addedOnInsta = true;
   }
 
   @action
@@ -517,10 +522,10 @@ abstract class _ContactEntry with Store {
 
   @action
   addDiscord() {
-  // Keep autosave enabled so both fields get persisted in a single debounced save.
-  _suppressAutoSave = false;
-  dateAddedOnDiscord = DateTime.now();
-  addedOnDiscord = true;
+    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    _suppressAutoSave = false;
+    dateAddedOnDiscord = DateTime.now();
+    addedOnDiscord = true;
   }
 
   @action
@@ -539,28 +544,28 @@ abstract class _ContactEntry with Store {
   resetSnapchatAdd() {
     // Called when removing a Snapchat username. Since adds aren't verified,
     // this clears the flag so the handle can be reused.
-  // Keep autosave enabled so both fields get persisted in a single debounced save.
-  _suppressAutoSave = false;
-  dateAddedOnSnap = null;
-  addedOnSnap = false;
+    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    _suppressAutoSave = false;
+    dateAddedOnSnap = null;
+    addedOnSnap = false;
   }
 
   @action
   resetInstagramAdd() {
     // Same as [resetSnapchatAdd] but for Instagram.
-  // Keep autosave enabled so both fields get persisted in a single debounced save.
-  _suppressAutoSave = false;
-  dateAddedOnInsta = null;
-  addedOnInsta = false;
+    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    _suppressAutoSave = false;
+    dateAddedOnInsta = null;
+    addedOnInsta = false;
   }
 
   @action
   resetDiscordAdd() {
     // Same as [resetSnapchatAdd] but for Discord.
-  // Keep autosave enabled so both fields get persisted in a single debounced save.
-  _suppressAutoSave = false;
-  dateAddedOnDiscord = null;
-  addedOnDiscord = false;
+    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    _suppressAutoSave = false;
+    dateAddedOnDiscord = null;
+    addedOnDiscord = false;
   }
 
   _ContactEntry({

@@ -53,103 +53,103 @@ Future<String?> showNoteDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15.0),
               ),
-          icon: Icon(Icons.note_alt, color: Colors.deepPurple, size: 40),
-          title: Text(
-            'Add Note...',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.deepPurple,
-              fontSize: 20, // Title font size
-            ),
-          ),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: screenSize.height *
-                  0.6, // Dialog height will be 60% of screen height
-              maxWidth: screenSize.width *
-                  0.9, // Dialog width will be 90% of screen width
-            ),
-            child: SingleChildScrollView(
-              child: Form(
-                key: _formKey, // Attach the form key
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      autofocus: true,
-                      focusNode: _noteFocus,
-                      controller: noteController,
-                      maxLines: 5,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      textCapitalization: TextCapitalization.sentences,
-                      onFieldSubmitted: (_) => _noteFocus.requestFocus(),
-                      style: TextStyle(
-                        fontSize: 14,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Enter your note',
-                        hintText: 'Type something...',
-                        labelStyle: TextStyle(fontSize: 14),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10.0),
+              icon: Icon(Icons.note_alt, color: Colors.deepPurple, size: 40),
+              title: Text(
+                'Add Note...',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                  fontSize: 20, // Title font size
+                ),
+              ),
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: screenSize.height *
+                      0.6, // Dialog height will be 60% of screen height
+                  maxWidth: screenSize.width *
+                      0.9, // Dialog width will be 90% of screen width
+                ),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: _formKey, // Attach the form key
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          autofocus: true,
+                          focusNode: _noteFocus,
+                          controller: noteController,
+                          maxLines: 5,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          textCapitalization: TextCapitalization.sentences,
+                          onFieldSubmitted: (_) => _noteFocus.requestFocus(),
+                          style: TextStyle(
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Enter your note',
+                            hintText: 'Type something...',
+                            labelStyle: TextStyle(fontSize: 14),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            contentPadding: EdgeInsets.all(12.0),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Note cannot be empty'; // Validation message
+                            }
+                            return null; // Input is valid
+                          },
                         ),
-                        contentPadding: EdgeInsets.all(12.0),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Note cannot be empty'; // Validation message
-                        }
-                        return null; // Input is valid
-                      },
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          actions: [
-              TextButton(
-                onPressed: () async {
-                  if (changed) {
-                    final discard =
-                        await _confirm(context, message: 'Discard changes?');
-                    if (!discard) return;
-                  }
-                  Navigator.of(context).pop(); // Dismiss the dialog
-                },
-              child: Text('Cancel'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-              ),
-            ),
-              ElevatedButton(
-                child: Text('Save'),
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    String note = noteController.text;
-
+              actions: [
+                TextButton(
+                  onPressed: () async {
                     if (changed) {
-                      final confirmSave =
-                          await _confirm(context, message: 'Save changes?');
-                      if (!confirmSave) return;
+                      final discard =
+                          await _confirm(context, message: 'Discard changes?');
+                      if (!discard) return;
                     }
-
-                    // Call the onSave function and pass back the note
-                    _onSave(key, note, contact);
-                    Navigator.of(context).pop(note);
-                  }
-                },
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.deepPurple,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                    Navigator.of(context).pop(); // Dismiss the dialog
+                  },
+                  child: Text('Cancel'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                  ),
                 ),
-              ),
-            ),
-          ],
+                ElevatedButton(
+                  child: Text('Save'),
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      String note = noteController.text;
+
+                      if (changed) {
+                        final confirmSave =
+                            await _confirm(context, message: 'Save changes?');
+                        if (!confirmSave) return;
+                      }
+
+                      // Call the onSave function and pass back the note
+                      _onSave(key, note, contact);
+                      Navigator.of(context).pop(note);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.deepPurple,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },

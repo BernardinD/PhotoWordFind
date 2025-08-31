@@ -74,13 +74,13 @@ class StorageUtils {
     'gallery_snap_added_filter_v1',
     'gallery_insta_added_filter_v1',
     'gallery_selected_states_multi_v1',
-  // Sorting preferences
-  'gallery_sort_option_v1',
-  'gallery_sort_ascending_v1',
-  // Time difference filter prefs
-  'gallery_time_diff_min_v1',
-  'gallery_time_diff_max_v1',
-  'import_max_selection_v1'
+    // Sorting preferences
+    'gallery_sort_option_v1',
+    'gallery_sort_ascending_v1',
+    // Time difference filter prefs
+    'gallery_time_diff_min_v1',
+    'gallery_time_diff_max_v1',
+    'import_max_selection_v1'
   };
 
   // --- Debounced save coalescing (per-entry) ---
@@ -214,13 +214,13 @@ class StorageUtils {
     ContactEntry entry, {
     bool reload = false,
   }) async {
-  // Immediate Hive write; rely on Hive internals for batching/safety.
-  final String id = entry.identifier;
-  final String rawJson = jsonEncode(entry.toJson());
-  final box = Hive.box('contacts');
-  await box.put(id, rawJson);
+    // Immediate Hive write; rely on Hive internals for batching/safety.
+    final String id = entry.identifier;
+    final String rawJson = jsonEncode(entry.toJson());
+    final box = Hive.box('contacts');
+    await box.put(id, rawJson);
 
-  // Schedule a global debounced cloud sync after local save requests.
+    // Schedule a global debounced cloud sync after local save requests.
     _cloudDebounceTimer?.cancel();
     _cloudDebounceTimer = Timer(_cloudDebounceDuration, () async {
       _cloudDebounceTimer = null;
@@ -429,7 +429,8 @@ class StorageUtils {
           entry.verifiedOnInstaAt = entry.dateAddedOnInsta;
           changed = true;
         }
-        if (entry.verifiedOnDiscordAt == null && entry.dateAddedOnDiscord != null) {
+        if (entry.verifiedOnDiscordAt == null &&
+            entry.dateAddedOnDiscord != null) {
           entry.verifiedOnDiscordAt = entry.dateAddedOnDiscord;
           changed = true;
         }
@@ -452,7 +453,7 @@ class StorageUtils {
     final box = Hive.box('contacts');
     final prefs = await SharedPreferences.getInstance();
     for (String key in prefs.getKeys()) {
-  if (reservedPrefKeys.contains(key)) {
+      if (reservedPrefKeys.contains(key)) {
         debugPrint('Skipping reserved preference key during migration: $key');
         continue;
       }
@@ -470,13 +471,14 @@ class StorageUtils {
     }
     // Validation: compare key counts in both stores
     final migratedKeys = box.keys.whereType<String>();
-  // Only compare counts for non-reserved keys
-  final nonReservedCount = prefs.getKeys().where((k) => !reservedPrefKeys.contains(k)).length;
-  if (migratedKeys.length == nonReservedCount) {
+    // Only compare counts for non-reserved keys
+    final nonReservedCount =
+        prefs.getKeys().where((k) => !reservedPrefKeys.contains(k)).length;
+    if (migratedKeys.length == nonReservedCount) {
       debugPrint('Migration to Hive complete. Key counts match.');
     } else {
       debugPrint(
-      'Migration: mismatch in key counts. SharedPrefs(non-reserved): \\${nonReservedCount}, Hive: \\${migratedKeys.length}');
+          'Migration: mismatch in key counts. SharedPrefs(non-reserved): \\${nonReservedCount}, Hive: \\${migratedKeys.length}');
     }
   }
 }

@@ -22,7 +22,9 @@ abstract class _Location with Store {
   _Location({
     required this.rawLocation,
     required this.timezone,
-  }): utcOffset = timezone != null ? tz.getLocation(timezone).currentTimeZone.offset : null;
+  }) : utcOffset = timezone != null
+            ? tz.getLocation(timezone).currentTimeZone.offset
+            : null;
 
   Map<String, dynamic> toJson() {
     return {

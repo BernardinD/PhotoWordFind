@@ -213,10 +213,11 @@ class _GalleryCellState extends State<GalleryCell> {
                               // TODO: Consider showing a tooltip or helper text when disabled
                               // (contact is null) to explain why selection isn't available yet.
                               onPressed: widget.contact == null
-                                ? null
-                                : () => widget.onPressedHandler(widget.contact!),
+                                  ? null
+                                  : () =>
+                                      widget.onPressedHandler(widget.contact!),
                               onLongPress: () =>
-                                widget.onLongPressedHandler(fileName),
+                                  widget.onLongPressedHandler(fileName),
                             ),
                             ClipRRect(
                               borderRadius:
@@ -383,7 +384,8 @@ class _GalleryCellState extends State<GalleryCell> {
                                         widget.discordUsername,
                                         widget.listPos(widget));
                                     Sortings.scheduleCacheUpdate();
-                                    LegacyAppShell.updateFrame?.call(() => null);
+                                    LegacyAppShell.updateFrame
+                                        ?.call(() => null);
                                   },
                                 ));
                             return AdaptiveTextSelectionToolbar.buttonItems(
@@ -460,14 +462,14 @@ class _GalleryCellState extends State<GalleryCell> {
     // Create file location for image
     final tempDir = Directory.systemTemp;
     print("tempDir = ${tempDir.path}");
-  final File? file =
-    await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
-      .create()
-      .catchError((e) {
-    print("file creation failed.");
-    print(e);
-    return File('${tempDir.path}/${fileName.split(".").first}.repl.png');
-  });
+    final File? file =
+        await new File('${tempDir.path}/${fileName.split(".").first}.repl.png')
+            .create()
+            .catchError((e) {
+      print("file creation failed.");
+      print(e);
+      return File('${tempDir.path}/${fileName.split(".").first}.repl.png');
+    });
 
     // Save image locally
     await file!.writeAsBytes(pngBytes).catchError((e) {
@@ -512,11 +514,11 @@ class _GalleryCellState extends State<GalleryCell> {
     if (_displayDatesCounter >= _dates.length) {
       _displayDatesCounter--;
     }
-  LegacyAppShell.updateFrame?.call(() {});
+    LegacyAppShell.updateFrame?.call(() {});
   }
 
   openUserAppPage(SocialType social, {bool addOnSocial = true}) async {
-  await LegacyAppShell.showProgress(autoComplete: true);
+    await LegacyAppShell.showProgress(autoComplete: true);
     Uri _site;
     DateTime? date;
 
@@ -556,7 +558,7 @@ class _GalleryCellState extends State<GalleryCell> {
         _site = Uri.parse("");
         Clipboard.setData(ClipboardData(text: widget.discordUsername));
         SocialIcon.discordIconButton?.openApp();
-  if (addOnSocial) {
+        if (addOnSocial) {
           if (date != null) {
             // saving =
             //     StorageUtils.save(key, backup: true, discordAddedDate: date);
@@ -568,7 +570,7 @@ class _GalleryCellState extends State<GalleryCell> {
         break;
     }
     // TODO: Make sure there's some other mechinism to update the
-  saving.then((_) => Sortings.scheduleCacheUpdate());
+    saving.then((_) => Sortings.scheduleCacheUpdate());
 
     debugPrint("site URI: $_site");
     if (!_site.hasEmptyPath)
@@ -576,7 +578,7 @@ class _GalleryCellState extends State<GalleryCell> {
           .then((value) => LegacyAppShell.pr.close(delay: 500));
     // Make sure to close the progress dialog
     else
-  LegacyAppShell.pr.close(delay: 500);
+      LegacyAppShell.pr.close(delay: 500);
   }
 
   TableRow getSocialRow(bool hasUser, SocialType social) {

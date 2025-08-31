@@ -99,7 +99,7 @@ class ImageGalleryScreen extends StatefulWidget {
 }
 
 class _ImageGalleryScreenState extends State<ImageGalleryScreen>
-  with TickerProviderStateMixin, WidgetsBindingObserver {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   // Filters/sort/search state
   String searchQuery = '';
   String selectedSortOption = 'Name';
@@ -110,8 +110,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     'Snap Added Date',
     'Instagram Added Date',
     'Added on Snapchat',
-  'Added on Instagram',
-  'Location',
+    'Added on Instagram',
+    'Location',
   ];
   String selectedState = 'All';
   List<String> states = ['All'];
@@ -123,7 +123,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // Time difference filter (relative to device timezone), stored in minutes
   // Default range: ±10 hours
   static const int _kTimeDiffMinDefault = -600; // -10h
-  static const int _kTimeDiffMaxDefault = 600;  // +10h
+  static const int _kTimeDiffMaxDefault = 600; // +10h
   int _timeDiffMinMinutes = _kTimeDiffMinDefault;
   int _timeDiffMaxMinutes = _kTimeDiffMaxDefault;
 
@@ -165,7 +165,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   static const String _importMaxSelectionKey = 'import_max_selection_v1';
 
   // Redo Mode state
-  bool _redoMode = false; // when true, show only redo candidates/failed and change FAB
+  bool _redoMode =
+      false; // when true, show only redo candidates/failed and change FAB
 
   // Listen to job status changes to refresh banner/mode contents
   void _onJobsChanged() {
@@ -199,7 +200,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void initState() {
     super.initState();
-  WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
     // Downsize the global image cache while this memory-heavy screen is active
     try {
       final cache = PaintingBinding.instance.imageCache;
@@ -208,20 +209,24 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       cache.maximumSize = 300; // default ~1000; reduce retained decodes
       cache.maximumSizeBytes = 48 * 1024 * 1024; // ~48MB
     } catch (_) {}
-    CloudUtils.progressCallback = ({double? value, String? message, bool done = false, bool error = false}) {
+    CloudUtils.progressCallback = (
+        {double? value,
+        String? message,
+        bool done = false,
+        bool error = false}) {
       // Reserved hook for future UI progress
     };
-  // Refresh UI when background redo statuses change (affects banner and mode list)
-  RedoJobManager.instance.statuses.addListener(_onJobsChanged);
+    // Refresh UI when background redo statuses change (affects banner and mode list)
+    RedoJobManager.instance.statuses.addListener(_onJobsChanged);
     _initializeApp();
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
-  _searchController.dispose();
+    _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
-  RedoJobManager.instance.statuses.removeListener(_onJobsChanged);
+    RedoJobManager.instance.statuses.removeListener(_onJobsChanged);
     // Restore global image cache budgets
     try {
       final cache = PaintingBinding.instance.imageCache;
@@ -234,7 +239,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Proactively trim caches when backgrounding or coming back
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       MemoryUtils.trimImageCaches();
     } else if (state == AppLifecycleState.resumed) {
       // Also clear any stale decodes on resume
@@ -254,7 +260,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       await _ensureSignedIn();
       await _loadImportDirectory();
       await _loadImages();
-  await _restorePersistedFilters();
+      await _restorePersistedFilters();
       await _applyFiltersAndSort();
       setState(() => _isInitializing = false);
     } catch (e) {
@@ -271,11 +277,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       if (!signed) {
         await CloudUtils.firstSignIn();
       }
-  if (mounted) setState(() => _signedIn = true);
+      if (mounted) setState(() => _signedIn = true);
       return true;
     } catch (e) {
       _initializationError = 'Sign-in failed: $e';
-  if (mounted) setState(() => _signedIn = false);
+      if (mounted) setState(() => _signedIn = false);
       return false;
     }
   }
@@ -284,7 +290,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (_syncing) return;
     setState(() => _syncing = true);
     final messenger = ScaffoldMessenger.of(context);
-    void show(String msg) => messenger.showSnackBar(SnackBar(content: Text(msg)));
+    void show(String msg) =>
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
     try {
       await StorageUtils.syncLocalAndCloud();
       _lastSyncTime = DateTime.now();
@@ -322,7 +329,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         loaded.add(ContactEntry(
           identifier: identifier,
           imagePath: value,
-          dateFound: File(value).existsSync() ? File(value).lastModifiedSync() : DateTime.now(),
+          dateFound: File(value).existsSync()
+              ? File(value).lastModifiedSync()
+              : DateTime.now(),
           json: {'imagePath': value},
         ));
       } else if (value is Map<String, dynamic>) {
@@ -374,14 +383,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   Widget build(BuildContext context) {
     final navContext = context;
 
-    final body = _isInitializing
-        ? _buildInitializing()
-        : _buildMainContent(navContext);
+    final body =
+        _isInitializing ? _buildInitializing() : _buildMainContent(navContext);
 
     return Scaffold(
       appBar: kUseCompactHeader
           ? null
-          : AppBar(title: const Text('Image Gallery'), actions: _buildAppBarActions(navContext)),
+          : AppBar(
+              title: const Text('Image Gallery'),
+              actions: _buildAppBarActions(navContext)),
       body: body,
       floatingActionButton: _isInitializing
           ? null
@@ -389,18 +399,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               ? FloatingActionButton.extended(
                   onPressed: () {
                     // In redo mode, apply full redo to all displayed candidates
-                    final Map<String, RedoJobStatus> statusMap = RedoJobManager.instance.statuses.value;
+                    final Map<String, RedoJobStatus> statusMap =
+                        RedoJobManager.instance.statuses.value;
                     bool _isRedoCandidate(ContactEntry c) {
-                      final isEmpty = ((c.extractedText?.trim().isEmpty ?? true)) &&
-                          ((c.name == null || c.name!.trim().isEmpty)) &&
-                          (c.age == null) &&
-                          ((c.snapUsername?.trim().isEmpty ?? true)) &&
-                          ((c.instaUsername?.trim().isEmpty ?? true)) &&
-                          ((c.discordUsername?.trim().isEmpty ?? true)) &&
-                          ((c.sections?.isNotEmpty ?? false) == false);
-                      final failed = statusMap[c.identifier]?.message == 'Failed';
+                      final isEmpty =
+                          ((c.extractedText?.trim().isEmpty ?? true)) &&
+                              ((c.name == null || c.name!.trim().isEmpty)) &&
+                              (c.age == null) &&
+                              ((c.snapUsername?.trim().isEmpty ?? true)) &&
+                              ((c.instaUsername?.trim().isEmpty ?? true)) &&
+                              ((c.discordUsername?.trim().isEmpty ?? true)) &&
+                              ((c.sections?.isNotEmpty ?? false) == false);
+                      final failed =
+                          statusMap[c.identifier]?.message == 'Failed';
                       return isEmpty || failed;
                     }
+
                     final targets = images.where(_isRedoCandidate).toList();
                     if (targets.isEmpty) return;
                     for (final entry in targets) {
@@ -408,13 +422,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         RedoJobManager.instance.enqueueFull(
                           entry: entry,
                           imageFile: File(entry.imagePath),
-                          allowNameAgeUpdate: (entry.name == null || entry.name!.isEmpty || entry.age == null),
+                          allowNameAgeUpdate: (entry.name == null ||
+                              entry.name!.isEmpty ||
+                              entry.age == null),
                         );
                       } catch (_) {}
                     }
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Queued ${targets.length} redo job${targets.length == 1 ? '' : 's'}')),
+                      SnackBar(
+                          content: Text(
+                              'Queued ${targets.length} redo job${targets.length == 1 ? '' : 's'}')),
                     );
                   },
                   icon: const Icon(Icons.autorenew),
@@ -494,7 +512,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   Widget _buildMainContent(BuildContext navContext) {
     // Compute the list to display (apply redo mode filtering on top of current images)
-    final Map<String, RedoJobStatus> statusMap = RedoJobManager.instance.statuses.value;
+    final Map<String, RedoJobStatus> statusMap =
+        RedoJobManager.instance.statuses.value;
     bool _isRedoCandidate(ContactEntry c) {
       final isEmpty = ((c.extractedText?.trim().isEmpty ?? true)) &&
           ((c.name == null || c.name!.trim().isEmpty)) &&
@@ -506,14 +525,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       final failed = statusMap[c.identifier]?.message == 'Failed';
       return isEmpty || failed;
     }
-    final List<ContactEntry> displayedImages = _redoMode ? images.where(_isRedoCandidate).toList() : images;
+
+    final List<ContactEntry> displayedImages =
+        _redoMode ? images.where(_isRedoCandidate).toList() : images;
 
     if (!kUseCompactHeader) {
       return LayoutBuilder(builder: (context, constraints) {
         final screenHeight = constraints.maxHeight;
         return Column(
           children: [
-            if (_initializationError != null) _buildInitializationErrorBanner(context),
+            if (_initializationError != null)
+              _buildInitializationErrorBanner(context),
             if (!_redoMode) _buildRedoBanner(),
             _buildControls(),
             Expanded(
@@ -556,8 +578,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         ),
         if (_initializationError != null)
           SliverToBoxAdapter(child: _buildInitializationErrorBanner(context)),
-        if (!_redoMode)
-          SliverToBoxAdapter(child: _buildRedoBanner()),
+        if (!_redoMode) SliverToBoxAdapter(child: _buildRedoBanner()),
         SliverPersistentHeader(
           pinned: true,
           delegate: _FixedHeaderDelegate(
@@ -601,15 +622,18 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.autorenew, size: 16, color: Colors.orangeAccent),
+                const Icon(Icons.autorenew,
+                    size: 16, color: Colors.orangeAccent),
                 const SizedBox(width: 6),
-                const Text('Redo mode', style: TextStyle(color: Colors.orangeAccent)),
+                const Text('Redo mode',
+                    style: TextStyle(color: Colors.orangeAccent)),
                 const SizedBox(width: 8),
                 InkWell(
                   onTap: () => setState(() => _redoMode = false),
                   child: const Padding(
                     padding: EdgeInsets.all(2.0),
-                    child: Icon(Icons.close, size: 16, color: Colors.orangeAccent),
+                    child:
+                        Icon(Icons.close, size: 16, color: Colors.orangeAccent),
                   ),
                 ),
               ],
@@ -621,8 +645,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         valueListenable: RedoJobManager.instance.summary,
         builder: (context, s, _) {
           final hasAny = (s.active + s.queued + s.failed) > 0;
-          final color = s.failed > 0 ? Colors.orange : (hasAny ? Colors.white : Colors.white70);
-          final tooltip = 'Jobs — Active: ${s.active}, Queued: ${s.queued}, Failed: ${s.failed}';
+          final color = s.failed > 0
+              ? Colors.orange
+              : (hasAny ? Colors.white : Colors.white70);
+          final tooltip =
+              'Jobs — Active: ${s.active}, Queued: ${s.queued}, Failed: ${s.failed}';
           return IconButton(
             tooltip: tooltip,
             icon: Stack(
@@ -633,7 +660,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   Positioned(
                     right: 0,
                     top: 0,
-                    child: _Badge(count: s.active, color: Colors.lightBlueAccent),
+                    child:
+                        _Badge(count: s.active, color: Colors.lightBlueAccent),
                   ),
                 if (s.failed > 0)
                   Positioned(
@@ -655,16 +683,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Background jobs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Text('Background jobs',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          Text('Active: ${s.active}  •  Queued: ${s.queued}  •  Failed: ${s.failed}'),
+                          Text(
+                              'Active: ${s.active}  •  Queued: ${s.queued}  •  Failed: ${s.failed}'),
                           const SizedBox(height: 12),
                           if (s.failed > 0)
                             Row(
                               children: [
-                                const Icon(Icons.error_outline, color: Colors.orangeAccent),
+                                const Icon(Icons.error_outline,
+                                    color: Colors.orangeAccent),
                                 const SizedBox(width: 8),
-                                const Expanded(child: Text('Some jobs failed. You can retry from the failed tiles.')),
+                                const Expanded(
+                                    child: Text(
+                                        'Some jobs failed. You can retry from the failed tiles.')),
                               ],
                             ),
                         ],
@@ -687,8 +721,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               title: const Text('Confirm UI Switch'),
               content: const Text('Switch to legacy interface?'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
-                TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('Switch')),
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx, false),
+                    child: const Text('Cancel')),
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx, true),
+                    child: const Text('Switch')),
               ],
             ),
           );
@@ -697,12 +735,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           }
         },
       ),
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-    child: _isInitializing
-    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-    : Icon(_signedIn ? Icons.cloud_done : Icons.cloud_off, color: _signedIn ? Colors.green : Colors.redAccent),
-  ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: _isInitializing
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : Icon(_signedIn ? Icons.cloud_done : Icons.cloud_off,
+                color: _signedIn ? Colors.green : Colors.redAccent),
+      ),
       if (!_isInitializing)
         IconButton(
           icon: const Icon(Icons.settings),
@@ -726,7 +768,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     try {
                       await CloudUtils.signOut();
                     } catch (_) {}
-        if (mounted) setState(() => _signedIn = false);
+                    if (mounted) setState(() => _signedIn = false);
                   },
                   lastSyncTime: _lastSyncTime,
                   syncing: _syncing,
@@ -776,7 +818,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 const SizedBox(width: 10),
                 Expanded(child: Text(text)),
                 const SizedBox(width: 8),
-                const Text('Enter redo mode', style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.w600)),
+                const Text('Enter redo mode',
+                    style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontWeight: FontWeight.w600)),
                 const SizedBox(width: 6),
                 const Icon(Icons.chevron_right, color: Colors.orangeAccent),
               ],
@@ -819,7 +864,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       child: ListView(
                         shrinkWrap: true,
                         children: [
-                          const ListTile(title: Text('Sort by', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const ListTile(
+                              title: Text('Sort by',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold))),
                           ...sortOptions.map((o) => RadioListTile<String>(
                                 value: o,
                                 groupValue: selectedSortOption,
@@ -840,7 +888,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               _buildOrderToggle(),
               const Spacer(),
               IconButton(
-                tooltip: verificationFilter.startsWith('Unverified') ? 'Show all' : 'Review unverified',
+                tooltip: verificationFilter.startsWith('Unverified')
+                    ? 'Show all'
+                    : 'Review unverified',
                 icon: const Icon(Icons.fact_check_outlined),
                 onPressed: () async {
                   if (verificationFilter.startsWith('Unverified')) {
@@ -854,11 +904,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     if (images.isNotEmpty) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => ReviewViewer(images: images, initialIndex: 0, sortOption: selectedSortOption),
+                          builder: (_) => ReviewViewer(
+                              images: images,
+                              initialIndex: 0,
+                              sortOption: selectedSortOption),
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No unverified entries in current filters')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'No unverified entries in current filters')));
                     }
                   }
                 },
@@ -878,8 +933,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     }
 
     // Expanded: two-row layout with full search field.
-    return Container
-      (
+    return Container(
       color: surface,
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
       child: Column(
@@ -890,7 +944,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               _buildFiltersChip(),
               const SizedBox(width: 6),
               IconButton(
-                tooltip: verificationFilter.startsWith('Unverified') ? 'Show all' : 'Review unverified',
+                tooltip: verificationFilter.startsWith('Unverified')
+                    ? 'Show all'
+                    : 'Review unverified',
                 icon: const Icon(Icons.fact_check_outlined),
                 onPressed: () async {
                   if (verificationFilter.startsWith('Unverified')) {
@@ -904,11 +960,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     if (images.isNotEmpty) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => ReviewViewer(images: images, initialIndex: 0, sortOption: selectedSortOption),
+                          builder: (_) => ReviewViewer(
+                              images: images,
+                              initialIndex: 0,
+                              sortOption: selectedSortOption),
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No unverified entries in current filters')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'No unverified entries in current filters')));
                     }
                   }
                 },
@@ -937,7 +998,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       prefixIcon: const Icon(Icons.search),
                       isDense: true,
                       border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 8),
                       suffixIcon: (_searchController.text.isNotEmpty)
                           ? IconButton(
                               tooltip: 'Clear',
@@ -953,7 +1015,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     onChanged: (value) {
                       searchQuery = value;
                       _searchDebounce?.cancel();
-                      _searchDebounce = Timer(const Duration(milliseconds: 220), () {
+                      _searchDebounce =
+                          Timer(const Duration(milliseconds: 220), () {
                         if (!mounted) return;
                         _filterImages();
                       });
@@ -973,7 +1036,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       child: ListView(
                         shrinkWrap: true,
                         children: [
-                          const ListTile(title: Text('Sort by', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const ListTile(
+                              title: Text('Sort by',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold))),
                           ...sortOptions.map((o) => RadioListTile<String>(
                                 value: o,
                                 groupValue: selectedSortOption,
@@ -1009,7 +1075,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.6),
+          color:
+              Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.6),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -1026,7 +1093,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   color: Theme.of(context).colorScheme.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text('$activeCount', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 12)),
+                child: Text('$activeCount',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontSize: 12)),
               ),
             ]
           ],
@@ -1037,11 +1107,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   int _activeFilterCount() {
     var c = 0;
-  if (selectedState != 'All') c++;
-  if (verificationFilter != 'All') c++;
-  if (_snapAddedFilter != AddedFilter.any) c++;
-  if (_instaAddedFilter != AddedFilter.any) c++;
-  if (!(_timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault)) c++;
+    if (selectedState != 'All') c++;
+    if (verificationFilter != 'All') c++;
+    if (_snapAddedFilter != AddedFilter.any) c++;
+    if (_instaAddedFilter != AddedFilter.any) c++;
+    if (!(_timeDiffMinMinutes == _kTimeDiffMinDefault &&
+        _timeDiffMaxMinutes == _kTimeDiffMaxDefault)) c++;
     return c;
   }
 
@@ -1065,7 +1136,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   children: [
                     Row(
                       children: [
-                        const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text('Filters',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                         const Spacer(),
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, true),
@@ -1090,7 +1163,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text('State', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text('State',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
@@ -1111,7 +1185,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Verification', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text('Verification',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                     ...verificationOptions.map((o) => RadioListTile<String>(
                           dense: true,
                           value: o,
@@ -1119,13 +1194,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                           title: Text(o),
                           onChanged: (v) async {
                             innerSetState(() {});
-                            this.setState(() => verificationFilter = v ?? 'All');
+                            this.setState(
+                                () => verificationFilter = v ?? 'All');
                             await _persistFilters();
                             await _filterImages();
                           },
                         )),
                     const SizedBox(height: 8),
-                    const Text('Added on', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text('Added on',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     _AddedFilterRow(
                       label: 'Snapchat',
@@ -1150,7 +1227,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Text('Time difference', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Text('Time difference',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
                         const Spacer(),
                         TextButton(
                           onPressed: () {
@@ -1177,7 +1255,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         if (h > 0) return '$sign${h}h';
                         return '$sign${m}m';
                       }
-                      final isAny = _timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
+
+                      final isAny =
+                          _timeDiffMinMinutes == _kTimeDiffMinDefault &&
+                              _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
                       final subtitle = isAny
                           ? 'Any'
                           : '${_fmtMinutes(_timeDiffMinMinutes)} to ${_fmtMinutes(_timeDiffMaxMinutes)}';
@@ -1191,12 +1272,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         children: [
                           Padding(
                             padding: const EdgeInsets.only(top: 6, bottom: 2),
-                            child: Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                            child: Text(subtitle,
+                                style: const TextStyle(color: Colors.black54)),
                           ),
                           RangeSlider(
                             min: -10,
                             max: 10,
-                            divisions: 40, // 30-minute steps (hours and half-hours)
+                            divisions:
+                                40, // 30-minute steps (hours and half-hours)
                             labels: RangeLabels(
                               '${values.start.toStringAsFixed(1)}h',
                               '${values.end.toStringAsFixed(1)}h',
@@ -1204,7 +1287,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             values: values,
                             onChanged: (rv) {
                               // Round to nearest 30 minutes
-                              int round30(double hours) => ((hours * 60) / 30).round() * 30;
+                              int round30(double hours) =>
+                                  ((hours * 60) / 30).round() * 30;
                               final newMin = round30(rv.start);
                               final newMax = round30(rv.end);
                               innerSetState(() {});
@@ -1248,7 +1332,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         padding: EdgeInsets.zero,
         child: AnimatedSize(
           duration: const Duration(milliseconds: 300),
-          child: _controlsExpanded ? _buildExpandedControls() : _buildMinimizedControls(),
+          child: _controlsExpanded
+              ? _buildExpandedControls()
+              : _buildMinimizedControls(),
         ),
       ),
     );
@@ -1267,7 +1353,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               border: OutlineInputBorder(),
               isDense: true,
             ),
-            items: states.map((dir) => DropdownMenuItem<String>(value: dir, child: Text(dir))).toList(),
+            items: states
+                .map((dir) =>
+                    DropdownMenuItem<String>(value: dir, child: Text(dir)))
+                .toList(),
             onChanged: (value) async {
               selectedState = value!;
               await _saveLastSelectedState(selectedState);
@@ -1305,7 +1394,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               border: OutlineInputBorder(),
               isDense: true,
             ),
-            items: sortOptions.map((o) => DropdownMenuItem<String>(value: o, child: Text(o))).toList(),
+            items: sortOptions
+                .map((o) => DropdownMenuItem<String>(value: o, child: Text(o)))
+                .toList(),
             onChanged: (value) async {
               selectedSortOption = value!;
               await _applyFiltersAndSort();
@@ -1353,7 +1444,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         ),
       );
     });
-
   }
 
   Widget _buildMinimizedControls() {
@@ -1367,14 +1457,19 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: sortOptions.contains(selectedSortOption) ? selectedSortOption : null,
+                value: sortOptions.contains(selectedSortOption)
+                    ? selectedSortOption
+                    : null,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Sort by',
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                items: sortOptions.map((o) => DropdownMenuItem<String>(value: o, child: Text(o))).toList(),
+                items: sortOptions
+                    .map((o) =>
+                        DropdownMenuItem<String>(value: o, child: Text(o)))
+                    .toList(),
                 onChanged: (value) async {
                   selectedSortOption = value!;
                   await _applyFiltersAndSort();
@@ -1386,12 +1481,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             const SizedBox(width: 8),
             Tooltip(
               message: 'Filter by state',
-              child: IconButton(icon: const Icon(Icons.filter_list), onPressed: _showStatePicker),
+              child: IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showStatePicker),
             ),
             const SizedBox(width: 4),
             Tooltip(
               message: 'Search',
-              child: IconButton(icon: const Icon(Icons.search), onPressed: _showSearchDialog),
+              child: IconButton(
+                  icon: const Icon(Icons.search), onPressed: _showSearchDialog),
             ),
             const SizedBox(width: 4),
             IconButton(
@@ -1416,8 +1514,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Apply')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Apply')),
         ],
       ),
     );
@@ -1434,7 +1535,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         child: ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(title: Text('Filter by state', style: TextStyle(fontWeight: FontWeight.bold))),
+            const ListTile(
+                title: Text('Filter by state',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
             ...states.map((s) => RadioListTile<String>(
                   value: s,
                   groupValue: selectedState,
@@ -1456,7 +1559,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: Ink(
-        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
         child: IconButton(
           icon: AnimatedRotation(
             turns: isAscending ? 0 : 0.5,
@@ -1504,12 +1608,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // ---------------- Persist/restore advanced filters ----------------
   Future<void> _restorePersistedFilters() async {
     final prefs = await SharedPreferences.getInstance();
-    _filtersCollapsed = prefs.getBool(_filtersCollapsedKey) ?? _filtersCollapsed;
-    verificationFilter = prefs.getString(_verificationFilterKey) ?? verificationFilter;
+    _filtersCollapsed =
+        prefs.getBool(_filtersCollapsedKey) ?? _filtersCollapsed;
+    verificationFilter =
+        prefs.getString(_verificationFilterKey) ?? verificationFilter;
     _snapAddedFilter = _parseAddedFilter(prefs.getString(_snapAddedKey));
     _instaAddedFilter = _parseAddedFilter(prefs.getString(_instaAddedKey));
-  selectedSortOption = prefs.getString(_sortOptionKey) ?? selectedSortOption;
-  isAscending = prefs.getBool(_sortAscendingKey) ?? isAscending;
+    selectedSortOption = prefs.getString(_sortOptionKey) ?? selectedSortOption;
+    isAscending = prefs.getBool(_sortAscendingKey) ?? isAscending;
     _timeDiffMinMinutes = prefs.getInt(_timeDiffMinKey) ?? _kTimeDiffMinDefault;
     _timeDiffMaxMinutes = prefs.getInt(_timeDiffMaxKey) ?? _kTimeDiffMaxDefault;
     if (_timeDiffMinMinutes > _timeDiffMaxMinutes) {
@@ -1517,7 +1623,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       _timeDiffMinMinutes = _timeDiffMaxMinutes;
       _timeDiffMaxMinutes = t;
     }
-    final savedStates = prefs.getStringList(_multiStatesKey) ?? const <String>[];
+    final savedStates =
+        prefs.getStringList(_multiStatesKey) ?? const <String>[];
     _selectedStatesMulti
       ..clear()
       ..addAll(savedStates.where((s) => s != 'All' && states.contains(s)));
@@ -1551,19 +1658,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_filtersCollapsedKey, _filtersCollapsed);
     await prefs.setString(_verificationFilterKey, verificationFilter);
-    await prefs.setString(_snapAddedKey, _addedFilterToString(_snapAddedFilter));
-    await prefs.setString(_instaAddedKey, _addedFilterToString(_instaAddedFilter));
+    await prefs.setString(
+        _snapAddedKey, _addedFilterToString(_snapAddedFilter));
+    await prefs.setString(
+        _instaAddedKey, _addedFilterToString(_instaAddedFilter));
     await prefs.setStringList(_multiStatesKey, _selectedStatesMulti.toList());
-  await prefs.setString(_sortOptionKey, selectedSortOption);
-  await prefs.setBool(_sortAscendingKey, isAscending);
-  await prefs.setInt(_timeDiffMinKey, _timeDiffMinMinutes);
-  await prefs.setInt(_timeDiffMaxKey, _timeDiffMaxMinutes);
+    await prefs.setString(_sortOptionKey, selectedSortOption);
+    await prefs.setBool(_sortAscendingKey, isAscending);
+    await prefs.setInt(_timeDiffMinKey, _timeDiffMinMinutes);
+    await prefs.setInt(_timeDiffMaxKey, _timeDiffMaxMinutes);
   }
 
   // ---------------- Import helpers ----------------
   Future<AssetPathEntity?> _getImportAlbum() async {
     if (_importDirPath == null) return null;
-    final paths = await PhotoManager.getAssetPathList(type: RequestType.image, hasAll: true);
+    final paths = await PhotoManager.getAssetPathList(
+        type: RequestType.image, hasAll: true);
     final dirName = path.basename(_importDirPath!);
     for (final p in paths) {
       if (p.name == dirName) return p;
@@ -1577,19 +1687,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (album == null) return null;
     if (Platform.isAndroid) {
       final id = album.id.replaceAll("'", "''");
-      return CustomFilter.sql(where: "${CustomColumns.android.bucketId} = '$id'");
+      return CustomFilter.sql(
+          where: "${CustomColumns.android.bucketId} = '$id'");
     }
     return null;
   }
 
   // ---------------- Sorting/apply ----------------
   Future<void> _applyFiltersAndSort() async {
-  // Helper to evaluate verification filter
-  bool passesVerification(ContactEntry e) {
+    // Helper to evaluate verification filter
+    bool passesVerification(ContactEntry e) {
       switch (verificationFilter) {
         case 'Unverified (any)':
-      // Show only entries with no verification on any platform
-      return (e.verifiedOnSnapAt == null) && (e.verifiedOnInstaAt == null) && (e.verifiedOnDiscordAt == null);
+          // Show only entries with no verification on any platform
+          return (e.verifiedOnSnapAt == null) &&
+              (e.verifiedOnInstaAt == null) &&
+              (e.verifiedOnDiscordAt == null);
         case 'Unverified: Snapchat':
           return e.verifiedOnSnapAt == null;
         case 'Unverified: Instagram':
@@ -1602,14 +1715,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       }
     }
 
-    final filtered = SearchService.searchEntries(allImages, searchQuery).where((img) {
+    final filtered =
+        SearchService.searchEntries(allImages, searchQuery).where((img) {
       final tag = img.state ?? path.basename(path.dirname(img.imagePath));
-  // Single-select state filter
-  final matchesLegacyState = selectedState == 'All' || tag == selectedState;
+      // Single-select state filter
+      final matchesLegacyState = selectedState == 'All' || tag == selectedState;
 
-  final matchesVerification = passesVerification(img);
+      final matchesVerification = passesVerification(img);
 
-  bool matchSnap;
+      bool matchSnap;
       switch (_snapAddedFilter) {
         case AddedFilter.added:
           matchSnap = img.addedOnSnap == true;
@@ -1637,7 +1751,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
       bool matchTimeDiff() {
         // If full range, no restriction
-        final full = _timeDiffMinMinutes == _kTimeDiffMinDefault && _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
+        final full = _timeDiffMinMinutes == _kTimeDiffMinDefault &&
+            _timeDiffMaxMinutes == _kTimeDiffMaxDefault;
         final off = img.location?.utcOffset;
         if (full) return true;
         if (off == null) return false; // exclude unknown when narrowed
@@ -1645,21 +1760,27 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           final abs = raw.abs();
           const maxMinutes = 18 * 60;
           const maxSeconds = 18 * 3600;
-          const maxMillis  = maxSeconds * 1000;
-          const maxMicros  = maxMillis * 1000;
+          const maxMillis = maxSeconds * 1000;
+          const maxMicros = maxMillis * 1000;
           if (abs <= maxMinutes) return raw * 60;
           if (abs <= maxSeconds) return raw;
-          if (abs <= maxMillis)  return (raw / 1000).round();
-          if (abs <= maxMicros)  return (raw / 1000000).round();
+          if (abs <= maxMillis) return (raw / 1000).round();
+          if (abs <= maxMicros) return (raw / 1000000).round();
           return 0;
         }
+
         final sec = normalize(off);
         final localSec = DateTime.now().timeZoneOffset.inSeconds;
         final deltaMin = ((sec - localSec) / 60).round();
-        return deltaMin >= _timeDiffMinMinutes && deltaMin <= _timeDiffMaxMinutes;
+        return deltaMin >= _timeDiffMinMinutes &&
+            deltaMin <= _timeDiffMaxMinutes;
       }
 
-	  return matchesLegacyState && matchesVerification && matchSnap && matchInsta && matchTimeDiff();
+      return matchesLegacyState &&
+          matchesVerification &&
+          matchSnap &&
+          matchInsta &&
+          matchTimeDiff();
     }).toList();
 
     // Precompute file sizes once when sorting by size to avoid repeated sync I/O
@@ -1689,11 +1810,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           break;
         case 'Snap Added Date':
           result = (a.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(b.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0));
+              .compareTo(
+                  b.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0));
           break;
         case 'Instagram Added Date':
-          result = (a.dateAddedOnInsta ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(b.dateAddedOnInsta ?? DateTime.fromMillisecondsSinceEpoch(0));
+          result = (a.dateAddedOnInsta ??
+                  DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(
+                  b.dateAddedOnInsta ?? DateTime.fromMillisecondsSinceEpoch(0));
           break;
         case 'Added on Snapchat':
           result = (a.addedOnSnap ? 1 : 0).compareTo(b.addedOnSnap ? 1 : 0);
@@ -1707,14 +1831,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           int? offB = b.location?.utcOffset;
           int normalize(int raw) {
             final abs = raw.abs();
-            const maxMinutes = 18 * 60;      // 1080
-            const maxSeconds = 18 * 3600;    // 64800
-            const maxMillis  = maxSeconds * 1000;     // 64,800,000
-            const maxMicros  = maxMillis * 1000;      // 64,800,000,000
-            if (abs <= maxMinutes) return raw * 60;          // minutes
-            if (abs <= maxSeconds) return raw;                // seconds
-            if (abs <= maxMillis)  return (raw / 1000).round();   // ms
-            if (abs <= maxMicros)  return (raw / 1000000).round();// µs
+            const maxMinutes = 18 * 60; // 1080
+            const maxSeconds = 18 * 3600; // 64800
+            const maxMillis = maxSeconds * 1000; // 64,800,000
+            const maxMicros = maxMillis * 1000; // 64,800,000,000
+            if (abs <= maxMinutes) return raw * 60; // minutes
+            if (abs <= maxSeconds) return raw; // seconds
+            if (abs <= maxMillis) return (raw / 1000).round(); // ms
+            if (abs <= maxMicros) return (raw / 1000000).round(); // µs
             return 0; // fallback
           }
           int? secA = offA != null ? normalize(offA) : null;
@@ -1741,7 +1865,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           break;
         case 'Name':
         default:
-          result = path.basename(a.imagePath).compareTo(path.basename(b.imagePath));
+          result =
+              path.basename(a.imagePath).compareTo(path.basename(b.imagePath));
       }
       return isAscending ? result : -result;
     }
@@ -1824,7 +1949,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       children: [
                         const Text('Current:'),
                         const SizedBox(width: 4),
-                        Chip(label: Text(currentState), backgroundColor: Colors.grey.shade300),
+                        Chip(
+                            label: Text(currentState),
+                            backgroundColor: Colors.grey.shade300),
                       ],
                     ),
                   ),
@@ -1832,28 +1959,32 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   Wrap(
                     spacing: 6,
                     children: [
-                      ...states
-                          .where((s) => s != 'All')
-                          .map((s) => ChoiceChip(
-                                label: Text(s),
-                                selected: selected == s,
-                                onSelected: (_) {
-                                  setState(() {
-                                    selected = s;
-                                    controller.text = s;
-                                  });
-                                },
-                              )),
+                      ...states.where((s) => s != 'All').map((s) => ChoiceChip(
+                            label: Text(s),
+                            selected: selected == s,
+                            onSelected: (_) {
+                              setState(() {
+                                selected = s;
+                                controller.text = s;
+                              });
+                            },
+                          )),
                       const SizedBox(height: 8),
                     ],
                   ),
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'State')),
+                TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(labelText: 'State')),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('OK')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, controller.text.trim()),
+                child: const Text('OK')),
           ],
         ),
       ),
@@ -1861,7 +1992,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   Future<void> _onMenuOptionSelected(String imagePath, String _option) async {
-  final targets = <ContactEntry>[];
+    final targets = <ContactEntry>[];
 
     if (selectedImages.isNotEmpty) {
       for (final id in selectedImages) {
@@ -1873,12 +2004,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       if (match.isNotEmpty) targets.add(match.first);
     }
 
-  if (targets.isEmpty) return;
+    if (targets.isEmpty) return;
 
     String currentState = '';
     if (targets.isNotEmpty) {
       final firstState = targets.first.state ?? '';
-      if (targets.every((e) => e.state == firstState)) currentState = firstState;
+      if (targets.every((e) => e.state == firstState))
+        currentState = firstState;
     }
 
     final newState = await _selectState(currentState);
@@ -1900,7 +2032,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (_importDirPath == null) {
       await _changeImportDir();
       if (_importDirPath == null) {
-        ScaffoldMessenger.of(pickerContext).showSnackBar(const SnackBar(content: Text('No directory selected')));
+        ScaffoldMessenger.of(pickerContext).showSnackBar(
+            const SnackBar(content: Text('No directory selected')));
         return;
       }
     }
@@ -1908,7 +2041,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final filter = await _buildImportFilter();
     final ps = await PhotoManager.requestPermissionExtend();
     if (ps != PermissionState.authorized && ps != PermissionState.limited) {
-      ScaffoldMessenger.of(pickerContext).showSnackBar(const SnackBar(content: Text('Permission not granted')));
+      ScaffoldMessenger.of(pickerContext).showSnackBar(
+          const SnackBar(content: Text('Permission not granted')));
       return;
     }
 
@@ -1920,9 +2054,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       textDelegate: const EnglishAssetPickerTextDelegate(),
     );
 
-    final List<AssetEntity>? assets = await AssetPicker.pickAssets(pickerContext, pickerConfig: config);
+    final List<AssetEntity>? assets =
+        await AssetPicker.pickAssets(pickerContext, pickerConfig: config);
     if (assets == null || assets.isEmpty) {
-      ScaffoldMessenger.of(pickerContext).showSnackBar(const SnackBar(content: Text('No images selected')));
+      ScaffoldMessenger.of(pickerContext)
+          .showSnackBar(const SnackBar(content: Text('No images selected')));
       return;
     }
 
@@ -1959,7 +2095,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           continue;
         }
 
-  try {
+        try {
           // TODO: Consider using the package media_store_plus instead. It can supposedly
           // do move AND update the MediaStore behind the Gallery app in one move.
           await origin.rename(destPath);
@@ -1970,9 +2106,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           } catch (_) {}
         }
 
-  // Ask MediaScanner to index the new file so Gallery updates
-  await MediaScanUtils.scanPaths([destPath]);
-  await MediaScanUtils.scanPaths([origin.path]);
+        // Ask MediaScanner to index the new file so Gallery updates
+        await MediaScanUtils.scanPaths([destPath]);
+        await MediaScanUtils.scanPaths([origin.path]);
 
         final id = path.basenameWithoutExtension(filename);
         var entry = ContactEntry(
@@ -1983,7 +2119,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           isNewImport: true,
         );
 
-        final result = await ChatGPTService.processImage(imageFile: File(destPath));
+        final result =
+            await ChatGPTService.processImage(imageFile: File(destPath));
         if (result != null) {
           entry = postProcessChatGptResult(entry, result, save: false);
         }
@@ -2003,7 +2140,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             duration: const Duration(hours: 1),
             content: Row(
               children: [
-                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator()),
+                const SizedBox(
+                    width: 20, height: 20, child: CircularProgressIndicator()),
                 const SizedBox(width: 16),
                 Text('Importing images... $processed/$total'),
               ],
@@ -2025,11 +2163,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final imported = newEntries.length;
     messenger.showSnackBar(
       SnackBar(
-        content: Text(imported > 0 ? 'Imported $imported image${imported == 1 ? '' : 's'}' : 'No new images imported'),
+        content: Text(imported > 0
+            ? 'Imported $imported image${imported == 1 ? '' : 's'}'
+            : 'No new images imported'),
       ),
     );
   }
-
 }
 
 class _AddedFilterRow extends StatelessWidget {
@@ -2037,7 +2176,8 @@ class _AddedFilterRow extends StatelessWidget {
   final AddedFilter value;
   final ValueChanged<AddedFilter> onChanged;
 
-  const _AddedFilterRow({required this.label, required this.value, required this.onChanged});
+  const _AddedFilterRow(
+      {required this.label, required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -2080,7 +2220,8 @@ class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double maxHeight;
   final Widget child;
 
-  _FixedHeaderDelegate({required this.minHeight, required this.maxHeight, required this.child});
+  _FixedHeaderDelegate(
+      {required this.minHeight, required this.maxHeight, required this.child});
 
   @override
   double get minExtent => minHeight;
@@ -2089,13 +2230,16 @@ class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => maxHeight;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Material(color: Theme.of(context).colorScheme.surface, child: child);
   }
 
   @override
   bool shouldRebuild(covariant _FixedHeaderDelegate oldDelegate) {
-    return minHeight != oldDelegate.minHeight || maxHeight != oldDelegate.maxHeight || child != oldDelegate.child;
+    return minHeight != oldDelegate.minHeight ||
+        maxHeight != oldDelegate.maxHeight ||
+        child != oldDelegate.child;
   }
 }
 
@@ -2115,8 +2259,9 @@ class _Badge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
       ),
-      child: Text(text, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black)),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black)),
     );
   }
 }
-

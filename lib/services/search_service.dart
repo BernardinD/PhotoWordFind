@@ -27,8 +27,10 @@ class SearchService {
       buffer.write(' ');
 
       // State and name
-      if (entry.state != null && entry.state!.isNotEmpty) buffer.write('${entry.state} ');
-      if (entry.name != null && entry.name!.isNotEmpty) buffer.write('${entry.name} ');
+      if (entry.state != null && entry.state!.isNotEmpty)
+        buffer.write('${entry.state} ');
+      if (entry.name != null && entry.name!.isNotEmpty)
+        buffer.write('${entry.name} ');
 
       // Usernames
       if (entry.snapUsername != null) buffer.write('${entry.snapUsername} ');

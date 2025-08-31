@@ -8,12 +8,14 @@ Map<SocialType?, int> enumPriorities = {
   null: 3,
 };
 
-snapchatDisplayDate(DateTime date){
+snapchatDisplayDate(DateTime date) {
   return "Snapchat Added on: \n ${dateFormat.format(date)}";
 }
-instagramDisplayDate(DateTime date){
+
+instagramDisplayDate(DateTime date) {
   return "Instagram Added on: \n ${dateFormat.format(date)}";
 }
-discordDisplayDate(DateTime date){
+
+discordDisplayDate(DateTime date) {
   return "Discord Added on: \n ${dateFormat.format(date)}";
 }

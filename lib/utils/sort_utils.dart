@@ -121,7 +121,8 @@ class Sortings {
   }
 
   /// Debounce calls to updateCache so rapid UI actions coalesce into one run.
-  static void scheduleCacheUpdate({Duration delay = const Duration(milliseconds: 400)}) {
+  static void scheduleCacheUpdate(
+      {Duration delay = const Duration(milliseconds: 400)}) {
     _cacheDebounce?.cancel();
     _cacheDebounce = Timer(delay, () {
       // Fire and forget; heavy work should not block the tap/swipe path
