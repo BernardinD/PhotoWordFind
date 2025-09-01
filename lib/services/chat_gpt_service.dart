@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:PhotoWordFind/apiSecretKeys.dart';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/foundation.dart';
@@ -69,44 +70,7 @@ Return format:
 '''
     };
 
-    // TODO: Remove this after testing
-    Map<String, dynamic> userMessage_ = {
-      "role": 'system',
-      "content": '''
-Extract the social media handles, name, age, location, and text from the given Bumble profile screenshot using an text retrieval process optimized for handling emojis.
-The social media handles may include Instagram, Snapchat, Discord, or others. These handles can be denoted with shorthands like "sc", "amos", or "snap" for Snapchat and "insta" or "ig" for Instagram. The location is usually found at the bottom of the profile. Return the extracted data in JSON array format. For the text, return them broken up by their section titles and the underlying text under the "sections" field.
-
-These handles can possibly also be denoted with emojis:
-- Instagram: 📷 
-- Snapchat: 👻 
-
-Notice:
-  1) The text sections are wrapped around, and can have emojis, and that the image is a long screenshot and will need to be cropped and broken up vertically in order to clearly see all the text section
-  2) I recommend cropping into squares with the dimensions of the width of the image.
-  3) Feel free to re-combine any chunks that have the text cut off. 
-  4) For debugging purposes, name all the emojis you see in the image if they exist under "emojis".
-
-[
-  {
-    "name": "<their name>",
-    "age": <age>,
-    "social_media_handles": {
-      "insta": "<instagram handle>",
-      "snap": "<snapchat handle>",
-      "discord": "<discord handle>"
-    },
-    "location": "<location>",
-    "sections": [
-      {
-        "title": "<section title>",
-        "text": "<text in section>"
-      }
-    ],
-    "emojis": []
-  }
-]
-'''
-    };
+  // Removed unused test system message block
 
     _initialized = true;
     _startResetCounterTimer();
@@ -220,14 +184,14 @@ Keep the information below in mind:
 
     while (attempt < maxRetries) {
       try {
-        final request = ChatCompleteText(
+  final chatRequest = ChatCompleteText(
             maxToken: 2000,
             model: useMiniModel ? Gpt4oMiniModel() : Gpt4oModel(),
             messages: messages,
             responseFormat: ResponseFormat.jsonObject,
             temperature: 1);
 
-        final response = await _openAI.onChatCompletion(request: request);
+  final response = await _openAI.onChatCompletion(request: chatRequest);
 
         if (response != null && response.choices.isNotEmpty) {
           final result = response.choices.first.message?.content;
@@ -239,21 +203,74 @@ Keep the information below in mind:
           }
         }
         return null;
+      } on OpenAIRateLimitError catch (e) {
+        // Too many requests to OpenAI – exponential backoff with jitter
+        attempt++;
+        final delaySeconds = min(32, pow(2, attempt).toInt());
+        debugPrint(
+            "Rate limit hit (attempt $attempt/$maxRetries). Backing off ${delaySeconds}s. Details: ${e.data}");
+        await Future.delayed(Duration(seconds: delaySeconds + Random().nextInt(1)));
+        continue;
+      } on OpenAIAuthError catch (e) {
+        // Invalid API key or org – don't retry
+        debugPrint("Auth error: ${e.data ?? 'Invalid authentication'}");
+        return null;
+      } on OpenAIServerError catch (e) {
+        // Transient server error – retry with backoff
+        attempt++;
+        final delaySeconds = min(16, pow(2, attempt).toInt());
+        debugPrint(
+            "Server error (attempt $attempt/$maxRetries). Retrying in ${delaySeconds}s. Details: ${e.data}");
+        await Future.delayed(Duration(seconds: delaySeconds));
+        continue;
       } on RequestError catch (e) {
-        debugPrint("OpenAIError: ${e.data}");
-        // Handle specific OpenAI errors
-        switch (e.code) {
-          case 'token_limit_exceeded':
-          case 'rate_limit_exceeded':
-            debugPrint("Retrying... (Attempt ${attempt + 1} of $maxRetries)");
-            attempt++;
-            await Future.delayed(
-                Duration(seconds: 2)); // Optional: delay between retries
-            break;
-          default:
-            debugPrint("An unknown error occurred");
-            return null;
+        // Fallback when SDK throws generic wrapper with an HTTP status code
+        final int code = (e.code is int) ? (e.code as int) : -1;
+        debugPrint("OpenAI RequestError: code=$code, data=${e.data}");
+        if (code == 429) {
+          // Rate limit
+          attempt++;
+          final delaySeconds = min(32, pow(2, attempt).toInt());
+          debugPrint(
+              "Retrying after 429 rate limit (attempt $attempt/$maxRetries) in ${delaySeconds}s");
+          await Future.delayed(Duration(seconds: delaySeconds));
+          continue;
+        } else if (code == 401 || code == 403) {
+          // Auth error
+          debugPrint("Auth error ($code): ${e.data ?? 'Invalid API key/organization'}");
+          return null;
+        } else if (code == 413) {
+          // Payload too large / token limit like constraint
+          attempt++;
+          final delaySeconds = min(16, pow(2, attempt).toInt());
+          debugPrint("Payload too large (413). Retrying in ${delaySeconds}s");
+          await Future.delayed(Duration(seconds: delaySeconds));
+          continue;
+        } else if (<int>[500, 502, 503, 504].contains(code)) {
+          // Server/transient
+          attempt++;
+          final delaySeconds = min(16, pow(2, attempt).toInt());
+          debugPrint("Server/transient error $code. Retrying in ${delaySeconds}s");
+          await Future.delayed(Duration(seconds: delaySeconds));
+          continue;
+        } else {
+          // Unknown; don't loop forever
+          return null;
         }
+      } on TimeoutException catch (e) {
+        attempt++;
+        final delaySeconds = min(8, pow(2, attempt).toInt());
+        debugPrint(
+            "Timeout (attempt $attempt/$maxRetries). Retrying in ${delaySeconds}s. ${e.message ?? ''}");
+        await Future.delayed(Duration(seconds: delaySeconds));
+        continue;
+      } on SocketException catch (e) {
+        attempt++;
+        final delaySeconds = min(8, pow(2, attempt).toInt());
+        debugPrint(
+            "Network error (attempt $attempt/$maxRetries). Retrying in ${delaySeconds}s. ${e.message}");
+        await Future.delayed(Duration(seconds: delaySeconds));
+        continue;
       } catch (e) {
         debugPrint("General error: ${e.toString()}");
         return null;
