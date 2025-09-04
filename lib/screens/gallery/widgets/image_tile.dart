@@ -41,7 +41,7 @@ class ImageTile extends StatefulWidget {
     required this.contact,
     this.gridMode = false,
     this.onOpenFullScreen,
-  this.selectionMode = false,
+    this.selectionMode = false,
   });
 
   @override
@@ -597,16 +597,13 @@ class _ImageTileState extends State<ImageTile> {
             final logicalWidth =
                 isGrid ? constraints.maxWidth : (constraints.maxWidth * 0.8);
             final imageProvider = _providerForWidth(logicalWidth);
-            return Container(
+            final tile = Container(
               margin: isGrid
-                  ? const EdgeInsets.symmetric(vertical: 6, horizontal: 0)
+                  ? EdgeInsets.zero
                   : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               width: isGrid ? double.infinity : constraints.maxWidth * 0.8,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                border: widget.isSelected
-                    ? Border.all(color: Colors.blueAccent, width: 3)
-                    : null,
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
@@ -619,28 +616,28 @@ class _ImageTileState extends State<ImageTile> {
                 borderRadius: BorderRadius.circular(16),
                 child: Stack(
                   children: [
-                    if (isGrid)
-                      // Fixed aspect thumbnail in grid mode to ensure a deterministic height
-                      AspectRatio(
-                        aspectRatio: 3 / 4,
-                        child: Image(
-                          image: imageProvider,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                          filterQuality: FilterQuality.low,
-                          errorBuilder: (ctx, _, __) =>
-                              const ColoredBox(color: Colors.black12),
-                        ),
-                      )
-                    else
+                    // Fill the tile fully; in grid use cover, in non-grid use contain.
+                    Positioned.fill(
+                      child: Image(
+                        image: imageProvider,
+                        fit: isGrid ? BoxFit.cover : BoxFit.contain,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.low,
+                        errorBuilder: (ctx, _, __) =>
+                            const ColoredBox(color: Colors.black12),
+                      ),
+                    ),
+                    // Selection highlight overlay (does not affect layout size).
+                    if (widget.isSelected)
                       Positioned.fill(
-                        child: Image(
-                          image: imageProvider,
-                          fit: BoxFit.contain,
-                          gaplessPlayback: true,
-                          filterQuality: FilterQuality.low,
-                          errorBuilder: (ctx, _, __) =>
-                              const ColoredBox(color: Colors.black12),
+                        child: IgnorePointer(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: Colors.blueAccent, width: 3),
+                            ),
+                          ),
                         ),
                       ),
                     // Top-right: selection icon in selection mode; otherwise the 3-dot menu
@@ -662,8 +659,8 @@ class _ImageTileState extends State<ImageTile> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Colors.black.withOpacity(0.55),
-                                    border:
-                                        Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
                                     boxShadow: const [
                                       BoxShadow(
                                         color: Colors.black26,
@@ -700,8 +697,8 @@ class _ImageTileState extends State<ImageTile> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Colors.black.withOpacity(0.55),
-                                    border:
-                                        Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
                                     boxShadow: const [
                                       BoxShadow(
                                         color: Colors.black26,
@@ -948,6 +945,7 @@ class _ImageTileState extends State<ImageTile> {
                 ),
               ),
             );
+            return isGrid ? AspectRatio(aspectRatio: 3 / 4, child: tile) : tile;
           },
         ),
       ),

@@ -71,15 +71,25 @@ class ImageGallery extends StatelessWidget {
     final width = media.size.width;
     // Aim for tiles ~180dp wide with clamped column count
     final int columns = (width / 180).floor().clamp(1, 8);
+    const double baseHPad = 8;
+    const double cross = 12;
+    // Quantize grid width so each column has an integer pixel width.
+    final usable = width - (baseHPad * 2);
+    final totalSpacing = (columns - 1) * cross;
+    final colWidth = ((usable - totalSpacing) / columns).floorToDouble();
+    final adjustedUsable = columns * colWidth + totalSpacing;
+    final extra = (usable - adjustedUsable).clamp(0, double.infinity);
+    final padLeft = baseHPad + (extra / 2);
+    final padRight = baseHPad + (extra - (extra / 2));
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.only(left: padLeft, right: padRight),
       child: Stack(
         children: [
           MasonryGridView.count(
             crossAxisCount: columns,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            mainAxisSpacing: cross,
+            crossAxisSpacing: cross,
             // Limit offscreen cache to reduce memory pressure
             cacheExtent: 600,
             padding: const EdgeInsets.only(bottom: 96, top: 8),
@@ -187,13 +197,23 @@ class SliverImageGallery extends StatelessWidget {
     final media = MediaQuery.of(context);
     final width = media.size.width;
     final int columns = (width / 180).floor().clamp(1, 8);
+    const double baseHPad = 8;
+    const double cross = 12;
+    // Quantize grid width so each column has an integer pixel width.
+    final usable = width - (baseHPad * 2);
+    final totalSpacing = (columns - 1) * cross;
+    final colWidth = ((usable - totalSpacing) / columns).floorToDouble();
+    final adjustedUsable = columns * colWidth + totalSpacing;
+    final extra = (usable - adjustedUsable).clamp(0, double.infinity);
+    final padLeft = baseHPad + (extra / 2);
+    final padRight = baseHPad + (extra - (extra / 2));
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+      padding: EdgeInsets.fromLTRB(padLeft, 8, padRight, 96),
       sliver: SliverMasonryGrid.count(
         crossAxisCount: columns,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: cross,
+        crossAxisSpacing: cross,
         // Sliver scroller uses parent cache; spacing remains.
         childCount: images.length,
         itemBuilder: (context, index) {
