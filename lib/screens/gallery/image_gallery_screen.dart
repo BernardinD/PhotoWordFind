@@ -608,7 +608,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   List<Widget> _buildAppBarActions(BuildContext navContext) {
-    return [
+    final actions = <Widget>[];
+
+    // If in selection mode, show a Clear/Cancel button to exit selection state.
+    if (selectedImages.isNotEmpty) {
+      actions.add(
+        IconButton(
+          tooltip: 'Cancel selection',
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            setState(() => selectedImages.clear());
+          },
+        ),
+      );
+    }
+
+    actions.addAll([
       if (_redoMode)
         Padding(
           padding: const EdgeInsets.only(right: 4.0),
@@ -778,7 +793,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             );
           },
         ),
-    ];
+    ]);
+
+    return actions;
   }
 
   // Banner prompting to enter Redo mode when items need attention
@@ -1798,32 +1815,49 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     }
 
     int compare(ContactEntry a, ContactEntry b) {
+      // Deterministic tie-breakers to keep ordering stable across rebuilds.
+      int _tieBreak(ContactEntry a, ContactEntry b) {
+        // 1) Basename of image path
+        final na = path.basename(a.imagePath);
+        final nb = path.basename(b.imagePath);
+        var r = na.compareTo(nb);
+        if (r != 0) return r;
+        // 2) Identifier fallback
+        return a.identifier.compareTo(b.identifier);
+      }
+
       int result;
       switch (selectedSortOption) {
         case 'Date found':
           result = a.dateFound.compareTo(b.dateFound);
+          if (result == 0) result = _tieBreak(a, b);
           break;
         case 'Size':
           final sa = _sizeCache[a.imagePath] ?? 0;
           final sb = _sizeCache[b.imagePath] ?? 0;
           result = sa.compareTo(sb);
+          if (result == 0) result = _tieBreak(a, b);
           break;
         case 'Snap Added Date':
           result = (a.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0))
               .compareTo(
                   b.dateAddedOnSnap ?? DateTime.fromMillisecondsSinceEpoch(0));
+          if (result == 0) result = _tieBreak(a, b);
           break;
         case 'Instagram Added Date':
           result = (a.dateAddedOnInsta ??
                   DateTime.fromMillisecondsSinceEpoch(0))
               .compareTo(
                   b.dateAddedOnInsta ?? DateTime.fromMillisecondsSinceEpoch(0));
+          if (result == 0) result = _tieBreak(a, b);
           break;
         case 'Added on Snapchat':
           result = (a.addedOnSnap ? 1 : 0).compareTo(b.addedOnSnap ? 1 : 0);
+          if (result == 0) result = _tieBreak(a, b);
           break;
         case 'Added on Instagram':
           result = (a.addedOnInsta ? 1 : 0).compareTo(b.addedOnInsta ? 1 : 0);
+          if (result == 0) result = _tieBreak(a, b);
           break;
         case 'Location':
           // Sort by relative timezone delta vs device time.
@@ -1862,11 +1896,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               result = na.compareTo(nb);
             }
           }
+          if (result == 0) {
+            // Already ties break by name inside this branch; add identifier fallback.
+            result = a.identifier.compareTo(b.identifier);
+          }
           break;
         case 'Name':
         default:
           result =
               path.basename(a.imagePath).compareTo(path.basename(b.imagePath));
+          if (result == 0) result = a.identifier.compareTo(b.identifier);
       }
       return isAscending ? result : -result;
     }
