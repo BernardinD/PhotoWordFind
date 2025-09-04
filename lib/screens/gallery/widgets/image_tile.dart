@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
@@ -47,6 +48,15 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> {
+  // Only show tooltips on platforms where hover is common (web/desktop).
+  bool get _enableTooltips {
+    if (kIsWeb) return true;
+    try {
+      return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    } catch (_) {
+      return false;
+    }
+  }
   ImageProvider _providerForWidth(double logicalWidth) {
     final dpr = MediaQuery.of(context).devicePixelRatio;
     // Clamp to a sane range to avoid decoding very large bitmaps in list/grid
@@ -211,10 +221,16 @@ class _ImageTileState extends State<ImageTile> {
               ListTile(
                 leading: const Icon(Icons.chat_bubble),
                 title: const Text('Open on Snap'),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(sheetContext);
-                  _openSocial(
-                      SocialType.Snapchat, widget.contact.snapUsername!);
+                  final u = widget.contact.snapUsername!;
+                  _openSocial(SocialType.Snapchat, u);
+                  if (!widget.contact.addedOnSnap &&
+                      widget.contact.verifiedOnSnapAt != null) {
+                    setState(() {
+                      widget.contact.addSnapchat();
+                    });
+                  }
                 },
               ),
             if (widget.contact.instaUsername?.isNotEmpty ?? false)
@@ -846,38 +862,7 @@ class _ImageTileState extends State<ImageTile> {
                             // Compact primary actions: primary social, notes, handles
                             Row(
                               children: [
-                                if (_getPrimarySocial() != null)
-                                  IconButton(
-                                    tooltip:
-                                        'Open ${_getPrimarySocial()!.name}',
-                                    iconSize: 22,
-                                    color: Colors.white,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(
-                                        width: 36, height: 36),
-                                    onPressed: () {
-                                      final s = _getPrimarySocial()!;
-                                      final u = _getPrimaryUsername(s);
-                                      if (u != null && u.isNotEmpty)
-                                        _openSocial(s, u);
-                                    },
-                                    icon: () {
-                                      final s = _getPrimarySocial()!;
-                                      switch (s) {
-                                        case SocialType.Snapchat:
-                                          return SocialIcon
-                                              .snapchatIconButton!.socialIcon;
-                                        case SocialType.Instagram:
-                                          return SocialIcon
-                                              .instagramIconButton!.socialIcon;
-                                        case SocialType.Discord:
-                                          return SocialIcon
-                                              .discordIconButton!.socialIcon;
-                                        default:
-                                          return const Icon(Icons.open_in_new);
-                                      }
-                                    }(),
-                                  ),
+                                _buildVerifiedPrimaryOrPlaceholderButton(),
                                 IconButton(
                                   tooltip: 'Notes',
                                   iconSize: 22,
@@ -922,6 +907,274 @@ class _ImageTileState extends State<ImageTile> {
           },
         ),
       ),
+    );
+  }
+
+  // --------------- Primary social button (verified-first) with badges ---------------
+  Widget _buildPrimarySocialButton() {
+    final s = _getPrimaryVerifiedSocial();
+    if (s == null) {
+      // Fallback should not occur here; wrapper uses placeholder when null
+      return _buildNoVerifiedButton();
+    }
+    final username = _getPrimaryUsername(s);
+    final addedForSocial = () {
+      switch (s) {
+        case SocialType.Snapchat:
+          return widget.contact.addedOnSnap;
+        case SocialType.Instagram:
+          return widget.contact.addedOnInsta;
+        case SocialType.Discord:
+          return widget.contact.addedOnDiscord;
+        default:
+          return false;
+      }
+    }();
+    final iconWidget = () {
+      switch (s) {
+        case SocialType.Snapchat:
+          return SocialIcon.snapchatIconButton!.socialIcon;
+        case SocialType.Instagram:
+          return SocialIcon.instagramIconButton!.socialIcon;
+        case SocialType.Discord:
+          return SocialIcon.discordIconButton!.socialIcon;
+        default:
+          return const Icon(Icons.open_in_new, color: Colors.white);
+      }
+    }();
+
+    // Base button
+  final baseBtn = IconButton(
+      tooltip: _enableTooltips ? 'Open ${s.name}' : null,
+      iconSize: 22,
+      color: Colors.white,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      onPressed: (username == null || username.isEmpty)
+          ? null
+          : () async {
+              if (s == SocialType.Snapchat) {
+                _openSocial(s, username);
+                if (!widget.contact.addedOnSnap &&
+                    widget.contact.verifiedOnSnapAt != null) {
+                  setState(() {
+                    widget.contact.addSnapchat();
+                  });
+                }
+              } else {
+                _openSocial(s, username);
+              }
+            },
+      icon: iconWidget,
+    );
+
+  // Wrap with distinct single-badge states
+  Widget buttonWithBadges = baseBtn;
+  if (s == SocialType.Snapchat) {
+      final added = widget.contact.addedOnSnap;
+      final verified = widget.contact.verifiedOnSnapAt != null;
+      if (!added && !verified) {
+        buttonWithBadges = baseBtn;
+      } else {
+        // Single badge logic:
+        // - verified && !added => blue verified badge (top-right)
+        // - verified && added => green verified badge (top-right)
+        // - !verified && added => green check badge (bottom-right)
+        buttonWithBadges = Stack(
+          clipBehavior: Clip.none,
+          children: [
+            baseBtn,
+            if (verified)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: _statusDot(
+                  color: added ? Colors.lightGreenAccent.shade700 : Colors.blueAccent,
+                  icon: Icons.verified,
+                ),
+              )
+            else if (added)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: _statusDot(
+                  color: Colors.lightGreenAccent.shade700,
+                  icon: Icons.check,
+                ),
+              ),
+          ],
+        );
+      }
+    } else {
+      // Non-Snap: show verified badge if that platform is verified
+      final verified = _isVerifiedFor(s);
+      if (verified) {
+        buttonWithBadges = Stack(
+          clipBehavior: Clip.none,
+          children: [
+            baseBtn,
+            Positioned(
+              right: -2,
+              top: -2,
+              child: _statusDot(
+                color: Colors.blueAccent,
+                icon: Icons.verified,
+              ),
+            ),
+          ],
+        );
+      } else {
+        buttonWithBadges = baseBtn;
+      }
+    }
+
+    // Long-press to unfriend sheet (only if marked Added on that platform)
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPress: addedForSocial
+          ? () {
+              HapticFeedback.mediumImpact();
+              _showUnfriendSheet(s);
+            }
+          : null,
+      child: buttonWithBadges,
+    );
+  }
+
+  Widget _statusDot({required Color color, required IconData icon}) {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: Colors.black87,
+        shape: BoxShape.circle,
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 2, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Center(
+        child: Icon(icon, size: 12, color: color),
+      ),
+    );
+  }
+
+  // Wrapper: choose verified platform if available; else show placeholder
+  Widget _buildVerifiedPrimaryOrPlaceholderButton() {
+    final s = _getPrimaryVerifiedSocial();
+  if (s == null) return _buildNoVerifiedButton();
+  return _buildPrimarySocialButton();
+  }
+
+  SocialType? _getPrimaryVerifiedSocial() {
+    final hasSnap =
+        (widget.contact.snapUsername?.isNotEmpty ?? false) &&
+            widget.contact.verifiedOnSnapAt != null;
+    if (hasSnap) return SocialType.Snapchat;
+    final hasInsta =
+        (widget.contact.instaUsername?.isNotEmpty ?? false) &&
+            (widget.contact.verifiedOnInstaAt != null);
+    if (hasInsta) return SocialType.Instagram;
+    final hasDiscord =
+        (widget.contact.discordUsername?.isNotEmpty ?? false) &&
+            (widget.contact.verifiedOnDiscordAt != null);
+    if (hasDiscord) return SocialType.Discord;
+    return null;
+  }
+
+  bool _isVerifiedFor(SocialType s) {
+    switch (s) {
+      case SocialType.Snapchat:
+        return widget.contact.verifiedOnSnapAt != null;
+      case SocialType.Instagram:
+        return widget.contact.verifiedOnInstaAt != null;
+      case SocialType.Discord:
+        return widget.contact.verifiedOnDiscordAt != null;
+      default:
+        return false;
+    }
+  }
+
+  // Placeholder button when no verified handles exist; opens handles sheet
+  Widget _buildNoVerifiedButton() {
+    return IconButton(
+  tooltip: _enableTooltips ? 'No verified handle • Tap to edit' : null,
+      iconSize: 22,
+      color: Colors.white,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      onPressed: () async {
+        await showHandlesSheet(context, widget.contact);
+        setState(() {});
+      },
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: const [
+          Icon(Icons.verified_outlined, color: Colors.white70),
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Icon(Icons.block, size: 14, color: Colors.redAccent),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Former Snapchat add sheet removed in favor of open-then-confirm flow
+
+  void _showUnfriendSheet(SocialType s) {
+    final added = () {
+      switch (s) {
+        case SocialType.Snapchat:
+          return widget.contact.addedOnSnap;
+        case SocialType.Instagram:
+          return widget.contact.addedOnInsta;
+        case SocialType.Discord:
+          return widget.contact.addedOnDiscord;
+        default:
+          return false;
+      }
+    }();
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        if (!added) {
+          return ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text('Not added on ${s.name}'),
+            subtitle: const Text('Add first to enable unfriend actions'),
+          );
+        }
+        return ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_off),
+              title: Text('Quick Unfriend on ${s.name}'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _unfriendSocial(
+                  s,
+                  autoReason: 'no response',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_remove),
+              title: Text('Unfriend on ${s.name} with Note'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _unfriendSocial(
+                  s,
+                  promptForNote: true,
+                  autoReason: 'conversation ended',
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

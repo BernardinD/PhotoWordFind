@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
+import 'package:PhotoWordFind/widgets/confirmation_dialog.dart';
 
 /// Opens a bottom sheet to view, edit, and verify usernames for a contact entry.
 Future<void> showHandlesSheet(
@@ -103,6 +104,14 @@ class HandlesEditorPanelState extends State<HandlesEditorPanel> {
         TextEditingController(text: widget.contact.discordUsername ?? '');
   }
 
+  Future<bool> _confirm(String message) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (_) => ConfirmationDialog(message: message),
+    );
+    return res ?? false;
+  }
+
   @override
   void didUpdateWidget(covariant HandlesEditorPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -143,22 +152,39 @@ class HandlesEditorPanelState extends State<HandlesEditorPanel> {
     });
   }
 
-  void _toggleVerified(String platform) {
+  void _toggleVerified(String platform) async {
+    final isSnap = platform == SubKeys.SnapUsername;
+    final isInsta = platform == SubKeys.InstaUsername;
+    final isDiscord = platform == SubKeys.DiscordUsername;
+
+    // Determine current verified state
+    final currentlyVerified = isSnap
+        ? widget.contact.verifiedOnSnapAt != null
+        : isInsta
+            ? widget.contact.verifiedOnInstaAt != null
+            : widget.contact.verifiedOnDiscordAt != null;
+
+    // Ask confirmation only when un-verifying
+    if (currentlyVerified) {
+      final ok = await _confirm('Unverify this handle? You can edit it again after un-verifying.');
+      if (!ok) return;
+    }
+
     setState(() {
-      if (platform == SubKeys.SnapUsername) {
-        if (widget.contact.verifiedOnSnapAt != null) {
+      if (isSnap) {
+        if (currentlyVerified) {
           widget.contact.unverifySnapchat();
         } else {
           widget.contact.verifySnapchat();
         }
-      } else if (platform == SubKeys.InstaUsername) {
-        if (widget.contact.verifiedOnInstaAt != null) {
+      } else if (isInsta) {
+        if (currentlyVerified) {
           widget.contact.unverifyInstagram();
         } else {
           widget.contact.verifyInstagram();
         }
-      } else if (platform == SubKeys.DiscordUsername) {
-        if (widget.contact.verifiedOnDiscordAt != null) {
+      } else if (isDiscord) {
+        if (currentlyVerified) {
           widget.contact.unverifyDiscord();
         } else {
           widget.contact.verifyDiscord();
@@ -243,7 +269,7 @@ class HandlesEditorPanelState extends State<HandlesEditorPanel> {
     DateTime? verifiedAt,
     required bool added,
     DateTime? addedAt,
-    required VoidCallback onToggleAdd,
+  required VoidCallback onToggleAdd,
   }) {
     final suggestions = _candidatesFor(platformKey).toList();
     String? current;
@@ -301,7 +327,17 @@ class HandlesEditorPanelState extends State<HandlesEditorPanel> {
                             : 'Added')
                         : 'Add',
                   ),
-                  onPressed: onToggleAdd,
+                  onPressed: () async {
+                    if (!added) {
+                      final ok = await _confirm('Mark as Added?');
+                      if (!ok) return;
+                      onToggleAdd();
+                    } else {
+                      final ok = await _confirm('Remove Added status?');
+                      if (!ok) return;
+                      onToggleAdd();
+                    }
+                  },
                   backgroundColor: added ? Colors.blue.shade50 : null,
                 ),
             ],
