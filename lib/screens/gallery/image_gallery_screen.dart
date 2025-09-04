@@ -608,7 +608,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   List<Widget> _buildAppBarActions(BuildContext navContext) {
-    return [
+    final actions = <Widget>[];
+
+    // If in selection mode, show a Clear/Cancel button to exit selection state.
+    if (selectedImages.isNotEmpty) {
+      actions.add(
+        IconButton(
+          tooltip: 'Cancel selection',
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            setState(() => selectedImages.clear());
+          },
+        ),
+      );
+    }
+
+    actions.addAll([
       if (_redoMode)
         Padding(
           padding: const EdgeInsets.only(right: 4.0),
@@ -778,7 +793,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             );
           },
         ),
-    ];
+  ]);
+
+  return actions;
   }
 
   // Banner prompting to enter Redo mode when items need attention

@@ -56,6 +56,7 @@ class ImageGallery extends StatelessWidget {
                   onSelected: onImageSelected,
                   onMenuOptionSelected: onMenuOptionSelected,
                   contact: images[index],
+                  selectionMode: selectedImages.isNotEmpty,
                 );
               },
             ),
@@ -106,6 +107,7 @@ class ImageGallery extends StatelessWidget {
                     ),
                   );
                 },
+                selectionMode: selectedImages.isNotEmpty,
               );
             },
           ),
@@ -173,6 +175,7 @@ class SliverImageGallery extends StatelessWidget {
                 onSelected: onImageSelected,
                 onMenuOptionSelected: onMenuOptionSelected,
                 contact: item,
+                selectionMode: selectedImages.isNotEmpty,
               ),
             );
           },
@@ -216,6 +219,7 @@ class SliverImageGallery extends StatelessWidget {
                 ),
               );
             },
+            selectionMode: selectedImages.isNotEmpty,
           );
         },
       ),

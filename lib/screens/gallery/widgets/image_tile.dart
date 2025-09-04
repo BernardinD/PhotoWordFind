@@ -27,6 +27,7 @@ class ImageTile extends StatefulWidget {
   final ContactEntry contact;
   final bool gridMode;
   final VoidCallback? onOpenFullScreen;
+  final bool selectionMode;
 
   const ImageTile({
     super.key,
@@ -40,6 +41,7 @@ class ImageTile extends StatefulWidget {
     required this.contact,
     this.gridMode = false,
     this.onOpenFullScreen,
+  this.selectionMode = false,
   });
 
   @override
@@ -577,6 +579,11 @@ class _ImageTileState extends State<ImageTile> {
     return RepaintBoundary(
       child: GestureDetector(
         onTap: () async {
+          // In selection mode, tapping toggles selection instead of opening.
+          if (widget.selectionMode) {
+            widget.onSelected(widget.identifier);
+            return;
+          }
           if (widget.gridMode && widget.onOpenFullScreen != null) {
             widget.onOpenFullScreen!.call();
           } else {
@@ -636,39 +643,79 @@ class _ImageTileState extends State<ImageTile> {
                               const ColoredBox(color: Colors.black12),
                         ),
                       ),
-                    // Top-right: menu button (moved here from bottom bar)
+                    // Top-right: selection icon in selection mode; otherwise the 3-dot menu
                     Positioned(
                       top: 8,
                       right: 8,
-                      child: Material(
-                        color: Colors.transparent,
-                        shape: const CircleBorder(),
-                        elevation: 4,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () =>
-                              _showPopupMenu(context, widget.imagePath),
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.black.withOpacity(0.55),
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
+                      child: widget.selectionMode
+                          ? Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              elevation: 4,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () =>
+                                    widget.onSelected(widget.identifier),
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withOpacity(0.55),
+                                    border:
+                                        Border.all(color: Colors.white, width: 2),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      widget.isSelected
+                                          ? Icons.check_circle
+                                          : Icons.radio_button_unchecked,
+                                      color: widget.isSelected
+                                          ? Colors.lightBlueAccent
+                                          : Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
                                 ),
-                              ],
+                              ),
+                            )
+                          : Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              elevation: 4,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () =>
+                                    _showPopupMenu(context, widget.imagePath),
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withOpacity(0.55),
+                                    border:
+                                        Border.all(color: Colors.white, width: 2),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Center(
+                                      child: Icon(Icons.more_vert,
+                                          color: Colors.white, size: 20)),
+                                ),
+                              ),
                             ),
-                            child: const Center(
-                                child: Icon(Icons.more_vert,
-                                    color: Colors.white, size: 20)),
-                          ),
-                        ),
-                      ),
                     ),
                     // Processing/failed overlay and interaction control
                     Positioned.fill(
@@ -778,45 +825,27 @@ class _ImageTileState extends State<ImageTile> {
                     Positioned(
                       top: 8,
                       left: 8,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                                maxWidth: constraints.maxWidth - 50),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 2, horizontal: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                _displayLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(maxWidth: constraints.maxWidth - 50),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 2, horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _displayLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          GestureDetector(
-                            onTap: () => widget.onSelected(widget.identifier),
-                            child: Icon(
-                              widget.isSelected
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              color: widget.isSelected
-                                  ? Colors.blueAccent
-                                  : Colors.grey,
-                              size: 28,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     Positioned(
