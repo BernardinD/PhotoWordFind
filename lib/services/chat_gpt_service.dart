@@ -10,6 +10,7 @@ import 'package:image/image.dart' as imglib;
 /// Model classes for different ChatGPT variants
 abstract class ChatGPTModel {
   String get model;
+  bool get supportsResponses => false; // Most models use chat/completions
 }
 
 class Gpt4oModel extends ChatGPTModel {
@@ -22,9 +23,13 @@ class Gpt4oMiniModel extends ChatGPTModel {
   String get model => "gpt-4o-mini";
 }
 
+/// GPT-5 Nano model - uses the new responses API endpoint
 class Gpt5NanoModel extends ChatGPTModel {
   @override
   String get model => "gpt-5-nano";
+  
+  @override
+  bool get supportsResponses => true; // GPT-5 Nano uses responses endpoint
 }
 
 class ChatGPTService {
@@ -266,7 +271,8 @@ Keep the information below in mind:
     return null;
   }
 
-  /// Makes a request to the OpenAI responses endpoint
+  /// Makes a request to the OpenAI API endpoint
+  /// First tries the new responses endpoint, falls back to chat/completions if needed
   static Future<Map<String, dynamic>?> _makeResponsesRequest({
     required String model,
     required List<Map<String, dynamic>> messages,
@@ -274,8 +280,45 @@ Keep the information below in mind:
     required double temperature,
     required String responseFormat,
   }) async {
+    // Try the new responses endpoint first for GPT-5 Nano
+    if (model == 'gpt-5-nano') {
+      try {
+        return await _makeApiRequest(
+          endpoint: 'responses',
+          model: model,
+          messages: messages,
+          maxTokens: maxTokens,
+          temperature: temperature,
+          responseFormat: responseFormat,
+        );
+      } catch (e) {
+        debugPrint("Responses endpoint failed, falling back to chat/completions: $e");
+        // Fall through to chat/completions endpoint
+      }
+    }
+    
+    // Use standard chat/completions endpoint for other models or as fallback
+    return await _makeApiRequest(
+      endpoint: 'chat/completions',
+      model: model,
+      messages: messages,
+      maxTokens: maxTokens,
+      temperature: temperature,
+      responseFormat: responseFormat,
+    );
+  }
+
+  /// Makes the actual HTTP request to the specified OpenAI API endpoint
+  static Future<Map<String, dynamic>?> _makeApiRequest({
+    required String endpoint,
+    required String model,
+    required List<Map<String, dynamic>> messages,
+    required int maxTokens,
+    required double temperature,
+    required String responseFormat,
+  }) async {
     try {
-      final url = Uri.parse('$_baseUrl/responses');
+      final url = Uri.parse('$_baseUrl/$endpoint');
       
       final requestBody = {
         'model': model,
@@ -284,6 +327,8 @@ Keep the information below in mind:
         'temperature': temperature,
         'response_format': {'type': responseFormat},
       };
+
+      debugPrint("Making API request to: $endpoint with model: $model");
 
       final response = await http.post(
         url,
@@ -297,7 +342,7 @@ Keep the information below in mind:
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body) as Map<String, dynamic>;
         
-        // Extract content from responses API format
+        // Extract content from API response format
         if (responseData['choices'] != null && 
             responseData['choices'].isNotEmpty) {
           final content = responseData['choices'][0]['message']['content'];
@@ -308,10 +353,14 @@ Keep the information below in mind:
         
         debugPrint("Error: No content found in response");
         return null;
+      } else if (response.statusCode == 404 && endpoint == 'responses') {
+        // Responses endpoint doesn't exist, let caller fall back
+        throw Exception("Responses endpoint not found");
       } else {
         final errorData = json.decode(response.body);
-        debugPrint("API Error ${response.statusCode}: ${errorData['error']['message']}");
-        throw Exception("API Error: ${errorData['error']['message']}");
+        final errorMessage = errorData['error']['message'] ?? 'Unknown error';
+        debugPrint("API Error ${response.statusCode}: $errorMessage");
+        throw Exception("API Error: $errorMessage");
       }
     } catch (e) {
       debugPrint("HTTP request failed: ${e.toString()}");
