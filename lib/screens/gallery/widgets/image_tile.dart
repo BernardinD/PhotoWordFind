@@ -16,6 +16,7 @@ import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
 import 'package:PhotoWordFind/screens/gallery/widgets/handles_sheet.dart';
 import 'package:PhotoWordFind/utils/memory_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
+import 'package:path/path.dart' as p;
 
 class ImageTile extends StatefulWidget {
   final String imagePath;
@@ -55,6 +56,7 @@ class ImageTile extends StatefulWidget {
 }
 
 class _ImageTileState extends State<ImageTile> {
+  bool _metaExpanded = false;
   // Only show tooltips on platforms where hover is common (web/desktop).
   bool get _enableTooltips {
     if (kIsWeb) return true;
@@ -108,6 +110,188 @@ class _ImageTileState extends State<ImageTile> {
       default:
         return widget.identifier;
     }
+  }
+
+  // Always-on compact metadata summary shown on the tile regardless of sort.
+  // Format: Name • Time offset • Platform @ date • Found date
+  String get _metaSummary {
+    final parts = <String>[];
+    // Name or filename (without extension) fallback
+    final name = (widget.contact.name != null &&
+            widget.contact.name!.trim().isNotEmpty)
+        ? widget.contact.name!.trim()
+        : _fallbackBaseName(widget.imagePath);
+    parts.add(name);
+
+    // Time offset (relative preferred; else absolute UTC±HH:MM)
+    final offsetRel = _formatRelativeOffset(widget.contact.location?.utcOffset);
+    final offsetAbs = _formatUtcOffset(widget.contact.location?.utcOffset);
+    if (offsetRel != null) {
+      parts.add(offsetRel);
+    } else if (offsetAbs != null) {
+      parts.add(offsetAbs);
+    }
+
+    // Platform @ date (verified-first, else added if present)
+    final platformAtDate = _primaryPlatformAtDate();
+    if (platformAtDate != null) parts.add(platformAtDate);
+
+    // Date found
+    parts.add('Found ${DateFormat.yMd().format(widget.contact.dateFound)}');
+
+    return parts.join(' • ');
+  }
+
+  String _fallbackBaseName(String path) {
+    try {
+      return p.basenameWithoutExtension(path);
+    } catch (_) {
+      return widget.identifier;
+    }
+  }
+
+  String? _primaryPlatformAtDate() {
+    // Pick a primary platform: verified-first, else added, else any username
+    SocialType? s = _getPrimaryVerifiedSocial();
+    s ??= _getPrimaryAddedSocial();
+    s ??= _getAnySocial();
+    if (s == null) return null;
+
+    final label = s.name;
+    DateTime? when;
+    switch (s) {
+      case SocialType.Snapchat:
+        when = widget.contact.dateAddedOnSnap ?? widget.contact.verifiedOnSnapAt;
+        break;
+      case SocialType.Instagram:
+        when = widget.contact.dateAddedOnInsta ?? widget.contact.verifiedOnInstaAt;
+        break;
+      case SocialType.Discord:
+        when = widget.contact.dateAddedOnDiscord ?? widget.contact.verifiedOnDiscordAt;
+        break;
+      default:
+        when = null;
+    }
+    final dateStr = (when != null) ? DateFormat.yMd().format(when) : '—';
+    return '$label @ $dateStr';
+  }
+
+  SocialType? _getPrimaryAddedSocial() {
+    if (widget.contact.addedOnSnap) return SocialType.Snapchat;
+    if (widget.contact.addedOnInsta) return SocialType.Instagram;
+    if (widget.contact.addedOnDiscord) return SocialType.Discord;
+    return null;
+  }
+
+  SocialType? _getAnySocial() {
+    if (widget.contact.snapUsername?.isNotEmpty == true) return SocialType.Snapchat;
+    if (widget.contact.instaUsername?.isNotEmpty == true) return SocialType.Instagram;
+    if (widget.contact.discordUsername?.isNotEmpty == true) return SocialType.Discord;
+    return null;
+  }
+
+  // Multi-line metadata block for better readability on tiles.
+  Widget _buildMetaBlock({bool expanded = false}) {
+    // Derive components so we can place them on separate lines if needed
+    final name = (widget.contact.name != null &&
+            widget.contact.name!.trim().isNotEmpty)
+        ? widget.contact.name!.trim()
+        : _fallbackBaseName(widget.imagePath);
+    final offsetRel = _formatRelativeOffset(widget.contact.location?.utcOffset);
+    final offsetAbs = _formatUtcOffset(widget.contact.location?.utcOffset);
+    final offset = offsetRel ?? offsetAbs;
+    final platformAt = _primaryPlatformAtDate();
+    final found = 'Found ${DateFormat.yMd().format(widget.contact.dateFound)}';
+
+    // Derive lines
+    final lines = <String>[];
+    final line1 = name;
+    final line2 = [if (offset != null) offset, if (platformAt != null) platformAt].join(' • ');
+    final line3 = found;
+    if (line1.isNotEmpty) lines.add(line1);
+    if (line2.isNotEmpty) lines.add(line2);
+    lines.add(line3);
+
+    // Determine which line to emphasize based on current sort
+    int? emphasizeIndex;
+    switch (widget.sortOption) {
+      case 'Name':
+        emphasizeIndex = 0; // name line
+        break;
+      case 'Date found':
+        emphasizeIndex = lines.length - 1; // found line
+        break;
+      case 'Snap Added Date':
+      case 'Instagram Added Date':
+        // emphasize platform/date line if present
+        emphasizeIndex = lines.length > 1 ? 1 : null;
+        break;
+      case 'Added on Snapchat':
+      case 'Added on Instagram':
+        // append added/not added tag and emphasize that line
+        final addedLabel = () {
+          if (widget.sortOption == 'Added on Snapchat') {
+            return widget.contact.addedOnSnap ? 'Added' : 'Not Added';
+          }
+          return widget.contact.addedOnInsta ? 'Added' : 'Not Added';
+        }();
+        // integrate to line2
+        if (lines.length > 1) {
+          lines[1] = lines[1].isNotEmpty ? '${lines[1]} • $addedLabel' : addedLabel;
+          emphasizeIndex = 1;
+        } else {
+          lines.add(addedLabel);
+          emphasizeIndex = lines.length - 1;
+        }
+        break;
+      case 'Location':
+        // emphasize offset if we have it
+        if (lines.length > 1 && (offset != null)) emphasizeIndex = 1;
+        break;
+      default:
+        emphasizeIndex = null;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < lines.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 1),
+            child: () {
+              final isEmph = emphasizeIndex == i;
+              final text = Text(
+                lines[i],
+                maxLines: expanded ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isEmph ? Colors.white : Colors.white.withOpacity(0.93),
+                  fontSize: isEmph
+                      ? (expanded ? 12.0 : 11.0)
+                      : (expanded ? 11.5 : 10.5),
+                  fontWeight: isEmph ? FontWeight.w700 : FontWeight.w500,
+                ),
+              );
+              if (!isEmph) return text;
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border(
+                    left: BorderSide(
+                      color: Colors.lightBlueAccent.withOpacity(0.85),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 6),
+                child: text,
+              );
+            }(),
+          ),
+      ],
+    );
   }
 
   String? _formatUtcOffset(int? rawOffset) {
@@ -899,27 +1083,26 @@ class _ImageTileState extends State<ImageTile> {
                     Positioned(
                       top: 8,
                       left: 8,
-                      child: ConstrainedBox(
-                        constraints:
-                            BoxConstraints(maxWidth: constraints.maxWidth - 50),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 2, horizontal: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            _displayLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                      right: 56, // reserve space for the top-right action button
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Metadata block (tap to expand/collapse)
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => setState(() => _metaExpanded = !_metaExpanded),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 4, horizontal: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black45,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: _buildMetaBlock(expanded: _metaExpanded),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                     Positioned(
