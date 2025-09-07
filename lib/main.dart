@@ -241,7 +241,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _images = paths.map((p) => File(p)).toList();
 
       var result = await ChatGPTService.processMultipleImages(
-          imageFiles: _images, useMiniModel: true);
+          imageFiles: _images, useNanoModel: true);
 
       setState(() {
         _results.add(result.toString());
