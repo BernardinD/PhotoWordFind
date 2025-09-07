@@ -30,6 +30,16 @@ Future<String?> showNoteDialog(
 
   // Get screen width and height to adjust the dialog size in split-screen mode
   var screenSize = MediaQuery.of(context).size;
+  
+  // Determine if we're in a constrained vertical space (split screen mode)
+  final bool isConstrainedHeight = screenSize.height < 400;
+  
+  // Responsive sizing based on screen constraints
+  final double iconSize = isConstrainedHeight ? 28.0 : 40.0;
+  final double titleFontSize = isConstrainedHeight ? 16.0 : 20.0;
+  final double textFieldFontSize = isConstrainedHeight ? 12.0 : 14.0;
+  final int maxLines = isConstrainedHeight ? 3 : 5;
+  final double maxHeightRatio = isConstrainedHeight ? 0.75 : 0.6;
 
   return showDialog(
     context: context,
@@ -53,21 +63,19 @@ Future<String?> showNoteDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15.0),
               ),
-              icon: Icon(Icons.note_alt, color: Colors.deepPurple, size: 40),
+              icon: Icon(Icons.note_alt, color: Colors.deepPurple, size: iconSize),
               title: Text(
                 'Add Note...',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.deepPurple,
-                  fontSize: 20, // Title font size
+                  fontSize: titleFontSize,
                 ),
               ),
               content: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: screenSize.height *
-                      0.6, // Dialog height will be 60% of screen height
-                  maxWidth: screenSize.width *
-                      0.9, // Dialog width will be 90% of screen width
+                  maxHeight: screenSize.height * maxHeightRatio,
+                  maxWidth: screenSize.width * 0.9,
                 ),
                 child: SingleChildScrollView(
                   child: Form(
@@ -79,18 +87,18 @@ Future<String?> showNoteDialog(
                           autofocus: true,
                           focusNode: _noteFocus,
                           controller: noteController,
-                          maxLines: 5,
+                          maxLines: maxLines,
                           keyboardType: TextInputType.multiline,
                           textInputAction: TextInputAction.newline,
                           textCapitalization: TextCapitalization.sentences,
                           onFieldSubmitted: (_) => _noteFocus.requestFocus(),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: textFieldFontSize,
                           ),
                           decoration: InputDecoration(
                             labelText: 'Enter your note',
                             hintText: 'Type something...',
-                            labelStyle: TextStyle(fontSize: 14),
+                            labelStyle: TextStyle(fontSize: textFieldFontSize),
                             filled: true,
                             fillColor: Colors.grey[100],
                             border: OutlineInputBorder(
