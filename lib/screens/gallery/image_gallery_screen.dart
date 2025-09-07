@@ -2191,12 +2191,31 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               .toList()
           : const [];
 
+      final isArchive = _isArchiveState(selection.state);
+      // Capture pre-move added platforms for flagged targets (used only for notes)
+      final Map<String, List<String>> preAddedPlatforms = {};
+      if (selection.applyNeverBack && flaggedTargets.isNotEmpty) {
+        for (final e in flaggedTargets) {
+          final plats = <String>[];
+          if (e.addedOnSnap) plats.add('Snap');
+          if (e.addedOnInsta) plats.add('Insta');
+          if (e.addedOnDiscord) plats.add('Discord');
+          preAddedPlatforms[e.identifier] = plats;
+        }
+      }
+
       final now = DateTime.now();
       setState(() {
         for (final entry in targets) {
           entry.state = selection.state;
           // Record moved-to date via a neutral key
           entry.markMovedToArchiveBucket(now, targetState: selection.state);
+          // Any move into the archive bucket should mark as not-added on all platforms
+          if (isArchive) {
+            entry.addedOnSnap = false;
+            entry.addedOnInsta = false;
+            entry.addedOnDiscord = false;
+          }
         }
         // Exit selection mode after a move operation
         selectedImages.clear();
@@ -2209,11 +2228,35 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
       int changed = 0;
       if (selection.applyNeverBack) {
-        changed = flaggedTargets.isNotEmpty
-            ? _applyNeverBackToEntries(flaggedTargets)
-            : 0;
-        if (changed > 0) {
-          await _applyFiltersAndSort();
+        if (isArchive) {
+          // Booleans already flipped for all moved; add notes for flagged ones only.
+          final noteTime = DateFormat.yMd().add_jm().format(DateTime.now());
+          setState(() {
+            for (final e in flaggedTargets) {
+              final plats = preAddedPlatforms[e.identifier] ?? const [];
+              if (plats.isNotEmpty) {
+                final note =
+                    'Marked as "never friended back" (${plats.join(', ')}) on $noteTime';
+                if ((e.notes == null) || e.notes!.isEmpty) {
+                  e.notes = note;
+                } else {
+                  e.notes = '${e.notes}\n$note';
+                }
+                changed++;
+              }
+            }
+          });
+          if (changed > 0) {
+            await _applyFiltersAndSort();
+          }
+        } else {
+          // Non-archive moves: apply full never-back automation to flagged
+          changed = flaggedTargets.isNotEmpty
+              ? _applyNeverBackToEntries(flaggedTargets)
+              : 0;
+          if (changed > 0) {
+            await _applyFiltersAndSort();
+          }
         }
       }
       // Always show a concise summary of what happened
@@ -2262,6 +2305,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       }
     });
     return changed;
+  }
+
+  // Treat specific states as the archive bucket regardless of spelling changes.
+  bool _isArchiveState(String? stateName) {
+    if (stateName == null) return false;
+    final s = stateName.trim().toLowerCase();
+    return s == 'strings' || s == 'stings';
   }
 
   // ---------------- Bulk: mark never-friended-back ----------------
