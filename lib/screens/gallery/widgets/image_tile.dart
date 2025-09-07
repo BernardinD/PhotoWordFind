@@ -29,6 +29,9 @@ class ImageTile extends StatefulWidget {
   final bool gridMode;
   final VoidCallback? onOpenFullScreen;
   final bool selectionMode;
+  // Secondary selection: flagged for "never friended back" bulk action
+  final bool neverBackSelected;
+  final VoidCallback? onToggleNeverBack;
 
   const ImageTile({
     super.key,
@@ -43,6 +46,8 @@ class ImageTile extends StatefulWidget {
     this.gridMode = false,
     this.onOpenFullScreen,
     this.selectionMode = false,
+  this.neverBackSelected = false,
+  this.onToggleNeverBack,
   });
 
   @override
@@ -730,6 +735,62 @@ class _ImageTileState extends State<ImageTile> {
                               ),
                             ),
                     ),
+                    // Secondary toggle chip: "never friended back" under selection icon
+                    if (widget.selectionMode && widget.isSelected)
+                      Positioned(
+                        top: 48,
+                        right: 8,
+                        child: Material(
+                          color: Colors.transparent,
+                          elevation: 4,
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: widget.onToggleNeverBack,
+                            child: Container(
+                              height: 28,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.55),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: widget.neverBackSelected
+                                      ? Colors.redAccent
+                                      : Colors.white,
+                                  width: 1.5,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                      color: Colors.black26, blurRadius: 6),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    widget.neverBackSelected
+                                        ? Icons.person_off
+                                        : Icons.person_outline,
+                                    size: 16,
+                                    color: widget.neverBackSelected
+                                        ? Colors.redAccent
+                                        : Colors.white,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Never-back',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     // Processing/failed overlay and interaction control
                     Positioned.fill(
                       child: ValueListenableBuilder<Map<String, RedoJobStatus>>(

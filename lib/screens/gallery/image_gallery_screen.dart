@@ -91,6 +91,14 @@ import 'package:PhotoWordFind/utils/media_scan_utils.dart';
 // Platform "added" filter: Any, Added, or Not added
 enum AddedFilter { any, added, notAdded }
 
+// Result returned from the Move dialog: target state and whether to apply
+// the "never friended back" automation to moved entries.
+class _MoveSelection {
+  final String state;
+  final bool applyNeverBack;
+  const _MoveSelection(this.state, this.applyNeverBack);
+}
+
 class ImageGalleryScreen extends StatefulWidget {
   const ImageGalleryScreen({super.key});
 
@@ -141,6 +149,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   List<ContactEntry> images = [];
   List<ContactEntry> allImages = [];
   List<String> selectedImages = [];
+  // Sub-selection: tiles flagged for the "never friended back" bulk process
+  final Set<String> _neverBackSelected = <String>{};
 
   // View state
   int currentIndex = 0;
@@ -167,6 +177,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // Redo Mode state
   bool _redoMode =
       false; // when true, show only redo candidates/failed and change FAB
+  // Selection mode: stays active until user cancels
+  bool _selectionModeActive = false;
 
   // Listen to job status changes to refresh banner/mode contents
   void _onJobsChanged() {
@@ -438,15 +450,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   icon: const Icon(Icons.autorenew),
                   label: const Text('Redo (Full)'),
                 )
-              : selectedImages.isNotEmpty
-                  ? FloatingActionButton(
-                      onPressed: () {
-                        // Default bulk action: Move selected
-                        _onMenuOptionSelected('', 'move');
-                      },
-                      tooltip: 'Move selected',
-                      child: const Icon(Icons.move_to_inbox),
-                    )
+        : _selectionModeActive
+          ? FloatingActionButton(
+            onPressed: selectedImages.isEmpty
+              ? null
+              : () => _onMenuOptionSelected('', 'move'),
+            tooltip: 'Move selected',
+            child: const Icon(Icons.move_to_inbox),
+          )
                   : FloatingActionButton(
                       onPressed: () => _importImages(navContext),
                       tooltip: 'Import Images',
@@ -538,7 +549,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               _buildInitializationErrorBanner(context),
             if (!_redoMode) _buildRedoBanner(),
             _buildControls(),
-            Expanded(
+    Expanded(
               child: ImageGallery(
                 images: displayedImages,
                 selectedImages: selectedImages,
@@ -547,8 +558,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   setState(() {
                     if (selectedImages.contains(id)) {
                       selectedImages.remove(id);
+                      _neverBackSelected.remove(id);
                     } else {
                       selectedImages.add(id);
+          _selectionModeActive = true;
                     }
                   });
                 },
@@ -556,6 +569,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 galleryHeight: screenHeight,
                 onPageChanged: (idx) => setState(() => currentIndex = idx),
                 currentIndex: currentIndex,
+        selectionMode: _selectionModeActive,
+                neverBackSelectedIds: _neverBackSelected,
+                onToggleNeverBack: (id) {
+                  setState(() {
+                    if (_neverBackSelected.contains(id)) {
+                      _neverBackSelected.remove(id);
+                    } else if (selectedImages.contains(id)) {
+                      _neverBackSelected.add(id);
+                    }
+                  });
+                },
               ),
             ),
           ],
@@ -596,12 +620,27 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             setState(() {
               if (selectedImages.contains(id)) {
                 selectedImages.remove(id);
+                _neverBackSelected.remove(id);
               } else {
                 selectedImages.add(id);
+        _selectionModeActive = true;
               }
             });
           },
           onMenuOptionSelected: _onMenuOptionSelected,
+      selectionMode: _selectionModeActive,
+          neverBackSelectedIds: _neverBackSelected,
+          onToggleNeverBack: (id) {
+            setState(() {
+              if (_neverBackSelected.contains(id)) {
+                _neverBackSelected.remove(id);
+              } else {
+                if (selectedImages.contains(id)) {
+                  _neverBackSelected.add(id);
+                }
+              }
+            });
+          },
         ),
       ],
     );
@@ -611,14 +650,74 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final actions = <Widget>[];
 
     // If in selection mode, show a Clear/Cancel button to exit selection state.
-    if (selectedImages.isNotEmpty) {
+    if (_selectionModeActive) {
       actions.add(
         IconButton(
           tooltip: 'Cancel selection',
           icon: const Icon(Icons.close),
           onPressed: () {
-            setState(() => selectedImages.clear());
+            setState(() {
+              selectedImages.clear();
+              _neverBackSelected.clear();
+              _selectionModeActive = false;
+            });
           },
+        ),
+      );
+      // Badge menu: quick access to apply never-back, or move+never-back
+      actions.add(
+        PopupMenuButton<String>(
+          tooltip: 'Never-back actions',
+          onSelected: (value) async {
+            if (value == 'never_back') {
+              await _applyNeverFriendedBack();
+            } else if (value == 'move_never') {
+              await _onMenuOptionSelected('', 'move');
+            }
+          },
+          itemBuilder: (ctx) => [
+            PopupMenuItem<String>(
+              value: 'never_back',
+              enabled: _neverBackSelected.isNotEmpty,
+              child: Row(
+                children: [
+                  const Icon(Icons.person_off),
+                  const SizedBox(width: 8),
+                  Text('Apply never-back (${_neverBackSelected.length})'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem<String>(
+              value: 'move_never',
+              enabled: selectedImages.isNotEmpty,
+              child: Row(
+                children: const [
+                  Icon(Icons.move_to_inbox),
+                  SizedBox(width: 8),
+                  Text('Move selected… (with never-back)'),
+                ],
+              ),
+            ),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.person_off),
+                if (_neverBackSelected.isNotEmpty)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: _Badge(
+                      count: _neverBackSelected.length,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -1966,13 +2065,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   // ---------------- Item actions ----------------
-  Future<String?> _selectState(String currentState) async {
+  Future<_MoveSelection?> _selectState(String currentState) async {
     String? selected = currentState.isNotEmpty
         ? currentState
         : states.firstWhere((s) => s != 'All', orElse: () => '');
     final controller = TextEditingController(text: selected);
+  // Default checkbox: ON by default (user can toggle off)
+  bool applyNeverBack = true;
+  bool userToggled = false; // track manual user change
 
-    return showDialog<String>(
+    return showDialog<_MoveSelection>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -2005,6 +2107,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               setState(() {
                                 selected = s;
                                 controller.text = s;
+                                // Keep current toggle unless user changes it
+                                if (!userToggled) {
+                                  applyNeverBack = true;
+                                }
                               });
                             },
                           )),
@@ -2014,6 +2120,21 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 TextField(
                     controller: controller,
                     decoration: const InputDecoration(labelText: 'State')),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Also mark "never friended back" for moved items'),
+                  subtitle: const Text('Resets Added on Snap/Insta/Discord and adds a note'),
+                  value: applyNeverBack,
+                  onChanged: (v) {
+                    setState(() {
+                      userToggled = true;
+                      applyNeverBack = v ?? false;
+                    });
+                  },
+                ),
               ],
             ),
           ),
@@ -2022,7 +2143,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel')),
             TextButton(
-                onPressed: () => Navigator.pop(context, controller.text.trim()),
+                onPressed: () {
+                  final state = controller.text.trim();
+                  if (state.isEmpty) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pop(context, _MoveSelection(state, applyNeverBack));
+                  }
+                },
                 child: const Text('OK')),
           ],
         ),
@@ -2052,18 +2180,116 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         currentState = firstState;
     }
 
-    final newState = await _selectState(currentState);
-    if (newState == null || newState.isEmpty) return;
+    if (_option == 'move') {
+      final selection = await _selectState(currentState);
+      if (selection == null || selection.state.isEmpty) return;
 
+      // Determine which of the selected targets are flagged for never-back before clearing state
+      final List<ContactEntry> flaggedTargets = selection.applyNeverBack
+          ? targets
+              .where((e) => _neverBackSelected.contains(e.identifier))
+              .toList()
+          : const [];
+
+      final now = DateTime.now();
+      setState(() {
+        for (final entry in targets) {
+          entry.state = selection.state;
+          // Record moved-to date via a neutral key
+          entry.markMovedToArchiveBucket(now, targetState: selection.state);
+        }
+        // Exit selection mode after a move operation
+        selectedImages.clear();
+        _neverBackSelected.clear();
+        _selectionModeActive = false;
+      });
+
+      _updateStates(allImages);
+      await _applyFiltersAndSort();
+
+      int changed = 0;
+      if (selection.applyNeverBack) {
+        changed = flaggedTargets.isNotEmpty
+            ? _applyNeverBackToEntries(flaggedTargets)
+            : 0;
+        if (changed > 0) {
+          await _applyFiltersAndSort();
+        }
+      }
+      // Always show a concise summary of what happened
+      if (mounted) {
+        final moved = targets.length;
+        final msg = selection.applyNeverBack
+            ? 'Moved $moved. Applied never-back to $changed.'
+            : 'Moved $moved.';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
+    }
+  }
+
+  // Applies the Never-Friended-Back automation to the provided entries.
+  // Returns the number of entries updated.
+  int _applyNeverBackToEntries(List<ContactEntry> targets) {
+    final now = DateFormat.yMd().add_jm().format(DateTime.now());
+    int changed = 0;
     setState(() {
       for (final entry in targets) {
-        entry.state = newState;
+        final platforms = <String>[];
+        if (entry.addedOnSnap) {
+          // Only reset the boolean, preserve dates
+          entry.addedOnSnap = false;
+          platforms.add('Snap');
+        }
+        if (entry.addedOnInsta) {
+          entry.addedOnInsta = false;
+          platforms.add('Insta');
+        }
+        if (entry.addedOnDiscord) {
+          entry.addedOnDiscord = false;
+          platforms.add('Discord');
+        }
+        if (platforms.isNotEmpty) {
+          final note =
+              'Marked as "never friended back" (${platforms.join(', ')}) on $now';
+          if (entry.notes == null || entry.notes!.isEmpty) {
+            entry.notes = note;
+          } else {
+            entry.notes = '${entry.notes}\n$note';
+          }
+          changed++;
+        }
       }
-      selectedImages.clear();
+    });
+    return changed;
+  }
+
+  // ---------------- Bulk: mark never-friended-back ----------------
+  Future<void> _applyNeverFriendedBack() async {
+    if (_neverBackSelected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No tiles flagged for this action.')));
+      return;
+    }
+    final targets = <ContactEntry>[];
+    for (final id in _neverBackSelected) {
+      final match = allImages.where((e) => e.identifier == id);
+      if (match.isNotEmpty) targets.add(match.first);
+    }
+    if (targets.isEmpty) return;
+
+    final changed = _applyNeverBackToEntries(targets);
+    // Clear only the flagged subset; keep any remaining selection
+    setState(() {
+      selectedImages.removeWhere((id) => _neverBackSelected.contains(id));
+      _neverBackSelected.clear();
     });
 
-    _updateStates(allImages);
     await _applyFiltersAndSort();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(changed > 0
+            ? 'Updated $changed entr${changed == 1 ? 'y' : 'ies'}'
+            : 'No changes applied')));
   }
 
   // ---------------- Import flow ----------------

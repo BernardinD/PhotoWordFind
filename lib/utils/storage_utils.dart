@@ -57,6 +57,8 @@ class SubKeys {
   static String get VerifiedSnapDate => "verifiedOnSnapDate";
   static String get VerifiedInstaDate => "verifiedOnInstaDate";
   static String get VerifiedDiscordDate => "verifiedOnDiscordDate";
+  // Neutral key not tied to state label; preferred going forward
+  static String get MovedToArchiveBucketDate => "movedToArchiveBucketAt";
 }
 
 class StorageUtils {
