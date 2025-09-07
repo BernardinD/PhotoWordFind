@@ -25,6 +25,23 @@ mixin _$ContactEntry on _ContactEntry, Store {
     });
   }
 
+  late final _$movedToArchiveBucketAtAtom =
+      Atom(name: '_ContactEntry.movedToArchiveBucketAt', context: context);
+
+  @override
+  DateTime? get movedToArchiveBucketAt {
+    _$movedToArchiveBucketAtAtom.reportRead();
+    return super.movedToArchiveBucketAt;
+  }
+
+  @override
+  set movedToArchiveBucketAt(DateTime? value) {
+    _$movedToArchiveBucketAtAtom
+        .reportWrite(value, super.movedToArchiveBucketAt, () {
+      super.movedToArchiveBucketAt = value;
+    });
+  }
+
   late final _$imagePathAtom =
       Atom(name: '_ContactEntry.imagePath', context: context);
 
@@ -480,9 +497,21 @@ mixin _$ContactEntry on _ContactEntry, Store {
   }
 
   @override
+  void markMovedToArchiveBucket(DateTime when, {String? targetState}) {
+    final _$actionInfo = _$_ContactEntryActionController.startAction(
+        name: '_ContactEntry.markMovedToArchiveBucket');
+    try {
+      return super.markMovedToArchiveBucket(when, targetState: targetState);
+    } finally {
+      _$_ContactEntryActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   String toString() {
     return '''
 extractedText: ${extractedText},
+movedToArchiveBucketAt: ${movedToArchiveBucketAt},
 imagePath: ${imagePath},
 snapUsername: ${snapUsername},
 instaUsername: ${instaUsername},

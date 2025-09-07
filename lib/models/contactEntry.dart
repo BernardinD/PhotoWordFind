@@ -138,6 +138,16 @@ final Map<String, FieldUpdater<_ContactEntry>> fieldUpdaters = {
       model.verifiedOnDiscordAt = value;
     }
   },
+  // Moved-to date (neutral key only)
+  SubKeys.MovedToArchiveBucketDate: (model, value) {
+    if (value == null || (value is String && value.isEmpty)) {
+      model.movedToArchiveBucketAt = null;
+    } else if (value is String) {
+      model.movedToArchiveBucketAt = DateTime.tryParse(value);
+    } else if (value is DateTime) {
+      model.movedToArchiveBucketAt = value;
+    }
+  },
 };
 
 /// ContactEntry autosave contract
@@ -327,6 +337,8 @@ class ContactEntry extends _ContactEntry with _$ContactEntry {
       SubKeys.Name: name,
       SubKeys.Age: age,
       SubKeys.Location: location?.toJson(),
+  // Track when entry was moved into the archive bucket via a neutral key.
+  SubKeys.MovedToArchiveBucketDate: movedToArchiveBucketAt?.toIso8601String(),
     };
   }
 
@@ -357,6 +369,9 @@ abstract class _ContactEntry with Store {
   /// in place of image overlaying.
   @observable
   String? extractedText;
+
+  @observable
+  DateTime? movedToArchiveBucketAt;
 
   @observable
   String imagePath;
@@ -541,28 +556,52 @@ abstract class _ContactEntry with Store {
   }
 
   @action
+  /// Resets Snapchat "Added" state for this entry.
+  ///
+  /// Intended use: platform-level reset when you are actively undoing a
+  /// Snapchat add (e.g., removing/updating the handle). This will clear BOTH
+  /// the boolean flag and the date to allow clean reuse.
+  ///
+  /// Do not use this for the "never friended back" archive flow that happens
+  /// when moving to the archive bucket (Strings/Stings). In that flow, we only
+  /// flip the boolean (addedOnSnap=false) and preserve dateAddedOnSnap to keep
+  /// historical context.
+  ///
+  /// Keep autosave enabled so both fields get persisted in a single debounced save.
   resetSnapchatAdd() {
-    // Called when removing a Snapchat username. Since adds aren't verified,
-    // this clears the flag so the handle can be reused.
-    // Keep autosave enabled so both fields get persisted in a single debounced save.
+    // Called when removing a Snapchat username.
     _suppressAutoSave = false;
     dateAddedOnSnap = null;
     addedOnSnap = false;
   }
 
   @action
+  /// Resets Instagram "Added" state for this entry.
+  ///
+  /// Intended use: platform-level reset when you are actively undoing an
+  /// Instagram add. Clears BOTH the boolean and the date for clean reuse.
+  ///
+  /// For the archive/"never friended back" flow, only toggle
+  /// [addedOnInsta=false] and preserve [dateAddedOnInsta].
+  ///
+  /// Keep autosave enabled so both fields get persisted in a single debounced save.
   resetInstagramAdd() {
-    // Same as [resetSnapchatAdd] but for Instagram.
-    // Keep autosave enabled so both fields get persisted in a single debounced save.
     _suppressAutoSave = false;
     dateAddedOnInsta = null;
     addedOnInsta = false;
   }
 
   @action
+  /// Resets Discord "Added" state for this entry.
+  ///
+  /// Intended use: platform-level reset when you are actively undoing a
+  /// Discord add. Clears BOTH the boolean and the date for clean reuse.
+  ///
+  /// For the archive/"never friended back" flow, only toggle
+  /// [addedOnDiscord=false] and preserve [dateAddedOnDiscord].
+  ///
+  /// Keep autosave enabled so both fields get persisted in a single debounced save.
   resetDiscordAdd() {
-    // Same as [resetSnapchatAdd] but for Discord.
-    // Keep autosave enabled so both fields get persisted in a single debounced save.
     _suppressAutoSave = false;
     dateAddedOnDiscord = null;
     addedOnDiscord = false;
@@ -591,6 +630,7 @@ abstract class _ContactEntry with Store {
     this.verifiedOnDiscordAt,
     this.previousHandles,
     this.notes,
+  this.movedToArchiveBucketAt,
     // this.sections,
     // this.socialMediaHandles,
     // this.location,
@@ -613,5 +653,12 @@ abstract class _ContactEntry with Store {
       return newList;
     }
     return list;
+  }
+
+  // Helper to set the moved-to date based on current/future state naming
+  @action
+  void markMovedToArchiveBucket(DateTime when, {String? targetState}) {
+    _suppressAutoSave = false;
+  movedToArchiveBucketAt = when; // neutral, survives rename
   }
 }

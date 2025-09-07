@@ -21,6 +21,10 @@ class ImageGallery extends StatelessWidget {
   final ValueChanged<int> onPageChanged;
   final int currentIndex;
   final String sortOption;
+  final bool? selectionMode;
+  // Secondary selection for "never friended back"
+  final Set<String>? neverBackSelectedIds;
+  final ValueChanged<String>? onToggleNeverBack;
 
   const ImageGallery({
     super.key,
@@ -32,11 +36,16 @@ class ImageGallery extends StatelessWidget {
     required this.onPageChanged,
     required this.currentIndex,
     required this.sortOption,
+  this.selectionMode,
+  this.neverBackSelectedIds,
+  this.onToggleNeverBack,
   });
 
   @override
   Widget build(BuildContext context) {
     if (!kUseMasonryGrid) {
+    final bool effectiveSelectionMode =
+      selectionMode ?? selectedImages.isNotEmpty;
       return SizedBox(
         height: galleryHeight,
         child: Stack(
@@ -56,7 +65,11 @@ class ImageGallery extends StatelessWidget {
                   onSelected: onImageSelected,
                   onMenuOptionSelected: onMenuOptionSelected,
                   contact: images[index],
-                  selectionMode: selectedImages.isNotEmpty,
+                  selectionMode: effectiveSelectionMode,
+          neverBackSelected: neverBackSelectedIds?.contains(images[index].identifier) ?? false,
+          onToggleNeverBack: onToggleNeverBack == null
+            ? null
+            : () => onToggleNeverBack!(images[index].identifier),
                 );
               },
             ),
@@ -69,6 +82,8 @@ class ImageGallery extends StatelessWidget {
     // Masonry grid variant
     final media = MediaQuery.of(context);
     final width = media.size.width;
+  final bool effectiveSelectionMode =
+    selectionMode ?? selectedImages.isNotEmpty;
     // Aim for tiles ~180dp wide with clamped column count
     final int columns = (width / 180).floor().clamp(1, 8);
     const double baseHPad = 8;
@@ -117,7 +132,11 @@ class ImageGallery extends StatelessWidget {
                     ),
                   );
                 },
-                selectionMode: selectedImages.isNotEmpty,
+                selectionMode: effectiveSelectionMode,
+        neverBackSelected: neverBackSelectedIds?.contains(item.identifier) ?? false,
+        onToggleNeverBack: onToggleNeverBack == null
+          ? null
+          : () => onToggleNeverBack!(item.identifier),
               );
             },
           ),
@@ -156,6 +175,9 @@ class SliverImageGallery extends StatelessWidget {
   final Function(String) onImageSelected;
   final Function(String, String) onMenuOptionSelected;
   final String sortOption;
+  final bool? selectionMode;
+  final Set<String>? neverBackSelectedIds;
+  final ValueChanged<String>? onToggleNeverBack;
 
   const SliverImageGallery({
     super.key,
@@ -164,12 +186,17 @@ class SliverImageGallery extends StatelessWidget {
     required this.onImageSelected,
     required this.onMenuOptionSelected,
     required this.sortOption,
+  this.selectionMode,
+  this.neverBackSelectedIds,
+  this.onToggleNeverBack,
   });
 
   @override
   Widget build(BuildContext context) {
     if (!kUseMasonryGrid) {
       // Fallback to a simple sliver list if masonry grid is off.
+  final bool effectiveSelectionMode =
+      selectionMode ?? selectedImages.isNotEmpty;
       return SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -185,7 +212,7 @@ class SliverImageGallery extends StatelessWidget {
                 onSelected: onImageSelected,
                 onMenuOptionSelected: onMenuOptionSelected,
                 contact: item,
-                selectionMode: selectedImages.isNotEmpty,
+        selectionMode: effectiveSelectionMode,
               ),
             );
           },
@@ -218,6 +245,8 @@ class SliverImageGallery extends StatelessWidget {
         childCount: images.length,
         itemBuilder: (context, index) {
           final item = images[index];
+          final bool effectiveSelectionMode =
+              selectionMode ?? selectedImages.isNotEmpty;
           return ImageTile(
             key: ValueKey(item.identifier),
             imagePath: item.imagePath,
@@ -239,7 +268,11 @@ class SliverImageGallery extends StatelessWidget {
                 ),
               );
             },
-            selectionMode: selectedImages.isNotEmpty,
+            selectionMode: effectiveSelectionMode,
+      neverBackSelected: neverBackSelectedIds?.contains(item.identifier) ?? false,
+      onToggleNeverBack: onToggleNeverBack == null
+        ? null
+        : () => onToggleNeverBack!(item.identifier),
           );
         },
       ),
