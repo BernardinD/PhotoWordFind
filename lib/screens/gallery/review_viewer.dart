@@ -8,6 +8,14 @@ import 'package:PhotoWordFind/screens/gallery/redo_crop_screen.dart';
 import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
+import 'package:intl/intl.dart';
+
+// Lightweight tuple for platform label and associated date
+class _SocialPlatform {
+  final String label;
+  final DateTime? when;
+  const _SocialPlatform(this.label, this.when);
+}
 
 class ReviewViewer extends StatefulWidget {
   final List<ContactEntry> images;
@@ -29,6 +37,7 @@ class _ReviewViewerState extends State<ReviewViewer> {
   late int _index;
   bool _editorOpen = false;
   bool _aimHighlight = false;
+  bool _metaExpanded = false;
   double _aimY = 0.75; // normalized 0..1 from top
   double _dockPerc = 0.45; // 0..1 of screen height
   final double _dockMin = 0.22;
@@ -95,6 +104,8 @@ class _ReviewViewerState extends State<ReviewViewer> {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    _buildMetaRows(c),
+                    const SizedBox(height: 12),
                     const Text('Full OCR/Text'),
                     const SizedBox(height: 6),
                     Container(
@@ -116,6 +127,195 @@ class _ReviewViewerState extends State<ReviewViewer> {
         );
       },
     );
+  }
+
+  // --- Metadata helpers shared by overlay and details sheet ---
+  Widget _buildMetaRows(ContactEntry c) {
+    final rows = <Widget>[];
+    rows.add(_metaRow('Name', _bestName(c)));
+    final offsetLabel = _bestOffsetLabel(c);
+    if (offsetLabel != null) rows.add(_metaRow('Time offset', offsetLabel));
+    final platformAtDate = _platformAtDate(c);
+    if (platformAtDate != null) rows.add(_metaRow('Platform @ date', platformAtDate));
+    rows.add(_metaRow('Date found', DateFormat.yMd().format(c.dateFound)));
+    return Column(children: rows);
+  }
+
+  Widget _metaRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 120, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  String _bestName(ContactEntry c) {
+    final n = c.name?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    return File(c.imagePath).uri.pathSegments.isNotEmpty
+        ? File(c.imagePath).uri.pathSegments.last
+        : c.identifier;
+  }
+
+  String? _bestOffsetLabel(ContactEntry c) {
+    final loc = c.location;
+    if (loc == null) return null;
+    final rel = _formatRelativeOffset(loc.utcOffset);
+    if (rel != null) return rel;
+    return _formatUtcOffset(loc.utcOffset);
+  }
+
+  String? _platformAtDate(ContactEntry c) {
+    // Priority: verified first, then added, then any handle present
+    _SocialPlatform? p = _primaryVerified(c);
+    p ??= _primaryAdded(c);
+    p ??= _anyHandle(c);
+    if (p == null) return null;
+    final label = p.label;
+    final when = p.when;
+    final date = when != null ? DateFormat.yMd().format(when) : '—';
+    return '$label @ $date';
+  }
+
+  _SocialPlatform? _primaryVerified(ContactEntry c) {
+    if (c.verifiedOnSnapAt != null && (c.snapUsername?.isNotEmpty ?? false)) {
+      return _SocialPlatform('Snapchat', c.verifiedOnSnapAt);
+    }
+    if (c.verifiedOnInstaAt != null && (c.instaUsername?.isNotEmpty ?? false)) {
+      return _SocialPlatform('Instagram', c.verifiedOnInstaAt);
+    }
+    if (c.verifiedOnDiscordAt != null && (c.discordUsername?.isNotEmpty ?? false)) {
+      return _SocialPlatform('Discord', c.verifiedOnDiscordAt);
+    }
+    return null;
+  }
+
+  _SocialPlatform? _primaryAdded(ContactEntry c) {
+    if (c.addedOnSnap) return _SocialPlatform('Snapchat', c.dateAddedOnSnap);
+    if (c.addedOnInsta) return _SocialPlatform('Instagram', c.dateAddedOnInsta);
+    if (c.addedOnDiscord) return _SocialPlatform('Discord', c.dateAddedOnDiscord);
+    return null;
+  }
+
+  _SocialPlatform? _anyHandle(ContactEntry c) {
+    if (c.snapUsername?.isNotEmpty == true) return _SocialPlatform('Snapchat', c.dateAddedOnSnap ?? c.verifiedOnSnapAt);
+    if (c.instaUsername?.isNotEmpty == true) return _SocialPlatform('Instagram', c.dateAddedOnInsta ?? c.verifiedOnInstaAt);
+    if (c.discordUsername?.isNotEmpty == true) return _SocialPlatform('Discord', c.dateAddedOnDiscord ?? c.verifiedOnDiscordAt);
+    return null;
+  }
+
+  // Offset formatting borrowed to keep consistent with tiles
+  String? _formatUtcOffset(int? rawOffset) {
+    if (rawOffset == null) return null;
+    final seconds = _normalizeOffsetToSeconds(rawOffset);
+    final sign = seconds >= 0 ? '+' : '-';
+    final absSec = seconds.abs();
+    final hours = absSec ~/ 3600;
+    final minutes = (absSec % 3600) ~/ 60;
+    final hh = hours.toString().padLeft(2, '0');
+    final mm = minutes.toString().padLeft(2, '0');
+    return 'UTC$sign$hh:$mm';
+  }
+
+  String? _formatRelativeOffset(int? contactRawOffset) {
+    if (contactRawOffset == null) return null;
+    final contactSec = _normalizeOffsetToSeconds(contactRawOffset);
+    final localSec = DateTime.now().timeZoneOffset.inSeconds;
+    final deltaMin = ((contactSec - localSec) / 60).round();
+    if (deltaMin == 0) return 'Same time';
+    final ahead = deltaMin > 0;
+    final absMin = deltaMin.abs();
+    final h = absMin ~/ 60;
+    final m = absMin % 60;
+    final parts = <String>[];
+    if (h > 0) parts.add('${h}h');
+    if (m > 0) parts.add('${m}m');
+    final span = parts.join(' ');
+    return ahead ? '$span ahead' : '$span behind';
+  }
+
+  int _normalizeOffsetToSeconds(int raw) {
+    final abs = raw.abs();
+    const maxHours = 18;
+    const maxMinutes = maxHours * 60;
+    const maxSeconds = maxHours * 3600;
+    const maxMillis = maxSeconds * 1000;
+    const maxMicros = maxMillis * 1000;
+    if (abs <= maxMinutes) return raw * 60; // minutes
+    if (abs <= maxSeconds) return raw; // seconds
+    if (abs <= maxMillis) return (raw / 1000).round(); // millis
+    if (abs <= maxMicros) return (raw / 1000000).round(); // micros
+    return 0;
+  }
+
+  String _overlaySummary(ContactEntry c) {
+    final parts = <String>[];
+    parts.add(_bestName(c));
+    final off = _bestOffsetLabel(c);
+    if (off != null) parts.add(off);
+    final pad = _platformAtDate(c);
+    if (pad != null) parts.add(pad);
+    parts.add('Found ${DateFormat.yMd().format(c.dateFound)}');
+    return parts.join(' • ');
+  }
+
+  // Build icon-labeled rows for the expanded side card
+  List<Widget> _metaRowsWithIcons(ContactEntry c) {
+    final items = <_MetaItem>[];
+    items.add(_MetaItem(
+      icon: Icons.person_outline,
+      label: 'Name',
+      value: _bestName(c),
+    ));
+    final off = _bestOffsetLabel(c);
+    if (off != null) {
+      items.add(_MetaItem(icon: Icons.schedule, label: 'Time offset', value: off));
+    }
+    final pad = _platformAtDate(c);
+    if (pad != null) {
+      items.add(_MetaItem(icon: Icons.alternate_email, label: 'Platform @ date', value: pad));
+    }
+    items.add(_MetaItem(
+      icon: Icons.calendar_today_outlined,
+      label: 'Date found',
+      value: DateFormat.yMd().format(c.dateFound),
+    ));
+
+    return [
+      for (final it in items)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(it.icon, size: 16, color: Colors.white70),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(it.label,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11)),
+                    const SizedBox(height: 2),
+                    Text(it.value,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 13),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
   }
 
   // (legacy helper removed)
@@ -155,6 +355,21 @@ class _ReviewViewerState extends State<ReviewViewer> {
                 child:
                     _AimBandOverlay(centerY: _aimY, bandHeightFraction: 0.18),
               ),
+            // Side info toggle (right-center): tap to expand/collapse metadata
+            Positioned(
+              top: 0,
+              bottom: 0,
+              right: 10,
+              child: Center(
+                child: _metaExpanded
+                    ? _MetaCard(
+                        summaryBuilder: () => _overlaySummary(_current),
+                        rowsBuilder: () => _metaRowsWithIcons(_current),
+                        onClose: () => setState(() => _metaExpanded = false),
+                      )
+                    : _InfoButton(onTap: () => setState(() => _metaExpanded = true)),
+              ),
+            ),
             Positioned(
               top: 0,
               left: 0,
@@ -551,5 +766,90 @@ class _AimBandPainter extends CustomPainter {
   bool shouldRepaint(covariant _AimBandPainter old) {
     return old.centerY != centerY ||
         old.bandHeightFraction != bandHeightFraction;
+  }
+}
+
+// --- Small helper value class for meta items ---
+class _MetaItem {
+  final IconData icon;
+  final String label;
+  final String value;
+  _MetaItem({required this.icon, required this.label, required this.value});
+}
+
+// --- Collapsed info button ---
+class _InfoButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _InfoButton({required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black54,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Icon(Icons.info_outline, color: Colors.white, size: 18),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Expanded side card ---
+class _MetaCard extends StatelessWidget {
+  final List<Widget> Function() rowsBuilder;
+  final String Function() summaryBuilder;
+  final VoidCallback onClose;
+  const _MetaCard({
+    required this.rowsBuilder,
+    required this.summaryBuilder,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320),
+      child: Material(
+        color: Colors.black.withOpacity(0.6),
+        elevation: 3,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      summaryBuilder(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                    onPressed: onClose,
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...rowsBuilder(),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
