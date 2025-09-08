@@ -47,8 +47,8 @@ class ImageTile extends StatefulWidget {
     this.gridMode = false,
     this.onOpenFullScreen,
     this.selectionMode = false,
-  this.neverBackSelected = false,
-  this.onToggleNeverBack,
+    this.neverBackSelected = false,
+    this.onToggleNeverBack,
   });
 
   @override
@@ -66,6 +66,7 @@ class _ImageTileState extends State<ImageTile> {
       return false;
     }
   }
+
   ImageProvider _providerForWidth(double logicalWidth) {
     final dpr = MediaQuery.of(context).devicePixelRatio;
     // Clamp to a sane range to avoid decoding very large bitmaps in list/grid
@@ -79,68 +80,9 @@ class _ImageTileState extends State<ImageTile> {
     return '${widget.extractedText.substring(0, maxChars)}...';
   }
 
-  String get _displayLabel {
-    switch (widget.sortOption) {
-      case 'Date found':
-        return DateFormat.yMd().format(widget.contact.dateFound);
-      case 'Snap Added Date':
-        final snapDate = widget.contact.dateAddedOnSnap;
-        return snapDate != null ? DateFormat.yMd().format(snapDate) : 'No date';
-      case 'Instagram Added Date':
-        final instaDate = widget.contact.dateAddedOnInsta;
-        return instaDate != null
-            ? DateFormat.yMd().format(instaDate)
-            : 'No date';
-      case 'Added on Snapchat':
-        return widget.contact.addedOnSnap ? 'Added' : 'Not Added';
-      case 'Added on Instagram':
-        return widget.contact.addedOnInsta ? 'Added' : 'Not Added';
-      case 'Location':
-        final loc = widget.contact.location;
-        if (loc == null) return 'No location';
-        final relative = _formatRelativeOffset(loc.utcOffset);
-        if (relative != null) return relative;
-        // Fallbacks if offset is unavailable
-        final absLabel = _formatUtcOffset(loc.utcOffset);
-        if (absLabel != null) return absLabel;
-        if ((loc.rawLocation?.isNotEmpty ?? false)) return loc.rawLocation!;
-        return 'Location';
-      case 'Name':
-        return widget.contact.name ?? widget.identifier;
-      default:
-        return widget.identifier;
-    }
-  }
+  // Removed unused _displayLabel getter.
 
-  // Always-on compact metadata summary shown on the tile regardless of sort.
-  // Format: Name • Time offset • Platform @ date • Found date
-  String get _metaSummary {
-    final parts = <String>[];
-    // Name or filename (without extension) fallback
-    final name = (widget.contact.name != null &&
-            widget.contact.name!.trim().isNotEmpty)
-        ? widget.contact.name!.trim()
-        : _fallbackBaseName(widget.imagePath);
-    parts.add(name);
-
-    // Time offset (relative preferred; else absolute UTC±HH:MM)
-    final offsetRel = _formatRelativeOffset(widget.contact.location?.utcOffset);
-    final offsetAbs = _formatUtcOffset(widget.contact.location?.utcOffset);
-    if (offsetRel != null) {
-      parts.add(offsetRel);
-    } else if (offsetAbs != null) {
-      parts.add(offsetAbs);
-    }
-
-    // Platform @ date (verified-first, else added if present)
-    final platformAtDate = _primaryPlatformAtDate();
-    if (platformAtDate != null) parts.add(platformAtDate);
-
-    // Date found
-    parts.add('Found ${DateFormat.yMd().format(widget.contact.dateFound)}');
-
-    return parts.join(' • ');
-  }
+  // _metaSummary was replaced by _buildMetaBlock and is no longer used.
 
   String _fallbackBaseName(String path) {
     try {
@@ -161,13 +103,16 @@ class _ImageTileState extends State<ImageTile> {
     DateTime? when;
     switch (s) {
       case SocialType.Snapchat:
-        when = widget.contact.dateAddedOnSnap ?? widget.contact.verifiedOnSnapAt;
+        when =
+            widget.contact.dateAddedOnSnap ?? widget.contact.verifiedOnSnapAt;
         break;
       case SocialType.Instagram:
-        when = widget.contact.dateAddedOnInsta ?? widget.contact.verifiedOnInstaAt;
+        when =
+            widget.contact.dateAddedOnInsta ?? widget.contact.verifiedOnInstaAt;
         break;
       case SocialType.Discord:
-        when = widget.contact.dateAddedOnDiscord ?? widget.contact.verifiedOnDiscordAt;
+        when = widget.contact.dateAddedOnDiscord ??
+            widget.contact.verifiedOnDiscordAt;
         break;
       default:
         when = null;
@@ -184,19 +129,22 @@ class _ImageTileState extends State<ImageTile> {
   }
 
   SocialType? _getAnySocial() {
-    if (widget.contact.snapUsername?.isNotEmpty == true) return SocialType.Snapchat;
-    if (widget.contact.instaUsername?.isNotEmpty == true) return SocialType.Instagram;
-    if (widget.contact.discordUsername?.isNotEmpty == true) return SocialType.Discord;
+    if (widget.contact.snapUsername?.isNotEmpty == true)
+      return SocialType.Snapchat;
+    if (widget.contact.instaUsername?.isNotEmpty == true)
+      return SocialType.Instagram;
+    if (widget.contact.discordUsername?.isNotEmpty == true)
+      return SocialType.Discord;
     return null;
   }
 
   // Multi-line metadata block for better readability on tiles.
   Widget _buildMetaBlock({bool expanded = false}) {
     // Derive components so we can place them on separate lines if needed
-    final name = (widget.contact.name != null &&
-            widget.contact.name!.trim().isNotEmpty)
-        ? widget.contact.name!.trim()
-        : _fallbackBaseName(widget.imagePath);
+    final name =
+        (widget.contact.name != null && widget.contact.name!.trim().isNotEmpty)
+            ? widget.contact.name!.trim()
+            : _fallbackBaseName(widget.imagePath);
     final offsetRel = _formatRelativeOffset(widget.contact.location?.utcOffset);
     final offsetAbs = _formatUtcOffset(widget.contact.location?.utcOffset);
     final offset = offsetRel ?? offsetAbs;
@@ -206,7 +154,10 @@ class _ImageTileState extends State<ImageTile> {
     // Derive lines
     final lines = <String>[];
     final line1 = name;
-    final line2 = [if (offset != null) offset, if (platformAt != null) platformAt].join(' • ');
+    final line2 = [
+      if (offset != null) offset,
+      if (platformAt != null) platformAt
+    ].join(' • ');
     final line3 = found;
     if (line1.isNotEmpty) lines.add(line1);
     if (line2.isNotEmpty) lines.add(line2);
@@ -237,7 +188,8 @@ class _ImageTileState extends State<ImageTile> {
         }();
         // integrate to line2
         if (lines.length > 1) {
-          lines[1] = lines[1].isNotEmpty ? '${lines[1]} • $addedLabel' : addedLabel;
+          lines[1] =
+              lines[1].isNotEmpty ? '${lines[1]} • $addedLabel' : addedLabel;
           emphasizeIndex = 1;
         } else {
           lines.add(addedLabel);
@@ -353,15 +305,7 @@ class _ImageTileState extends State<ImageTile> {
     return raw.isNegative ? -0 : 0;
   }
 
-  SocialType? _getPrimarySocial() {
-    if (widget.contact.snapUsername?.isNotEmpty == true)
-      return SocialType.Snapchat;
-    if (widget.contact.instaUsername?.isNotEmpty == true)
-      return SocialType.Instagram;
-    if (widget.contact.discordUsername?.isNotEmpty == true)
-      return SocialType.Discord;
-    return null;
-  }
+  // Removed unused _getPrimarySocial helper.
 
   String? _getPrimaryUsername(SocialType social) {
     switch (social) {
@@ -614,105 +558,7 @@ class _ImageTileState extends State<ImageTile> {
     return result ?? false;
   }
 
-  Future<void> _editUsernames(BuildContext context) async {
-    final originalSnap = widget.contact.snapUsername ?? '';
-    final originalInsta = widget.contact.instaUsername ?? '';
-    final originalDiscord = widget.contact.discordUsername ?? '';
-
-    final snapController = TextEditingController(text: originalSnap);
-    final instaController = TextEditingController(text: originalInsta);
-    final discordController = TextEditingController(text: originalDiscord);
-
-    bool changed = false;
-    void updateChanged() {
-      changed = snapController.text != originalSnap ||
-          instaController.text != originalInsta ||
-          discordController.text != originalDiscord;
-    }
-
-    snapController.addListener(updateChanged);
-    instaController.addListener(updateChanged);
-    discordController.addListener(updateChanged);
-
-    final result = await showDialog<List<String>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return WillPopScope(
-          onWillPop: () async {
-            if (changed) {
-              return await _confirm(context, message: 'Discard changes?');
-            }
-            return true;
-          },
-          child: AlertDialog(
-            title: const Text('Edit Usernames'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: snapController,
-                  decoration: const InputDecoration(labelText: 'Snapchat'),
-                ),
-                TextField(
-                  controller: instaController,
-                  decoration: const InputDecoration(labelText: 'Instagram'),
-                ),
-                TextField(
-                  controller: discordController,
-                  decoration: const InputDecoration(labelText: 'Discord'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () async {
-                  if (changed) {
-                    final discard =
-                        await _confirm(context, message: 'Discard changes?');
-                    if (!discard) return;
-                  }
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (changed) {
-                    final confirmSave =
-                        await _confirm(context, message: 'Save changes?');
-                    if (!confirmSave) return;
-                  }
-                  Navigator.pop(context, [
-                    snapController.text,
-                    instaController.text,
-                    discordController.text,
-                  ]);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (result != null) {
-      if (result[0] != widget.contact.snapUsername) {
-        await SocialType.Snapchat.saveUsername(widget.contact, result[0],
-            overriding: true);
-      }
-      if (result[1] != widget.contact.instaUsername) {
-        await SocialType.Instagram.saveUsername(widget.contact, result[1],
-            overriding: true);
-      }
-      if (result[2] != widget.contact.discordUsername) {
-        await SocialType.Discord.saveUsername(widget.contact, result[2],
-            overriding: true);
-      }
-      setState(() {});
-    }
-  }
+  // Removed unused _editUsernames dialog.
 
   void _openSocial(SocialType social, String username) async {
     // Proactively free decoded images to reduce memory pressure before switching apps
@@ -1083,7 +929,8 @@ class _ImageTileState extends State<ImageTile> {
                     Positioned(
                       top: 8,
                       left: 8,
-                      right: 56, // reserve space for the top-right action button
+                      right:
+                          56, // reserve space for the top-right action button
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
@@ -1091,7 +938,8 @@ class _ImageTileState extends State<ImageTile> {
                           // Metadata block (tap to expand/collapse)
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => setState(() => _metaExpanded = !_metaExpanded),
+                            onTap: () =>
+                                setState(() => _metaExpanded = !_metaExpanded),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   vertical: 4, horizontal: 6),
@@ -1215,7 +1063,7 @@ class _ImageTileState extends State<ImageTile> {
     }();
 
     // Base button
-  final baseBtn = IconButton(
+    final baseBtn = IconButton(
       tooltip: _enableTooltips ? 'Open ${s.name}' : null,
       iconSize: 22,
       color: Colors.white,
@@ -1239,9 +1087,9 @@ class _ImageTileState extends State<ImageTile> {
       icon: iconWidget,
     );
 
-  // Wrap with distinct single-badge states
-  Widget buttonWithBadges = baseBtn;
-  if (s == SocialType.Snapchat) {
+    // Wrap with distinct single-badge states
+    Widget buttonWithBadges = baseBtn;
+    if (s == SocialType.Snapchat) {
       final added = widget.contact.addedOnSnap;
       final verified = widget.contact.verifiedOnSnapAt != null;
       if (!added && !verified) {
@@ -1260,7 +1108,9 @@ class _ImageTileState extends State<ImageTile> {
                 right: -2,
                 top: -2,
                 child: _statusDot(
-                  color: added ? Colors.lightGreenAccent.shade700 : Colors.blueAccent,
+                  color: added
+                      ? Colors.lightGreenAccent.shade700
+                      : Colors.blueAccent,
                   icon: Icons.verified,
                 ),
               )
@@ -1332,22 +1182,19 @@ class _ImageTileState extends State<ImageTile> {
   // Wrapper: choose verified platform if available; else show placeholder
   Widget _buildVerifiedPrimaryOrPlaceholderButton() {
     final s = _getPrimaryVerifiedSocial();
-  if (s == null) return _buildNoVerifiedButton();
-  return _buildPrimarySocialButton();
+    if (s == null) return _buildNoVerifiedButton();
+    return _buildPrimarySocialButton();
   }
 
   SocialType? _getPrimaryVerifiedSocial() {
-    final hasSnap =
-        (widget.contact.snapUsername?.isNotEmpty ?? false) &&
-            widget.contact.verifiedOnSnapAt != null;
+    final hasSnap = (widget.contact.snapUsername?.isNotEmpty ?? false) &&
+        widget.contact.verifiedOnSnapAt != null;
     if (hasSnap) return SocialType.Snapchat;
-    final hasInsta =
-        (widget.contact.instaUsername?.isNotEmpty ?? false) &&
-            (widget.contact.verifiedOnInstaAt != null);
+    final hasInsta = (widget.contact.instaUsername?.isNotEmpty ?? false) &&
+        (widget.contact.verifiedOnInstaAt != null);
     if (hasInsta) return SocialType.Instagram;
-    final hasDiscord =
-        (widget.contact.discordUsername?.isNotEmpty ?? false) &&
-            (widget.contact.verifiedOnDiscordAt != null);
+    final hasDiscord = (widget.contact.discordUsername?.isNotEmpty ?? false) &&
+        (widget.contact.verifiedOnDiscordAt != null);
     if (hasDiscord) return SocialType.Discord;
     return null;
   }
@@ -1368,7 +1215,7 @@ class _ImageTileState extends State<ImageTile> {
   // Placeholder button when no verified handles exist; opens handles sheet
   Widget _buildNoVerifiedButton() {
     return IconButton(
-  tooltip: _enableTooltips ? 'No verified handle • Tap to edit' : null,
+      tooltip: _enableTooltips ? 'No verified handle • Tap to edit' : null,
       iconSize: 22,
       color: Colors.white,
       padding: EdgeInsets.zero,
