@@ -1,3 +1,19 @@
+<#
+Bootstrap script for personal_voice_notes Flutter project.
+
+This is a template adapted from an existing project's bootstrap script. Fill in the TODOs below before running.
+
+TODOs you MUST fill in:
+ - $ConfigPath: path (dot-separated) in Firebase Functions config which contains a base64 keystore string, e.g. 'myapp.keystore'
+ - (optional) $DesiredFlutterVersion: set if you want to pin Flutter to a specific release tag
+
+Notes:
+ - Run this script in PowerShell (Windows) as a normal user. Some operations (setx, creating junctions) may need elevation.
+ - This script will try to install tools via winget when missing. Ensure winget is available.
+ - The script will attempt to use the Firebase CLI. You must login (the script calls `firebase login`).
+ - Review sections marked NOTE/REVIEW before using in CI.
+#>
+
 param(
     [string]$ConfigPath = "photowordfind.keystore"
 )
@@ -103,7 +119,7 @@ function Ensure-CommandPersistence {
     return (Ensure-PathEntry -Dir $dir -ToolName $ToolName)
 }
 
-# Pre-warm winget sources to avoid first-run prompts/hangs
+# Pre-warm winget (avoid prompts on first run)
 try {
     $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
     if ($wingetCmd) {
@@ -112,7 +128,7 @@ try {
     }
 } catch { }
 
-# Ensure JDK 17 is installed and available
+# -------------- Ensure JDK 17 --------------
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 $jdkInstalled = Is-WingetPackageInstalled $jdkPackage
@@ -124,63 +140,9 @@ if (-not $javaCmd -or -not $jdkInstalled) {
 } else {
     Write-Host "JDK 17 is already installed and available." -ForegroundColor Green
 }
-# Check if installed JDK is version 17
-$needJdk = $true
-$verCheck = Get-Command java -ErrorAction SilentlyContinue
-if ($verCheck) {
-    $verLine = (& java -version 2>&1)[0]
-    if ($verLine -match '"(\d+)"') {
-        if ([int]$Matches[1] -eq 17) { $needJdk = $false }
-    }
-}
-if ($needJdk) {
-    Write-Host "Warning: JAVA_HOME not set to JDK 17" -ForegroundColor Yellow
-}
 
-# Ensure Android Studio and command line tools are installed
-$studioPackage = 'Google.AndroidStudio'
-$studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
-$studioInstalled = Is-WingetPackageInstalled $studioPackage
-if (-not $studioCmd -or -not $studioInstalled) {
-    Write-Host "Installing Android Studio via winget..."
-    winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity
-    $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
-    $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
-} else {
-    Write-Host "Android Studio is already installed and available." -ForegroundColor Green
-}
-# Guarantee studio64.exe is reachable from PATH
-if (-not $studioCmd) {
-    $searchDirs = @(
-        "$env:LOCALAPPDATA\Programs\Android\Android Studio\bin",
-        "$env:ProgramFiles\Android\Android Studio\bin",
-        "$env:ProgramFiles\Google\Android Studio\bin"
-    )
-    foreach ($d in $searchDirs) {
-        $candidate = Join-Path $d 'studio64.exe'
-        if (Test-Path $candidate) { $studioCmd = @{ Source = $candidate }; break }
-    }
-}
-if ($studioCmd) {
-    $studioDir = Split-Path $studioCmd.Source
-    $null = Ensure-PathEntry -Dir $studioDir -ToolName 'Android Studio'
-} else {
-    Write-Host "Android Studio executable not found" -ForegroundColor Yellow
-}
-
-$sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
-if (-not (Test-Path $sdkManager)) {
-    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\tools\bin\sdkmanager.bat"
-}
-$needStudioSetup = $false
-if (Test-Path $sdkManager) {
-    Write-Host "Found Android cmdline tools." -ForegroundColor Green
-} else {
-    $needStudioSetup = $true
-}
-$studioProcess = $null
-
-$jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' | Sort-Object Name -Descending | Select-Object -First 1
+# Optional: set JAVA_HOME to Adoptium installation if found
+$jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
 if ($jdkDir) {
     $env:PWF_JAVA_HOME = $jdkDir.FullName
     $env:JAVA_HOME = $env:PWF_JAVA_HOME
@@ -193,37 +155,69 @@ if ($jdkDir) {
 
     $jdkPathEntry = "$env:PWF_JAVA_HOME\bin"
     $null = Ensure-PathEntry -Dir $jdkPathEntry -ToolName 'JDK 17'
-
-    $jdkLink = Join-Path $PSScriptRoot '..\.jdk'
-    if (-not (Test-Path $jdkLink)) {
-        # Use a junction instead of a symbolic link so admin privileges aren't
-        # required. This still allows Gradle to locate the project's JDK without
-        # modifying global paths.
-        New-Item -ItemType Junction -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
-        Write-Host "Linked .jdk -> $env:PWF_JAVA_HOME" -ForegroundColor Green
-    } else {
-        Write-Host "JDK link already exists at $jdkLink" -ForegroundColor Yellow
-    }
 } else {
-    Write-Warning "Unable to locate a Temurin JDK 17 under $Env:ProgramFiles. Android Studio may not have been run yet."
+    Write-Host "Warning: Unable to locate a Temurin JDK 17 under Program Files. Ensure JDK 17 is installed and JAVA_HOME points to it." -ForegroundColor Yellow
 }
 
+# -------------- Android Studio & SDK tools --------------
+$studioPackage = 'Google.AndroidStudio'
+$studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
+$studioInstalled = Is-WingetPackageInstalled $studioPackage
+if (-not $studioCmd -or -not $studioInstalled) {
+    Write-Host "Installing Android Studio via winget..."
+    winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity
+    $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
+    $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
+} else {
+    Write-Host "Android Studio is already installed and available." -ForegroundColor Green
+}
 
+# Try to locate sdkmanager
+$sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
+if (-not (Test-Path $sdkManager)) {
+    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\tools\bin\sdkmanager.bat"
+}
+if (Test-Path $sdkManager) {
+    Write-Host "Found Android cmdline tools." -ForegroundColor Green
+} else {
+    Write-Host "Android cmdline tools not found. You may be prompted to finish Android Studio setup." -ForegroundColor Yellow
+}
 
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
-if (Test-Path $adbPathEntry) {
-    $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools'
-}
+if (Test-Path $adbPathEntry) { $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools' }
 
-# Kick off Flutter SDK setup via VS Code (non-blocking). Actual pinning happens after Android Studio wizard closes.
+# -------------- Flutter SDK --------------
 $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
 if (-not $flutterCmd) {
-    Write-Host "Triggering Flutter extension to set up the SDK (you may see prompts in VS Code)..." -ForegroundColor Cyan
+    Write-Host "Triggering VS Code Flutter extension to set up the SDK (non-blocking)..." -ForegroundColor Cyan
     try { Start-Process "vscode://command/flutter.changeSdk" 2>$null | Out-Null } catch { }
     try { Start-Process "vscode://command/flutter.doctor" 2>$null | Out-Null } catch { }
+} else {
+    Write-Host "Flutter already available." -ForegroundColor Green
 }
 
-# Install Firebase CLI if missing
+# If Flutter exists and DesiredFlutterVersion specified, attempt to pin (only works for git checkout)
+if ($DesiredFlutterVersion -and $flutterCmd) {
+    $flutterBin = Split-Path $flutterCmd.Source
+    $flutterRoot = (Split-Path $flutterBin -Parent)
+    $gitDir = Join-Path $flutterRoot '.git'
+    if (Test-Path $gitDir) {
+        try {
+            Push-Location $flutterRoot
+            git fetch --tags
+            git checkout $DesiredFlutterVersion
+            Pop-Location
+            Write-Host "Checked out Flutter $DesiredFlutterVersion" -ForegroundColor Green
+        } catch {
+            Write-Host "Warning: Failed to pin Flutter to $DesiredFlutterVersion." -ForegroundColor Yellow
+            Pop-Location 2>$null
+        }
+    } else {
+        Write-Host "Flutter SDK is not a git checkout; cannot pin automatically." -ForegroundColor Yellow
+    }
+}
+
+# -------------- Firebase CLI --------------
 $firebasePackage = 'Google.FirebaseCLI'
 $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
 $firebaseInstalled = Is-WingetPackageInstalled $firebasePackage
@@ -236,172 +230,95 @@ if (-not $firebaseCmd -or -not $firebaseInstalled) {
     Write-Host "Firebase CLI is already installed and available." -ForegroundColor Green
 }
 
-# Sign in to Firebase
-Write-Host "Authenticating with Firebase..."
-firebase login
+Write-Host "Authenticating with Firebase (you may be prompted)..."
+# NOTE: this will open a browser for interactive login. If you plan to run in CI, skip this and use service account credentials.
+try { firebase login } catch { Write-Host "firebase login failed or interrupted." -ForegroundColor Yellow }
 
-# Launch Android Studio setup wizard if cmdline tools are missing
-if ($needStudioSetup -and $studioCmd) {
-    Write-Host "Starting Android Studio to complete SDK setup..."
-    Write-Host "Please finish the wizard while the script continues running."
-    $studioProcess = Start-Process -FilePath $studioCmd.Source -PassThru
-}
-
-# Fetch debug keystore
+# -------------- Fetch debug keystore from Firebase functions config (optional) --------------
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
-if (-not (Test-Path $keystorePath)) {
-    Write-Host "Downloading debug keystore from Functions config..."
-    $cfgOut = firebase functions:config:get $ConfigPath --project $ProjectId
+if (-not (Test-Path $keystorePath) -and $ConfigPath -and $ProjectId -and $ConfigPath -ne '<KEYSTORE_CONFIG_PATH>') {
+    Write-Host "Attempting to fetch keystore from Firebase Functions config ($ConfigPath)..."
+    $cfgOut = firebase functions:config:get $ConfigPath --project $ProjectId 2>$null
     if ($LASTEXITCODE -eq 0 -and $cfgOut) {
-        Write-Host "Raw config output: $cfgOut"
         $trim = $cfgOut.Trim()
         $base64 = $null
         if ($trim.StartsWith('{') -or $trim.StartsWith('[')) {
             try {
-                Write-Host "Parsing JSON config..."
                 $cfg = $trim | ConvertFrom-Json
                 foreach ($seg in $ConfigPath -split '\\.') { $cfg = $cfg.$seg }
                 $base64 = $cfg
             } catch {
-                Write-Host "Failed to parse JSON config" -ForegroundColor Yellow
+                Write-Host "Failed to parse JSON config: $($_.Exception.Message)" -ForegroundColor Yellow
             }
         } else {
-            if ($trim.StartsWith('"') -and $trim.EndsWith('"')) {
-                Write-Host "Stripping quotes from config string..."
-                $base64 = $trim.Trim('"')
-            } else {
-                $base64 = $trim
-            }
+            if ($trim.StartsWith('"') -and $trim.EndsWith('"')) { $base64 = $trim.Trim('"') } else { $base64 = $trim }
         }
         if ($base64) {
             Write-Host "Writing keystore to $keystorePath"
-            [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($base64))
+            try { [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($base64)) ; Write-Host "Keystore written." -ForegroundColor Green } catch { Write-Host "Failed to write keystore: $($_.Exception.Message)" -ForegroundColor Yellow }
         } else {
-            Write-Host "No keystore config found" -ForegroundColor Yellow
+            Write-Host "No keystore data found in config." -ForegroundColor Yellow
         }
     } else {
-        Write-Host "Failed to fetch keystore config" -ForegroundColor Yellow
+        Write-Host "Failed to fetch keystore config from Firebase (or config missing)." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "Keystore already exists at $keystorePath" -ForegroundColor Green
+    if (Test-Path $keystorePath) { Write-Host "Keystore already exists at $keystorePath" -ForegroundColor Green }
 }
 
-# Calculate SHA-1 fingerprint and add to Firebase if app id provided
-$keytool = (Get-Command keytool).Source
-$fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugkey -storepass android -keypass android |
-    Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
-Write-Host "Keystore SHA-1 fingerprint is $fingerprint"
+# -------------- Calculate SHA-1 and optionally register with Firebase --------------
+try {
+    $keytool = (Get-Command keytool -ErrorAction SilentlyContinue).Source
+    if ($keytool -and (Test-Path $keystorePath)) {
+        $fingerprint = & $keytool -list -v -keystore $keystorePath -alias androiddebugkey -storepass android -keypass android |
+            Select-String 'SHA1:' | ForEach-Object { $_.ToString().Replace('SHA1:', '').Trim() }
+        Write-Host "Keystore SHA-1 fingerprint is $fingerprint"
 
-Write-Host "Checking Firebase app for existing fingerprint..."
-# Normalize fingerprint: remove colons and lowercase
-$normFingerprint = ($fingerprint -replace ':','').ToLower()
-# Fetch existing SHA hashes and normalize
-$existingJson = firebase apps:android:sha:list $FirebaseAppId --project $ProjectId --json 2>$null
-$existing = @()
-if ($LASTEXITCODE -eq 0 -and $existingJson) {
-    try {
-        $convertedJson = $existingJson | ConvertFrom-Json
-        $existing = $convertedJson.result | ForEach-Object { $_.shaHash.ToLower() }
-    } catch {
-        Write-Host "Failed to parse Firebase JSON response." -ForegroundColor Yellow
-    }
-}
-
-if ($existing -contains $normFingerprint) {
-    Write-Host "Fingerprint already registered." -ForegroundColor Green
-} else {
-    Write-Host "Registering SHA-1 fingerprint with Firebase..." -ForegroundColor Green
-    firebase apps:android:sha:create $FirebaseAppId $normFingerprint --project $ProjectId
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "SHA-1 fingerprint registered successfully." -ForegroundColor Green
-    } else {
-        Write-Host "Failed to register fingerprint." -ForegroundColor Yellow
-    }
-}
-
-# Wait for Android Studio wizard if it was started
-if ($studioProcess) {
-    Write-Host "Waiting for Android Studio setup to finish..."
-    Wait-Process -Id $studioProcess.Id
-    Refresh-SessionPath
-    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
-    if (Test-Path $sdkManager) {
-        Write-Host "Installing Android cmdline tools..."
-        & $sdkManager --install "cmdline-tools;latest" "platform-tools" | Out-Null
-    } else {
-        Write-Host "SDK manager still not found" -ForegroundColor Yellow
-    }
-}
-
-# After Android Studio setup, pause briefly, then check Flutter once and pin if available
-Write-Host "Preparing to finalize Flutter SDK setup..." -ForegroundColor Yellow
-$resp = Read-Host "Press Enter to wait 5 seconds, or type 's' to skip the wait if Flutter is already installed"
-if ($resp.Trim().ToLower() -ne 's') {
-    Write-Host "Sleeping 5 seconds before checking for Flutter..." -ForegroundColor DarkYellow
-    Start-Sleep -Seconds 5
-}
-
-Refresh-SessionPath
-$flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
-if ($flutterCmd) {
-    try {
-        $verText = & $flutterCmd.Source --version 2>$null
-        if ($LASTEXITCODE -ne 0 -or -not $verText) { throw "Flutter command not ready" }
-    } catch {
-        Write-Host "Flutter command found but not ready. Skipping version pin for now." -ForegroundColor Yellow
-        $flutterCmd = $null
-    }
-}
-
-if ($flutterCmd) {
-    $flutterBin = Split-Path $flutterCmd.Source
-    $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter'
-    $flutterRoot = (Split-Path $flutterBin -Parent)
-    $desiredFlutterVersion = "3.24.5"
-    $currentFlutterVersion = (& $flutterCmd.Source --version 2>$null | Select-String -Pattern "^Flutter\s+([0-9\.]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value })[0]
-    $gitDir = Join-Path $flutterRoot '.git'
-    if (Test-Path $gitDir) {
-        if ($currentFlutterVersion -ne $desiredFlutterVersion) {
-            Push-Location $flutterRoot
-            try {
-                git fetch --tags
-                git checkout $desiredFlutterVersion
-            } catch {
-                Write-Host "Warning: Failed to switch Flutter to $desiredFlutterVersion. Continuing with current version." -ForegroundColor Yellow
+        if ($FirebaseAppId -and $FirebaseAppId -ne '<FIREBASE_ANDROID_APP_ID>' -and $ProjectId -and $ProjectId -ne '<FIREBASE_PROJECT_ID>') {
+            Write-Host "Checking Firebase app for existing fingerprint..."
+            $normFingerprint = ($fingerprint -replace ':','').ToLower()
+            $existingJson = firebase apps:android:sha:list $FirebaseAppId --project $ProjectId --json 2>$null
+            if ($LASTEXITCODE -eq 0 -and $existingJson) {
+                try {
+                    $convertedJson = $existingJson | ConvertFrom-Json
+                    $existing = $convertedJson.result | ForEach-Object { $_.shaHash.ToLower() }
+                } catch { $existing = @() }
+                if ($existing -contains $normFingerprint) {
+                    Write-Host "Fingerprint already registered." -ForegroundColor Green
+                } else {
+                    Write-Host "Registering SHA-1 fingerprint with Firebase..."
+                    firebase apps:android:sha:create $FirebaseAppId $normFingerprint --project $ProjectId
+                    if ($LASTEXITCODE -eq 0) { Write-Host "SHA-1 fingerprint registered successfully." -ForegroundColor Green } else { Write-Host "Failed to register fingerprint." -ForegroundColor Yellow }
+                }
+            } else {
+                Write-Host "Unable to list existing Android app SHA hashes from Firebase." -ForegroundColor Yellow
             }
-            Pop-Location
         } else {
-            Write-Host "Flutter $desiredFlutterVersion already checked out." -ForegroundColor Green
+            Write-Host "Firebase app id or project id not set; skipping SHA-1 registration." -ForegroundColor Yellow
         }
     } else {
-        if ($currentFlutterVersion -and $currentFlutterVersion -ne $desiredFlutterVersion) {
-            Write-Host "Flutter SDK is not a git checkout; cannot pin to $desiredFlutterVersion automatically. Current: $currentFlutterVersion" -ForegroundColor Yellow
-        }
+        Write-Host "keytool not found or keystore missing; skipping SHA-1 steps." -ForegroundColor Yellow
     }
-} else {
-    Write-Host "Flutter not detected after brief wait; skipping version pin." -ForegroundColor Yellow
-}
+} catch { Write-Host "Error while computing/ registering fingerprint: $($_.Exception.Message)" -ForegroundColor Yellow }
 
-# Mark bootstrap complete
-$flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
-Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
-Set-Content -Path $flagPath -Value 'ok'
-
-# Ensure Windows Developer Mode is enabled for Flutter deployment
+# -------------- Windows developer mode hint --------------
 $devModeRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
 $devModeEnabled = $false
 try {
     $reg = Get-ItemProperty -Path $devModeRegPath -ErrorAction Stop
-    if ($reg -and $reg.AllowDevelopmentWithoutDevLicense -eq 1) {
-        $devModeEnabled = $true
-    }
-} catch {
-    # Key may not exist if never enabled
-}
+    if ($reg -and $reg.AllowDevelopmentWithoutDevLicense -eq 1) { $devModeEnabled = $true }
+} catch { }
 if (-not $devModeEnabled) {
     Write-Host "Windows Developer Mode is not enabled. Opening Developer Mode settings..." -ForegroundColor Cyan
-    Start-Process "ms-settings:developers"
-    Write-Host "Please enable Developer Mode in the settings window for Flutter deployment."
+    try { Start-Process "ms-settings:developers" } catch { }
+    Write-Host "Please enable Developer Mode in the settings window for Flutter deployment." -ForegroundColor Yellow
 } else {
     Write-Host "Windows Developer Mode is already enabled." -ForegroundColor Green
 }
+
+# -------------- Finish --------------
+$flagPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.bootstrap_complete'
+Write-Host "Marking bootstrap complete at $flagPath" -ForegroundColor Green
+try { Set-Content -Path $flagPath -Value 'ok' } catch { }
+
+Write-Host "Bootstrap finished. Review TODOs at the top of this file if any settings remain." -ForegroundColor Cyan
