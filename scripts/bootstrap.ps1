@@ -142,6 +142,7 @@ if (-not $javaCmd -or -not $jdkInstalled) {
 }
 
 # Optional: set JAVA_HOME to Adoptium installation if found
+# Check if installed JDK is version 17
 $jdkDir = Get-ChildItem "$Env:ProgramFiles\Eclipse Adoptium" -Directory -Filter 'jdk-17*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
 if ($jdkDir) {
     $env:PWF_JAVA_HOME = $jdkDir.FullName
