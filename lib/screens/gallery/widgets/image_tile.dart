@@ -151,42 +151,49 @@ class _ImageTileState extends State<ImageTile> {
     final platformAt = _primaryPlatformAtDate();
     final found = 'Found ${DateFormat.yMd().format(widget.contact.dateFound)}';
 
-    // Derive lines
+    // Derive lines (split platform/date and offset for readability)
     final lines = <String>[];
-    final line1 = name;
-    final line2 = [
-      if (offset != null) offset,
-      if (platformAt != null) platformAt
-    ].join(' • ');
-    final line3 = found;
-    if (line1.isNotEmpty) lines.add(line1);
-    if (line2.isNotEmpty) lines.add(line2);
-    lines.add(line3);
+    final lineName = name;
+    String linePlatform = platformAt ?? '';
+    final lineOffset = offset ?? '';
+    final lineFound = found;
+    if (lineName.isNotEmpty) lines.add(lineName);
+    if (linePlatform.isNotEmpty) lines.add(linePlatform);
+    if (lineOffset.isNotEmpty) lines.add(lineOffset);
+    lines.add(lineFound);
 
     // Determine which line to emphasize based on current sort
     int? emphasizeIndex;
+    IconData? emphIcon;
     switch (widget.sortOption) {
       case 'Name':
         emphasizeIndex = 0; // name line
+        emphIcon = Icons.person;
         break;
       case 'Date found':
         emphasizeIndex = lines.length - 1; // found line
+        emphIcon = Icons.calendar_today;
         break;
       case 'Snap Added Date':
       case 'Instagram Added Date':
         // emphasize platform/date line if present
         emphasizeIndex = lines.length > 1 ? 1 : null;
+        if (widget.sortOption == 'Snap Added Date') {
+          emphIcon = Icons.chat_bubble;
+        } else {
+          emphIcon = Icons.camera_alt;
+        }
         break;
       case 'Added on Snapchat':
       case 'Added on Instagram':
-        // append added/not added tag and emphasize that line
+        // append added/not added tag and emphasize the platform/date line
         final addedLabel = () {
           if (widget.sortOption == 'Added on Snapchat') {
             return widget.contact.addedOnSnap ? 'Added' : 'Not Added';
           }
           return widget.contact.addedOnInsta ? 'Added' : 'Not Added';
         }();
-        // integrate to line2
+        // integrate to platform line (index 1 if present)
         if (lines.length > 1) {
           lines[1] =
               lines[1].isNotEmpty ? '${lines[1]} • $addedLabel' : addedLabel;
@@ -195,10 +202,20 @@ class _ImageTileState extends State<ImageTile> {
           lines.add(addedLabel);
           emphasizeIndex = lines.length - 1;
         }
+        emphIcon = widget.sortOption == 'Added on Snapchat'
+            ? Icons.chat_bubble
+            : Icons.camera_alt;
         break;
       case 'Location':
         // emphasize offset if we have it
-        if (lines.length > 1 && (offset != null)) emphasizeIndex = 1;
+        if (lines.length > 2 && lineOffset.isNotEmpty) {
+          // name (0), platform (1), offset (2)
+          emphasizeIndex = 2;
+        } else if (lines.length > 1 && lineOffset.isNotEmpty) {
+          // name (0), offset (1) — when no platform line
+          emphasizeIndex = 1;
+        }
+        emphIcon = Icons.schedule;
         break;
       default:
         emphasizeIndex = null;
@@ -213,32 +230,41 @@ class _ImageTileState extends State<ImageTile> {
             padding: const EdgeInsets.only(bottom: 1),
             child: () {
               final isEmph = emphasizeIndex == i;
-              final text = Text(
+              final textWidget = Text(
                 lines[i],
                 maxLines: expanded ? 2 : 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: isEmph ? Colors.white : Colors.white.withOpacity(0.93),
                   fontSize: isEmph
-                      ? (expanded ? 12.0 : 11.0)
-                      : (expanded ? 11.5 : 10.5),
+                      ? (expanded ? 12.5 : 11.5)
+                      : (expanded ? 11.0 : 10.5),
                   fontWeight: isEmph ? FontWeight.w700 : FontWeight.w500,
                 ),
               );
-              if (!isEmph) return text;
+              if (!isEmph) return textWidget;
               return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(4),
                   border: Border(
                     left: BorderSide(
-                      color: Colors.lightBlueAccent.withOpacity(0.85),
-                      width: 2,
+                      color: Colors.lightBlueAccent.withOpacity(0.95),
+                      width: 3,
                     ),
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 6),
-                child: text,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (emphIcon != null) ...[
+                      Icon(emphIcon, size: 12, color: Colors.white70),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(child: textWidget),
+                  ],
+                ),
               );
             }(),
           ),
