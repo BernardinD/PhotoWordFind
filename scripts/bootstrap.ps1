@@ -166,7 +166,7 @@ $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 $studioInstalled = Is-WingetPackageInstalled $studioPackage
 if (-not $studioCmd -or -not $studioInstalled) {
     Write-Host "Installing Android Studio via winget..."
-    winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity
+    winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity --no-upgrade
     $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
     $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 } else {
