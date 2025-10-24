@@ -321,6 +321,69 @@ try {
     }
 } catch { Write-Host "Error while computing/ registering fingerprint: $($_.Exception.Message)" -ForegroundColor Yellow }
 
+# Wait for Android Studio wizard if it was started
+if ($studioProcess) {
+    Write-Host "Waiting for Android Studio setup to finish..."
+    Wait-Process -Id $studioProcess.Id
+    Refresh-SessionPath
+    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
+    if (Test-Path $sdkManager) {
+        Write-Host "Installing Android cmdline tools..."
+        & $sdkManager --install "cmdline-tools;latest" "platform-tools" | Out-Null
+    } else {
+        Write-Host "SDK manager still not found" -ForegroundColor Yellow
+    }
+}
+
+# After Android Studio setup, pause briefly, then check Flutter once and pin if available
+Write-Host "Preparing to finalize Flutter SDK setup..." -ForegroundColor Yellow
+$resp = Read-Host "Press Enter to wait 5 seconds, or type 's' to skip the wait if Flutter is already installed"
+if ($resp.Trim().ToLower() -ne 's') {
+    Write-Host "Sleeping 5 seconds before checking for Flutter..." -ForegroundColor DarkYellow
+    Start-Sleep -Seconds 5
+}
+
+Refresh-SessionPath
+$flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
+if ($flutterCmd) {
+    try {
+        $verText = & $flutterCmd.Source --version 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $verText) { throw "Flutter command not ready" }
+    } catch {
+        Write-Host "Flutter command found but not ready. Skipping version pin for now." -ForegroundColor Yellow
+        $flutterCmd = $null
+    }
+}
+
+if ($flutterCmd) {
+    $flutterBin = Split-Path $flutterCmd.Source
+    $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter'
+    $flutterRoot = (Split-Path $flutterBin -Parent)
+    $desiredFlutterVersion = "3.24.5"
+    $currentFlutterVersion = (& $flutterCmd.Source --version 2>$null | Select-String -Pattern "^Flutter\s+([0-9\.]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value })[0]
+    $gitDir = Join-Path $flutterRoot '.git'
+    if (Test-Path $gitDir) {
+        if ($currentFlutterVersion -ne $desiredFlutterVersion) {
+            Push-Location $flutterRoot
+            try {
+                git fetch --tags
+                git checkout $desiredFlutterVersion
+            } catch {
+                Write-Host "Warning: Failed to switch Flutter to $desiredFlutterVersion. Continuing with current version." -ForegroundColor Yellow
+            }
+            Pop-Location
+        } else {
+            Write-Host "Flutter $desiredFlutterVersion already checked out." -ForegroundColor Green
+        }
+    } else {
+        if ($currentFlutterVersion -and $currentFlutterVersion -ne $desiredFlutterVersion) {
+            Write-Host "Flutter SDK is not a git checkout; cannot pin to $desiredFlutterVersion automatically. Current: $currentFlutterVersion" -ForegroundColor Yellow
+        }
+    }
+} else {
+    Write-Host "Flutter not detected after brief wait; skipping version pin." -ForegroundColor Yellow
+}
+
 # -------------- Windows developer mode hint --------------
 $devModeRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
 $devModeEnabled = $false
