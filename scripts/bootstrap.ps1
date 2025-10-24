@@ -173,6 +173,25 @@ if (-not $studioCmd -or -not $studioInstalled) {
     Write-Host "Android Studio is already installed and available." -ForegroundColor Green
 }
 
+# Guarantee studio64.exe is reachable from PATH
+if (-not $studioCmd) {
+    $searchDirs = @(
+        "$env:LOCALAPPDATA\Programs\Android\Android Studio\bin",
+        "$env:ProgramFiles\Android\Android Studio\bin",
+        "$env:ProgramFiles\Google\Android Studio\bin"
+    )
+    foreach ($d in $searchDirs) {
+        $candidate = Join-Path $d 'studio64.exe'
+        if (Test-Path $candidate) { $studioCmd = @{ Source = $candidate }; break }
+    }
+}
+if ($studioCmd) {
+    $studioDir = Split-Path $studioCmd.Source
+    $null = Ensure-PathEntry -Dir $studioDir -ToolName 'Android Studio'
+} else {
+    Write-Host "Android Studio executable not found" -ForegroundColor Yellow
+}
+
 # Try to locate sdkmanager
 $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
 if (-not (Test-Path $sdkManager)) {
