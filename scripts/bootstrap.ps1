@@ -5,7 +5,6 @@ This is a template adapted from an existing project's bootstrap script. Fill in 
 
 TODOs you MUST fill in:
  - $ConfigPath: path (dot-separated) in Firebase Functions config which contains a base64 keystore string, e.g. 'myapp.keystore'
- - (optional) $DesiredFlutterVersion: set if you want to pin Flutter to a specific release tag
 
 Notes:
  - Run this script in PowerShell (Windows) as a normal user. Some operations (setx, creating junctions) may need elevation.
@@ -216,26 +215,7 @@ if (-not $flutterCmd) {
     Write-Host "Flutter already available." -ForegroundColor Green
 }
 
-# If Flutter exists and DesiredFlutterVersion specified, attempt to pin (only works for git checkout)
-if ($DesiredFlutterVersion -and $flutterCmd) {
-    $flutterBin = Split-Path $flutterCmd.Source
-    $flutterRoot = (Split-Path $flutterBin -Parent)
-    $gitDir = Join-Path $flutterRoot '.git'
-    if (Test-Path $gitDir) {
-        try {
-            Push-Location $flutterRoot
-            git fetch --tags
-            git checkout $DesiredFlutterVersion
-            Pop-Location
-            Write-Host "Checked out Flutter $DesiredFlutterVersion" -ForegroundColor Green
-        } catch {
-            Write-Host "Warning: Failed to pin Flutter to $DesiredFlutterVersion." -ForegroundColor Yellow
-            Pop-Location 2>$null
-        }
-    } else {
-        Write-Host "Flutter SDK is not a git checkout; cannot pin automatically." -ForegroundColor Yellow
-    }
-}
+# (Version pinning is handled later once the Flutter CLI is confirmed ready.)
 
 # -------------- Firebase CLI --------------
 $firebasePackage = 'Google.FirebaseCLI'
