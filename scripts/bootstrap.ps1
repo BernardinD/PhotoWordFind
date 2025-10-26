@@ -1,20 +1,30 @@
 <#
-Bootstrap script for personal_voice_notes Flutter project.
+Bootstrap script for the PhotoWordFind Flutter project.
 
-This is a template adapted from an existing project's bootstrap script. Fill in the TODOs below before running.
+What this does (Windows, run inside VS Code):
+ - Ensures JDK 17; sets JAVA_HOME for this session, persists PWF_JAVA_HOME and PATH, and creates a repo-local .jdk junction to JDK 17
+ - Installs Android SDK command-line tools and platform-tools directly (no Android Studio required)
+ - Installs Flutter SDK (latest stable from official manifest; no fallback). Aborts on failure.
+ - Ensures Flutter on PATH and prints version; optionally pins if SDK is a git checkout
+ - Installs Firebase CLI, prompts login, fetches debug keystore from Functions config, computes SHA-1, registers with Firebase
+ - Installs VS Code Flutter and Dart extensions via the running VS Code executable
 
-TODOs you MUST fill in:
- - $ConfigPath: path (dot-separated) in Firebase Functions config which contains a base64 keystore string, e.g. 'myapp.keystore'
+Inputs you may override:
+ - $ConfigPath: dot-separated path in Firebase Functions config containing a base64 keystore string (default: 'photowordfind.keystore')
+ - -InstallAndroidStudio: opt-in switch to install Android Studio via winget (optional; not required for running on device)
+ - $FlutterInstallRoot: where to place the Flutter SDK (default: C:\src)
 
 Notes:
- - Run this script in PowerShell (Windows) as a normal user. Some operations (setx, creating junctions) may need elevation.
- - This script will try to install tools via winget when missing. Ensure winget is available.
- - The script will attempt to use the Firebase CLI. You must login (the script calls `firebase login`).
- - Review sections marked NOTE/REVIEW before using in CI.
+ - Run in PowerShell inside VS Code on Windows. Some operations (setx) persist environment vars.
+ - Requires winget for tool installation and an interactive browser for `firebase login`.
+ - Android Studio is not required for building/running on a physical device; this script installs the needed SDK tools directly.
+     You may still install Android Studio if you prefer its IDE/emulator/profiling tools.
 #>
 
 param(
-    [string]$ConfigPath = "photowordfind.keystore"
+    [string]$ConfigPath = "photowordfind.keystore",
+    [switch]$InstallAndroidStudio = $false,
+    [string]$FlutterInstallRoot = 'C:\\src'
 )
 
 Write-Host "Starting PhotoWordFind bootstrap..."
@@ -135,7 +145,6 @@ $jdkInstalled = Is-WingetPackageInstalled $jdkPackage
 if (-not $javaCmd -or -not $jdkInstalled) {
     Write-Host "Installing JDK 17 via winget..."
     winget install -e --id $jdkPackage --accept-source-agreements --accept-package-agreements --disable-interactivity
-    $null = Ensure-CommandPersistence -CommandName 'java' -ToolName 'JDK 17'
     $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 } else {
     Write-Host "JDK 17 is already installed and available." -ForegroundColor Green
@@ -156,6 +165,22 @@ if ($jdkDir) {
 
     $jdkPathEntry = "$env:PWF_JAVA_HOME\bin"
     $null = Ensure-PathEntry -Dir $jdkPathEntry -ToolName 'JDK 17'
+
+    # Ensure a repo-local .jdk junction points to the selected JDK so Gradle uses it consistently
+    $jdkLink = Join-Path $PSScriptRoot '..\.jdk'
+    if (-not (Test-Path $jdkLink)) {
+        # Use a junction instead of a symbolic link so admin privileges aren't
+        # required. This still allows Gradle to locate the project's JDK without
+        # modifying global paths.
+        try {
+            New-Item -ItemType Junction -Path $jdkLink -Target $env:PWF_JAVA_HOME | Out-Null
+            Write-Host "Linked .jdk -> $env:PWF_JAVA_HOME" -ForegroundColor Green
+        } catch {
+            Write-Host "Failed to create .jdk junction: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "JDK link already exists at $jdkLink" -ForegroundColor Yellow
+    }
 } else {
     Write-Host "Warning: Unable to locate a Temurin JDK 17 under Program Files. Ensure JDK 17 is installed and JAVA_HOME points to it." -ForegroundColor Yellow
 }
@@ -171,15 +196,20 @@ Write-Host "== Android Studio & SDK tools ==" -ForegroundColor Cyan
 $studioPackage = 'Google.AndroidStudio'
 $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 $studioInstalled = Is-WingetPackageInstalled $studioPackage
-if (-not $studioCmd -or -not $studioInstalled) {
-    Write-Host "Installing Android Studio via winget..."
-    winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity --no-upgrade
-    $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
-    $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
+$studioEnsured = $false
+if ($InstallAndroidStudio) {
+    if (-not $studioCmd -or -not $studioInstalled) {
+        Write-Host "Installing Android Studio via winget..."
+        winget install -e --id $studioPackage --accept-source-agreements --accept-package-agreements --disable-interactivity --no-upgrade
+        $null = Ensure-CommandPersistence -CommandName 'studio64.exe' -ToolName 'Android Studio'
+        $studioEnsured = $true
+        $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
+    } else {
+        Write-Host "Android Studio is already installed and available." -ForegroundColor Green
+    }
 } else {
-    Write-Host "Android Studio is already installed and available." -ForegroundColor Green
+    Write-Host "Skipping Android Studio installation (optional)." -ForegroundColor Yellow
 }
-
 # Guarantee studio64.exe is reachable from PATH
 if (-not $studioCmd) {
     $searchDirs = @(
@@ -194,9 +224,9 @@ if (-not $studioCmd) {
 }
 if ($studioCmd) {
     $studioDir = Split-Path $studioCmd.Source
-    $null = Ensure-PathEntry -Dir $studioDir -ToolName 'Android Studio'
+    if (-not $studioEnsured) { $null = Ensure-PathEntry -Dir $studioDir -ToolName 'Android Studio' }
 } else {
-    Write-Host "Android Studio executable not found" -ForegroundColor Yellow
+    Write-Host "Android Studio not found on this system (that's fine; it's optional)." -ForegroundColor DarkYellow
 }
 
 # Try to locate sdkmanager
@@ -208,12 +238,29 @@ if (Test-Path $sdkManager) {
     Write-Host "Found Android cmdline tools." -ForegroundColor Green
     Write-Host "sdkmanager path: $sdkManager" -ForegroundColor DarkGreen
 } else {
-    Write-Host "Android cmdline tools not found. You may be prompted to finish Android Studio setup." -ForegroundColor Yellow
+    Write-Host "Android cmdline tools not found; will attempt direct installation next." -ForegroundColor Yellow
 }
 
+# Ensure core Android SDK components for builds (platform + build-tools) and accept licenses
+try {
+    if (Test-Path $sdkManager) {
+        $sdkRootDefault = Join-Path $Env:LOCALAPPDATA 'Android\Sdk'
+        Write-Host "Installing Android SDK components (platforms;android-34, build-tools;34.0.0)..." -ForegroundColor Cyan
+        & $sdkManager --sdk_root "$sdkRootDefault" "platforms;android-34" "build-tools;34.0.0" 2>$null
+        Write-Host "Accepting Android SDK licenses..." -ForegroundColor Cyan
+        $proc = Start-Process -FilePath $sdkManager -ArgumentList '--licenses' -NoNewWindow -PassThru -RedirectStandardInput Pipe
+        $y = ("y`r`n") * 100
+        $proc.StandardInput.Write($y)
+        $proc.StandardInput.Close()
+        $proc.WaitForExit()
+    }
+} catch { Write-Host "Failed to install SDK components or accept licenses: $($_.Exception.Message)" -ForegroundColor Yellow }
+
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
-if (Test-Path $adbPathEntry) { $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools' }
-if (Test-Path $adbPathEntry) { Write-Host "Platform-tools directory present: $adbPathEntry" -ForegroundColor DarkGreen }
+if (Test-Path $adbPathEntry) {
+    $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools'
+    Write-Host "Platform-tools directory present: $adbPathEntry" -ForegroundColor DarkGreen
+}
 
 # Attempt to install SDK command-line tools and platform-tools directly if missing
 if (-not (Test-Path $sdkManager)) {
@@ -377,8 +424,8 @@ if (-not $flutterCmd) {
     $zipUrl = "$baseUrl/$zipPathPart"
     $zipFile = Join-Path $env:TEMP (Split-Path $zipUrl -Leaf)
 
-    # Choose install root (prefer C:\src, fallback to %USERPROFILE%)
-    $installRoot = 'C:\src'
+    # Choose install root (prefer $FlutterInstallRoot, fallback to %USERPROFILE%)
+    $installRoot = $FlutterInstallRoot
     try {
         if (-not (Test-Path $installRoot)) { New-Item -ItemType Directory -Force -Path $installRoot | Out-Null }
     } catch {
@@ -412,15 +459,12 @@ if (-not $flutterCmd) {
     # Add to PATH and resolve command
     $flutterBin = Join-Path $installDir 'bin'
     if (Test-Path $flutterBin) { $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter' }
-    Refresh-SessionPath
     $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
     if (-not $flutterCmd -and (Test-Path (Join-Path $installDir 'bin\flutter.bat'))) {
         $flutterCmd = [PSCustomObject]@{ Source = (Join-Path $installDir 'bin\flutter.bat') }
     }
 
-    if ($flutterCmd) {
-        try { $ver = & $flutterCmd.Source --version 2>$null ; if ($ver) { Write-Host ("flutter: " + ($ver -split "`n")[0]) -ForegroundColor DarkGreen } } catch { }
-    } else {
+    if (-not $flutterCmd) {
         Write-Error "Flutter installation did not result in a resolvable CLI on PATH. Aborting."
         exit 1
     }
@@ -520,7 +564,7 @@ try {
     }
 } catch { Write-Host "Error while computing/ registering fingerprint: $($_.Exception.Message)" -ForegroundColor Yellow }
 
-# Removed Android Studio wizard wait; direct download path installs tools when missing.
+# Android Studio is optional; this script installs SDK cmdline-tools/platform-tools directly when missing.
 
 # Verify Flutter CLI and (optionally) pin if SDK is a git checkout
 Refresh-SessionPath
