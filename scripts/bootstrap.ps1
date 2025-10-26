@@ -128,6 +128,7 @@ try {
 } catch { }
 
 # -------------- Ensure JDK 17 --------------
+Write-Host "== JDK setup ==" -ForegroundColor Cyan
 $jdkPackage = 'EclipseAdoptium.Temurin.17.JDK'
 $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 $jdkInstalled = Is-WingetPackageInstalled $jdkPackage
@@ -159,7 +160,14 @@ if ($jdkDir) {
     Write-Host "Warning: Unable to locate a Temurin JDK 17 under Program Files. Ensure JDK 17 is installed and JAVA_HOME points to it." -ForegroundColor Yellow
 }
 
+# Print Java version (best-effort)
+try {
+    $jv = (& java -version 2>&1 | Select-Object -First 1)
+    if ($jv) { Write-Host "Java detected: $jv" -ForegroundColor DarkGreen }
+} catch { }
+
 # -------------- Android Studio & SDK tools --------------
+Write-Host "== Android Studio & SDK tools ==" -ForegroundColor Cyan
 $studioPackage = 'Google.AndroidStudio'
 $studioCmd = Get-Command studio64.exe -ErrorAction SilentlyContinue
 $studioInstalled = Is-WingetPackageInstalled $studioPackage
@@ -198,14 +206,135 @@ if (-not (Test-Path $sdkManager)) {
 }
 if (Test-Path $sdkManager) {
     Write-Host "Found Android cmdline tools." -ForegroundColor Green
+    Write-Host "sdkmanager path: $sdkManager" -ForegroundColor DarkGreen
 } else {
     Write-Host "Android cmdline tools not found. You may be prompted to finish Android Studio setup." -ForegroundColor Yellow
 }
 
 $adbPathEntry = "$Env:LOCALAPPDATA\Android\Sdk\platform-tools"
 if (Test-Path $adbPathEntry) { $null = Ensure-PathEntry -Dir $adbPathEntry -ToolName 'Android platform-tools' }
+if (Test-Path $adbPathEntry) { Write-Host "Platform-tools directory present: $adbPathEntry" -ForegroundColor DarkGreen }
+
+# Attempt to install SDK command-line tools and platform-tools directly if missing
+if (-not (Test-Path $sdkManager)) {
+    Write-Host "== SDK direct install (no Android Studio) ==" -ForegroundColor Cyan
+    Write-Host "Attempting direct install of Android SDK tools..." -ForegroundColor Cyan
+
+    # Helpers
+    function Ensure-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force -Path $p | Out-Null } }
+    function Download-File([string]$url, [string]$outPath) {
+        Write-Host "Downloading: $url" -ForegroundColor DarkCyan
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $outPath -ErrorAction Stop
+            return $true
+        } catch {
+            Write-Host "Download failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            return $false
+        }
+    }
+    function Expand-Zip([string]$zipPath, [string]$destDir) {
+        Write-Host "Extracting $zipPath to $destDir" -ForegroundColor DarkCyan
+        Ensure-Dir $destDir
+        try { Expand-Archive -Path $zipPath -DestinationPath $destDir -Force ; return $true } catch { Write-Host "Extract failed: $($_.Exception.Message)" -ForegroundColor Yellow ; return $false }
+    }
+
+    $sdkRoot = Join-Path $Env:LOCALAPPDATA 'Android\Sdk'
+    Ensure-Dir $sdkRoot
+
+    # 1) Platform-tools (latest URL is stable)
+    $ptUrl = 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip'
+    $ptZip = Join-Path $env:TEMP 'platform-tools-latest-windows.zip'
+    if (-not (Test-Path (Join-Path $sdkRoot 'platform-tools'))) {
+        Write-Host "Fetching platform-tools from: $ptUrl" -ForegroundColor DarkCyan
+        if (Download-File $ptUrl $ptZip) {
+            if (Expand-Zip $ptZip $sdkRoot) {
+                $ptPath = Join-Path $sdkRoot 'platform-tools'
+                if (Test-Path $ptPath) {
+                    Write-Host "Extracted platform-tools to: $ptPath" -ForegroundColor DarkGreen
+                    $null = Ensure-PathEntry -Dir $ptPath -ToolName 'Android platform-tools'
+                    try {
+                        $adbExe = Join-Path $ptPath 'adb.exe'
+                        if (Test-Path $adbExe) {
+                            $adbVer = & $adbExe --version | Select-Object -First 1
+                        } else {
+                            $adbCmd = Get-Command adb -ErrorAction SilentlyContinue
+                            if ($adbCmd) { $adbVer = & $adbCmd.Source --version | Select-Object -First 1 }
+                        }
+                        if ($adbVer) { Write-Host "adb: $adbVer" -ForegroundColor DarkGreen }
+                    } catch { }
+                }
+            }
+        }
+    }
+
+    # 2) Command-line tools (determine latest dynamically from repository XML; fallback to known build if needed)
+    $cltUrl = $null
+    try {
+        $repoXmlUrl = 'https://dl.google.com/android/repository/repository2-1.xml'
+        $xmlTmp = Join-Path $env:TEMP 'android-repository2-1.xml'
+        if (Download-File $repoXmlUrl $xmlTmp) {
+            [xml]$repo = Get-Content $xmlTmp
+            # Find remotePackage path='cmdline-tools' with a Windows archive
+            $pkgs = $repo.SelectNodes("//*[local-name()='remotePackage' and @path='cmdline-tools']")
+            if ($pkgs -and $pkgs.Count -gt 0) {
+                # Pick the first package that has a windows archive with complete/url
+                foreach ($p in $pkgs) {
+                    $archives = $p.SelectNodes(".//*[local-name()='archive'][.//*[local-name()='host-os' and (text()='windows' or text()='any')]]")
+                    foreach ($a in $archives) {
+                        $urlNode = $a.SelectSingleNode(".//*[local-name()='complete']/*[local-name()='url']")
+                        if ($urlNode -and $urlNode.InnerText -like 'commandlinetools-win*-latest.zip') {
+                            $cltUrl = 'https://dl.google.com/android/repository/' + $urlNode.InnerText
+                            break
+                        }
+                    }
+                    if ($cltUrl) { break }
+                }
+            }
+        }
+    } catch { Write-Host "Failed to resolve cmdline-tools URL dynamically: $($_.Exception.Message)" -ForegroundColor Yellow }
+
+    if (-not $cltUrl) {
+        # Fallback to current public filename from Android Studio downloads page (updated Oct 2025)
+        $cltUrl = 'https://dl.google.com/android/repository/commandlinetools-win-13114758_latest.zip'
+        Write-Host "Using fallback cmdline-tools URL: $cltUrl" -ForegroundColor Yellow
+    }
+    if ($cltUrl) { Write-Host "cmdline-tools URL resolved: $cltUrl" -ForegroundColor DarkCyan }
+
+    $cltZip = Join-Path $env:TEMP (Split-Path $cltUrl -Leaf)
+    $cltExtractTmp = Join-Path $env:TEMP 'cmdline-tools-extract'
+
+    $installed = Test-Path (Join-Path $Env:LOCALAPPDATA 'Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat')
+    if (-not $installed) {
+        if (Download-File $cltUrl $cltZip) {
+            if (Expand-Zip $cltZip $cltExtractTmp) {
+                $srcCmdTools = Join-Path $cltExtractTmp 'cmdline-tools'
+                if (Test-Path $srcCmdTools) {
+                    $destRoot = Join-Path $sdkRoot 'cmdline-tools'
+                    $destLatest = Join-Path $destRoot 'latest'
+                    if (Test-Path $destLatest) { try { Remove-Item -Recurse -Force $destLatest } catch { } }
+                    Ensure-Dir $destLatest
+                    try {
+                        Copy-Item -Recurse -Force (Join-Path $srcCmdTools '*') $destLatest
+                        $sdkManager = Join-Path $destLatest 'bin\sdkmanager.bat'
+                        if (Test-Path $sdkManager) {
+                            $null = Ensure-PathEntry -Dir (Join-Path $destLatest 'bin') -ToolName 'Android cmdline-tools'
+                            Write-Host "Android command-line tools installed at: $destLatest" -ForegroundColor Green
+                            try { $sdkv = & $sdkManager --version 2>$null ; if ($sdkv) { Write-Host "sdkmanager: $sdkv" -ForegroundColor DarkGreen } } catch { }
+                        } else {
+                            Write-Host "sdkmanager not found after extraction." -ForegroundColor Yellow
+                        }
+                    } catch { Write-Host "Failed to finalize cmdline-tools install: $($_.Exception.Message)" -ForegroundColor Yellow }
+                } else {
+                    Write-Host "Unexpected archive structure: 'cmdline-tools' folder not found in zip." -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+}
 
 # -------------- Flutter SDK --------------
+Write-Host "== Flutter SDK ==" -ForegroundColor Cyan
 $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
 if (-not $flutterCmd) {
     Write-Host "Triggering VS Code Flutter extension to set up the SDK (non-blocking)..." -ForegroundColor Cyan
@@ -218,6 +347,7 @@ if (-not $flutterCmd) {
 # (Version pinning is handled later once the Flutter CLI is confirmed ready.)
 
 # -------------- Firebase CLI --------------
+Write-Host "== Firebase CLI ==" -ForegroundColor Cyan
 $firebasePackage = 'Google.FirebaseCLI'
 $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
 $firebaseInstalled = Is-WingetPackageInstalled $firebasePackage
@@ -230,11 +360,15 @@ if (-not $firebaseCmd -or -not $firebaseInstalled) {
     Write-Host "Firebase CLI is already installed and available." -ForegroundColor Green
 }
 
+# Print Firebase CLI version (best-effort)
+try { $fbv = (& firebase --version 2>$null) ; if ($fbv) { Write-Host "firebase: $fbv" -ForegroundColor DarkGreen } } catch { }
+
 Write-Host "Authenticating with Firebase (you may be prompted)..."
 # NOTE: this will open a browser for interactive login. If you plan to run in CI, skip this and use service account credentials.
 try { firebase login } catch { Write-Host "firebase login failed or interrupted." -ForegroundColor Yellow }
 
 # -------------- Fetch debug keystore from Firebase functions config (optional) --------------
+Write-Host "== Keystore fetch from Firebase functions config ==" -ForegroundColor Cyan
 $keystorePath = Join-Path $PSScriptRoot "..\android\app\debug.keystore"
 if (-not (Test-Path $keystorePath) -and $ConfigPath -and $ProjectId -and $ConfigPath -ne '<KEYSTORE_CONFIG_PATH>') {
     Write-Host "Attempting to fetch keystore from Firebase Functions config ($ConfigPath)..."
@@ -267,6 +401,7 @@ if (-not (Test-Path $keystorePath) -and $ConfigPath -and $ProjectId -and $Config
 }
 
 # -------------- Calculate SHA-1 and optionally register with Firebase --------------
+Write-Host "== Keystore fingerprint & Firebase registration ==" -ForegroundColor Cyan
 try {
     $keytool = (Get-Command keytool -ErrorAction SilentlyContinue).Source
     if ($keytool -and (Test-Path $keystorePath)) {
@@ -301,19 +436,7 @@ try {
     }
 } catch { Write-Host "Error while computing/ registering fingerprint: $($_.Exception.Message)" -ForegroundColor Yellow }
 
-# Wait for Android Studio wizard if it was started
-if ($studioProcess) {
-    Write-Host "Waiting for Android Studio setup to finish..."
-    Wait-Process -Id $studioProcess.Id
-    Refresh-SessionPath
-    $sdkManager = "$Env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
-    if (Test-Path $sdkManager) {
-        Write-Host "Installing Android cmdline tools..."
-        & $sdkManager --install "cmdline-tools;latest" "platform-tools" | Out-Null
-    } else {
-        Write-Host "SDK manager still not found" -ForegroundColor Yellow
-    }
-}
+# Removed Android Studio wizard wait; direct download path installs tools when missing.
 
 # After Android Studio setup, pause briefly, then check Flutter once and pin if available
 Write-Host "Preparing to finalize Flutter SDK setup..." -ForegroundColor Yellow
@@ -329,6 +452,7 @@ if ($flutterCmd) {
     try {
         $verText = & $flutterCmd.Source --version 2>$null
         if ($LASTEXITCODE -ne 0 -or -not $verText) { throw "Flutter command not ready" }
+        else { Write-Host ("Flutter detected: " + ($verText -split "`n")[0]) -ForegroundColor DarkGreen }
     } catch {
         Write-Host "Flutter command found but not ready. Skipping version pin for now." -ForegroundColor Yellow
         $flutterCmd = $null
@@ -365,6 +489,7 @@ if ($flutterCmd) {
 }
 
 # -------------- Windows developer mode hint --------------
+Write-Host "== Windows Developer Mode check ==" -ForegroundColor Cyan
 $devModeRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
 $devModeEnabled = $false
 try {
