@@ -337,9 +337,93 @@ if (-not (Test-Path $sdkManager)) {
 Write-Host "== Flutter SDK ==" -ForegroundColor Cyan
 $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
 if (-not $flutterCmd) {
-    Write-Host "Triggering VS Code Flutter extension to set up the SDK (non-blocking)..." -ForegroundColor Cyan
-    try { Start-Process "vscode://command/flutter.changeSdk" 2>$null | Out-Null } catch { }
-    try { Start-Process "vscode://command/flutter.doctor" 2>$null | Out-Null } catch { }
+    Write-Host "Flutter CLI not found on PATH. Downloading official Flutter SDK (stable) zip..." -ForegroundColor Cyan
+
+    function Invoke-Download([string]$url, [string]$outPath) {
+        Write-Host "Downloading: $url" -ForegroundColor DarkCyan
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $outPath -ErrorAction Stop
+            return $true
+        } catch {
+            Write-Host "Download failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            return $false
+        }
+    }
+
+    # Resolve latest stable Windows release from releases manifest (no fallback)
+    $releasesUrl = 'https://storage.googleapis.com/flutter_infra_release/releases/releases_windows.json'
+    $releaseJson = $null
+    $baseUrl = 'https://storage.googleapis.com/flutter_infra_release/releases'
+    $zipPathPart = $null
+    try {
+        $tmpJson = Join-Path $env:TEMP 'flutter_releases_windows.json'
+        if (Invoke-Download $releasesUrl $tmpJson) {
+            $releaseJson = Get-Content -Path $tmpJson -Raw | ConvertFrom-Json
+            if ($releaseJson) {
+                $baseUrl = $releaseJson.base_url
+                $stableHash = $releaseJson.current_release.stable
+                $rel = $releaseJson.releases | Where-Object { $_.hash -eq $stableHash } | Select-Object -First 1
+                if ($rel -and $rel.archive) { $zipPathPart = $rel.archive }
+            }
+        }
+    } catch { }
+
+    if (-not $zipPathPart) {
+        Write-Error "Failed to resolve Flutter stable release from manifest at $releasesUrl. Aborting." 
+        exit 1
+    }
+
+    $zipUrl = "$baseUrl/$zipPathPart"
+    $zipFile = Join-Path $env:TEMP (Split-Path $zipUrl -Leaf)
+
+    # Choose install root (prefer C:\src, fallback to %USERPROFILE%)
+    $installRoot = 'C:\src'
+    try {
+        if (-not (Test-Path $installRoot)) { New-Item -ItemType Directory -Force -Path $installRoot | Out-Null }
+    } catch {
+        $installRoot = $env:USERPROFILE
+    }
+
+    $installDir = Join-Path $installRoot 'flutter'
+
+    if (Test-Path (Join-Path $installDir 'bin\flutter.bat')) {
+        Write-Host "Flutter already present at $installDir" -ForegroundColor Green
+    } else {
+        if (Invoke-Download $zipUrl $zipFile) {
+            Write-Host "Extracting Flutter SDK to $installRoot ..." -ForegroundColor DarkCyan
+            try {
+                # Ensure empty target folder for clean extract
+                if (Test-Path $installDir) { Remove-Item -Recurse -Force $installDir }
+            } catch { }
+            try {
+                Expand-Archive -Path $zipFile -DestinationPath $installRoot -Force
+                Write-Host "Flutter SDK extracted to: $installDir" -ForegroundColor DarkGreen
+            } catch {
+                Write-Error "Failed to extract Flutter SDK: $($_.Exception.Message)"
+                exit 1
+            }
+        } else {
+            Write-Error "Failed to download Flutter SDK from $zipUrl. Aborting."
+            exit 1
+        }
+    }
+
+    # Add to PATH and resolve command
+    $flutterBin = Join-Path $installDir 'bin'
+    if (Test-Path $flutterBin) { $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter' }
+    Refresh-SessionPath
+    $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
+    if (-not $flutterCmd -and (Test-Path (Join-Path $installDir 'bin\flutter.bat'))) {
+        $flutterCmd = [PSCustomObject]@{ Source = (Join-Path $installDir 'bin\flutter.bat') }
+    }
+
+    if ($flutterCmd) {
+        try { $ver = & $flutterCmd.Source --version 2>$null ; if ($ver) { Write-Host ("flutter: " + ($ver -split "`n")[0]) -ForegroundColor DarkGreen } } catch { }
+    } else {
+        Write-Error "Flutter installation did not result in a resolvable CLI on PATH. Aborting."
+        exit 1
+    }
 } else {
     Write-Host "Flutter already available." -ForegroundColor Green
 }
@@ -438,14 +522,7 @@ try {
 
 # Removed Android Studio wizard wait; direct download path installs tools when missing.
 
-# After Android Studio setup, pause briefly, then check Flutter once and pin if available
-Write-Host "Preparing to finalize Flutter SDK setup..." -ForegroundColor Yellow
-$resp = Read-Host "Press Enter to wait 5 seconds, or type 's' to skip the wait if Flutter is already installed"
-if ($resp.Trim().ToLower() -ne 's') {
-    Write-Host "Sleeping 5 seconds before checking for Flutter..." -ForegroundColor DarkYellow
-    Start-Sleep -Seconds 5
-}
-
+# Verify Flutter CLI and (optionally) pin if SDK is a git checkout
 Refresh-SessionPath
 $flutterCmd = Get-Command flutter -ErrorAction SilentlyContinue
 if ($flutterCmd) {
@@ -454,12 +531,10 @@ if ($flutterCmd) {
         if ($LASTEXITCODE -ne 0 -or -not $verText) { throw "Flutter command not ready" }
         else { Write-Host ("Flutter detected: " + ($verText -split "`n")[0]) -ForegroundColor DarkGreen }
     } catch {
-        Write-Host "Flutter command found but not ready. Skipping version pin for now." -ForegroundColor Yellow
-        $flutterCmd = $null
+        Write-Error "Flutter command found but not ready. Aborting."
+        exit 1
     }
-}
 
-if ($flutterCmd) {
     $flutterBin = Split-Path $flutterCmd.Source
     $null = Ensure-PathEntry -Dir $flutterBin -ToolName 'Flutter'
     $flutterRoot = (Split-Path $flutterBin -Parent)
@@ -485,7 +560,48 @@ if ($flutterCmd) {
         }
     }
 } else {
-    Write-Host "Flutter not detected after brief wait; skipping version pin." -ForegroundColor Yellow
+    Write-Error "Flutter not detected after installation. Aborting."
+    exit 1
+}
+
+# -------------- VS Code + Flutter/Dart extensions --------------
+Write-Host "== VS Code Extensions (Flutter/Dart) ==" -ForegroundColor Cyan
+
+function Get-VSCodeCliPath {
+    # Since this script runs inside VS Code, prefer the running VS Code process
+    try {
+        $procNames = @('Code.exe','Code - Insiders.exe','VSCodium.exe','code-oss.exe')
+        $procs = Get-CimInstance Win32_Process | Where-Object { $procNames -contains $_.Name }
+        if ($procs -and $procs[0].ExecutablePath) { return $procs[0].ExecutablePath }
+    } catch { }
+
+    # Fallback to CLI shims on PATH
+    $candidates = @('code','code.cmd','code-insiders','code-insiders.cmd','codium','code-oss')
+    foreach ($c in $candidates) {
+        $cmd = Get-Command $c -ErrorAction SilentlyContinue
+        if ($cmd) { return $cmd.Source }
+    }
+
+    # Fallback to common install paths
+    $paths = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\Code.exe'),
+        (Join-Path $env:ProgramFiles 'Microsoft VS Code\Code.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\VSCodium\VSCodium.exe')
+    )
+    foreach ($p in $paths) { if (Test-Path $p) { return $p } }
+
+    return $null
+}
+
+$codeCli = Get-VSCodeCliPath
+if ($codeCli) {
+    Write-Host "Installing Flutter and Dart extensions using: $codeCli" -ForegroundColor DarkCyan
+    try { & $codeCli --install-extension Dart-Code.flutter --force } catch { Write-Host "Failed to install Dart-Code.flutter" -ForegroundColor Yellow }
+    try { & $codeCli --install-extension Dart-Code.dart-code --force } catch { Write-Host "Failed to install Dart-Code.dart-code" -ForegroundColor Yellow }
+} else {
+    Write-Host "VS Code executable not found, but this script is expected to run inside VS Code. Please run the following in the VS Code Command Prompt:" -ForegroundColor Yellow
+    Write-Host "code --install-extension Dart-Code.flutter" -ForegroundColor Yellow
+    Write-Host "code --install-extension Dart-Code.dart-code" -ForegroundColor Yellow
 }
 
 # -------------- Windows developer mode hint --------------
