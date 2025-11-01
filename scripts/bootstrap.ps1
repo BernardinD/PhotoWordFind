@@ -484,6 +484,7 @@ if (-not $firebaseCmd -or -not $firebaseInstalled) {
     winget install -e --id $firebasePackage --accept-source-agreements --accept-package-agreements --disable-interactivity
     $null = Ensure-CommandPersistence -CommandName 'firebase' -ToolName 'Firebase CLI'
     $firebaseCmd = Get-Command firebase -ErrorAction SilentlyContinue
+    if (-not $firebaseCmd -and (Test-Path $firebaseExe)) { $firebaseCmd = [PSCustomObject]@{ Source = $firebaseExe } }
 } else {
     Write-Host "Firebase CLI is already installed and available." -ForegroundColor Green
 }
@@ -491,9 +492,35 @@ if (-not $firebaseCmd -or -not $firebaseInstalled) {
 # Print Firebase CLI version (best-effort)
 try { $fbv = (& firebase --version 2>$null) ; if ($fbv) { Write-Host "firebase: $fbv" -ForegroundColor DarkGreen } } catch { }
 
-Write-Host "Authenticating with Firebase (you may be prompted)..."
-# NOTE: this will open a browser for interactive login. If you plan to run in CI, skip this and use service account credentials.
-try { firebase login } catch { Write-Host "firebase login failed or interrupted." -ForegroundColor Yellow }
+# -------------- Firebase account & project binding (per-repo, idempotent) --------------
+# Ensure at least one account is authorized (first-time on a given machine will open a browser).
+# If already logged in, this is a no-op.
+$loginList = firebase login:list 2>$null
+if ($LASTEXITCODE -ne 0 -or -not ($loginList -match '@')) {
+    Write-Host "No Firebase accounts authorized on this machine yet. Opening browser to log in…" -ForegroundColor Cyan
+    firebase login
+    $loginList = firebase login:list 2>$null
+}
+
+# If this repo doesn't have a default account pinned, ask once and remember it for THIS directory.
+# This uses the CLI's built-in interactive picker; it will NOT require an email in the script and
+# will not re-prompt on subsequent runs.
+if ($loginList -notmatch 'Default account for this directory') {
+    Write-Host "Select the Firebase account to pin to this repo (one-time):" -ForegroundColor Cyan
+    firebase login:add
+    firebase login:use
+} else {
+    Write-Host "Firebase default account already pinned for this directory." -ForegroundColor Green
+}
+
+# Ensure the Firebase project is configured for this repo (.firebaserc). If missing, prompt once.
+$firebasercPath = Join-Path $PSScriptRoot ".firebaserc"
+if (-not (Test-Path $firebasercPath)) {
+    Write-Host "This repo doesn't have a Firebase project selected yet. Opening selector (one-time)..." -ForegroundColor Cyan
+    firebase use --add
+} else {
+    Write-Host ".firebaserc present; project already configured for this repo." -ForegroundColor Green
+}
 
 # -------------- Fetch debug keystore from Firebase functions config (optional) --------------
 Write-Host "== Keystore fetch from Firebase functions config ==" -ForegroundColor Cyan
