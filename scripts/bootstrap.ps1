@@ -248,11 +248,16 @@ try {
         Write-Host "Installing Android SDK components (platforms;android-34, build-tools;34.0.0)..." -ForegroundColor Cyan
         & $sdkManager --sdk_root "$sdkRootDefault" "platforms;android-34" "build-tools;34.0.0" 2>$null
         Write-Host "Accepting Android SDK licenses..." -ForegroundColor Cyan
-        $proc = Start-Process -FilePath $sdkManager -ArgumentList '--licenses' -NoNewWindow -PassThru -RedirectStandardInput Pipe
-        $y = ("y`r`n") * 100
-        $proc.StandardInput.Write($y)
-        $proc.StandardInput.Close()
-        $proc.WaitForExit()
+        # In Windows PowerShell 5.1, -RedirectStandardInput expects a file path, not a live pipe.
+        # Create a temp file with many 'y' responses and feed it to sdkmanager's stdin.
+        try {
+            $tempYes = [System.IO.Path]::GetTempFileName()
+            Set-Content -Path $tempYes -Value ("y`r`n" * 100) -NoNewline
+            $proc = Start-Process -FilePath $sdkManager -ArgumentList '--licenses' -NoNewWindow -PassThru -RedirectStandardInput $tempYes
+            $proc.WaitForExit()
+        } finally {
+            if ($tempYes -and (Test-Path $tempYes)) { Remove-Item -Force $tempYes -ErrorAction SilentlyContinue }
+        }
     }
 } catch { Write-Host "Failed to install SDK components or accept licenses: $($_.Exception.Message)" -ForegroundColor Yellow }
 
