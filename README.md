@@ -151,15 +151,67 @@ The debug keystore is stored in Firebase Functions config as a Base64 string so
 each machine can retrieve the same signing key. You must be authenticated with
 the Firebase CLI and have access to the `photowordfind.keystore` config value.
 
-Fetch the file with:
-```bash
-firebase functions:config:get photowordfind.keystore --project=pwfapp-f314d \
-  | tr -d '"' | base64 --decode > android/app/debug.keystore
+Windows (PowerShell):
+
+```powershell
+# Recommended (does everything):
+powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap.ps1
+
+# Or manual retrieval:
+$b64 = (firebase functions:config:get photowordfind.keystore --project pwfapp-f314d)
+if ($b64.StartsWith('"') -and $b64.EndsWith('"')) { $b64 = $b64.Trim('"') }
+[IO.File]::WriteAllBytes('android/app/debug.keystore', [Convert]::FromBase64String($b64))
 ```
 
 The `scripts/bootstrap.ps1` script installs the Firebase CLI using `winget`,
 signs in, downloads the keystore from this config value, and registers its
 fingerprint with Firebase automatically on Windows.
+
+### How the keystore was created (inferred)
+From the scripts and Gradle config, this shared key is the standard Android debug keystore:
+
+- Alias: `androiddebugkey`
+- Keystore password: `android`
+- Key password: `android`
+- Algorithm/size: RSA 2048
+- Validity: 10,000 days
+- DN: `CN=Android Debug,O=Android,C=US`
+
+You can recreate an identical debug keystore with:
+
+Important: Do not regenerate the keystore if you want installs on existing devices to continue without uninstall. Always reuse the exact same `debug.keystore` file. The passwords below do not affect the app’s identity; they only unlock the file. Changing the file (regenerating keys) changes the signature and breaks continuity.
+
+Windows (PowerShell) — only if you are intentionally creating a new shared debug keystore:
+
+```powershell
+$keytool = (Get-Command keytool).Source
+& $keytool -genkeypair -v `
+  -keystore "android/app/debug.keystore" `
+  -alias androiddebugkey `
+  -storepass android -keypass android `
+  -keyalg RSA -keysize 2048 -validity 10000 `
+  -dname "CN=Android Debug,O=Android,C=US"
+```
+
+List fingerprint (useful for verification):
+
+```powershell
+$keytool = (Get-Command keytool).Source
+& $keytool -list -v -keystore "android/app/debug.keystore" -alias androiddebugkey -storepass android -keypass android | Select-String 'SHA1:'
+```
+
+### Uploading the keystore to Firebase Functions config
+Once created, store it as Base64 in Functions config so all machines can fetch the same file.
+
+Windows (PowerShell):
+
+```powershell
+$bytes = [IO.File]::ReadAllBytes("android/app/debug.keystore")
+$b64   = [Convert]::ToBase64String($bytes)
+firebase functions:config:set photowordfind.keystore="$b64" --project=pwfapp-f314d
+```
+
+After uploading, teammates can use the retrieval command above or run `scripts/bootstrap.ps1` to download and install the keystore automatically.
 
 ### Recommended storage
 Keep the keystore in your Firebase project's function config so it can be
