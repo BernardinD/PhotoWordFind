@@ -212,17 +212,29 @@ class StorageUtils {
   /// Note: I still need to determine if this function is still needed and
   /// being used. I expect that with the new saving function of auto saving
   /// with the Contact Entry this save function is no longer needed.
+  static final Set<Future<void>> _pendingSaves = <Future<void>>{};
+
+  static bool get hasPendingSaves => _pendingSaves.isNotEmpty;
+
   static Future<void> save(
     ContactEntry entry, {
     bool reload = false,
-  }) async {
-    // Immediate Hive write; rely on Hive internals for batching/safety.
+  }) {
+    final future = _saveInternal(entry);
+    _registerPendingSave(future);
+    return future;
+  }
+
+  static Future<void> _saveInternal(ContactEntry entry) async {
     final String id = entry.identifier;
     final String rawJson = jsonEncode(entry.toJson());
     final box = Hive.box('contacts');
     await box.put(id, rawJson);
 
-    // Schedule a global debounced cloud sync after local save requests.
+    _scheduleCloudSync();
+  }
+
+  static void _scheduleCloudSync() {
     _cloudDebounceTimer?.cancel();
     _cloudDebounceTimer = Timer(_cloudDebounceDuration, () async {
       _cloudDebounceTimer = null;
@@ -230,6 +242,43 @@ class StorageUtils {
         await CloudUtils.updateCloudJson();
       }
     });
+  }
+
+  static void _registerPendingSave(Future<void> future) {
+    _pendingSaves.add(future);
+    future.whenComplete(() {
+      _pendingSaves.remove(future);
+    });
+  }
+
+  /// Await any in-flight save calls and optionally force the Hive box to
+  /// flush its buffers. Use this before the app backgrounds so edits are not
+  /// lost if the process is killed mid-write.
+  static Future<void> waitForPendingSaves({
+    Duration timeout = const Duration(seconds: 3),
+    bool flushHive = true,
+  }) async {
+    if (_pendingSaves.isNotEmpty) {
+      final futures = List<Future<void>>.from(_pendingSaves);
+      try {
+        final waiter = Future.wait(futures, eagerError: false);
+        if (timeout == Duration.zero) {
+          await waiter;
+        } else {
+          await waiter.timeout(timeout);
+        }
+      } on TimeoutException catch (e) {
+        debugPrint('Pending saves did not finish before timeout: $e');
+      }
+    }
+
+    if (flushHive && Hive.isBoxOpen('contacts')) {
+      try {
+        await Hive.box('contacts').flush();
+      } catch (e) {
+        debugPrint('Failed to flush Hive box: $e');
+      }
+    }
   }
 
   /// TODO: Revisit this and its use of Async, which restricts us to

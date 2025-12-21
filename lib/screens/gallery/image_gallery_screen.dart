@@ -179,6 +179,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       false; // when true, show only redo candidates/failed and change FAB
   // Selection mode: stays active until user cancels
   bool _selectionModeActive = false;
+  static const Duration _pendingSaveFlushTimeout = Duration(seconds: 3);
 
   // Listen to job status changes to refresh banner/mode contents
   void _onJobsChanged() {
@@ -254,9 +255,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       MemoryUtils.trimImageCaches();
+      _ensurePendingSavesFlushed('background');
     } else if (state == AppLifecycleState.resumed) {
       // Also clear any stale decodes on resume
       MemoryUtils.trimImageCaches();
+    } else if (state == AppLifecycleState.detached) {
+      _ensurePendingSavesFlushed('detached');
     }
   }
 
@@ -264,6 +268,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   void didHaveMemoryPressure() {
     // Android signaled low memory; free decoded bitmaps immediately
     MemoryUtils.trimImageCaches();
+  }
+
+  void _ensurePendingSavesFlushed(String reason) {
+    if (!StorageUtils.hasPendingSaves) return;
+    unawaited(StorageUtils
+        .waitForPendingSaves(timeout: _pendingSaveFlushTimeout)
+        .catchError((error, stack) {
+      debugPrint('Failed to flush pending saves on $reason: $error');
+    }));
   }
 
   // ---------------- Initialization ----------------
