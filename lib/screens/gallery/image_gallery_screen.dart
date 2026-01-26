@@ -180,6 +180,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   // Selection mode: stays active until user cancels
   bool _selectionModeActive = false;
 
+  /// Returns true if leaving the screen should prompt because work is in progress.
+  bool get _hasBlockingOperation =>
+      _selectionModeActive && selectedImages.isNotEmpty;
+
   // Listen to job status changes to refresh banner/mode contents
   void _onJobsChanged() {
     if (!mounted) return;
@@ -398,103 +402,136 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final body =
         _isInitializing ? _buildInitializing() : _buildMainContent(navContext);
 
-    return Scaffold(
-      appBar: kUseCompactHeader
-          ? null
-          : AppBar(
-              title: const Text('Image Gallery'),
-              actions: _buildAppBarActions(navContext)),
-      body: body,
-      floatingActionButton: _isInitializing
-          ? null
-          : _redoMode
-              ? FloatingActionButton.extended(
-                  onPressed: () {
-                    // In redo mode, apply full redo to all displayed candidates
-                    final Map<String, RedoJobStatus> statusMap =
-                        RedoJobManager.instance.statuses.value;
-                    bool _isRedoCandidate(ContactEntry c) {
-                      final isEmpty =
-                          ((c.extractedText?.trim().isEmpty ?? true)) &&
-                              ((c.name == null || c.name!.trim().isEmpty)) &&
-                              (c.age == null) &&
-                              ((c.snapUsername?.trim().isEmpty ?? true)) &&
-                              ((c.instaUsername?.trim().isEmpty ?? true)) &&
-                              ((c.discordUsername?.trim().isEmpty ?? true)) &&
-                              ((c.sections?.isNotEmpty ?? false) == false);
-                      final failed =
-                          statusMap[c.identifier]?.message == 'Failed';
-                      return isEmpty || failed;
-                    }
+    return WillPopScope(
+      onWillPop: _handleExitAttempt,
+      child: Scaffold(
+        appBar: kUseCompactHeader
+            ? null
+            : AppBar(
+                title: const Text('Image Gallery'),
+                actions: _buildAppBarActions(navContext)),
+        body: body,
+        floatingActionButton: _isInitializing
+            ? null
+            : _redoMode
+                ? FloatingActionButton.extended(
+                    onPressed: () {
+                      // In redo mode, apply full redo to all displayed candidates
+                      final Map<String, RedoJobStatus> statusMap =
+                          RedoJobManager.instance.statuses.value;
+                      bool _isRedoCandidate(ContactEntry c) {
+                        final isEmpty =
+                            ((c.extractedText?.trim().isEmpty ?? true)) &&
+                                ((c.name == null || c.name!.trim().isEmpty)) &&
+                                (c.age == null) &&
+                                ((c.snapUsername?.trim().isEmpty ?? true)) &&
+                                ((c.instaUsername?.trim().isEmpty ?? true)) &&
+                                ((c.discordUsername?.trim().isEmpty ?? true)) &&
+                                ((c.sections?.isNotEmpty ?? false) == false);
+                        final failed =
+                            statusMap[c.identifier]?.message == 'Failed';
+                        return isEmpty || failed;
+                      }
 
-                    final targets = images.where(_isRedoCandidate).toList();
-                    if (targets.isEmpty) return;
-                    for (final entry in targets) {
-                      try {
-                        RedoJobManager.instance.enqueueFull(
-                          entry: entry,
-                          imageFile: File(entry.imagePath),
-                          allowNameAgeUpdate: (entry.name == null ||
-                              entry.name!.isEmpty ||
-                              entry.age == null),
-                        );
-                      } catch (_) {}
-                    }
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              'Queued ${targets.length} redo job${targets.length == 1 ? '' : 's'}')),
-                    );
-                  },
-                  icon: const Icon(Icons.autorenew),
-                  label: const Text('Redo (Full)'),
-                )
-        : _selectionModeActive
-          ? FloatingActionButton(
-            onPressed: selectedImages.isEmpty
-              ? null
-              : () => _onMenuOptionSelected('', 'move'),
-            tooltip: 'Move selected',
-            child: const Icon(Icons.move_to_inbox),
-          )
-                  : FloatingActionButton(
-                      onPressed: () => _importImages(navContext),
-                      tooltip: 'Import Images',
-                      child: const Icon(Icons.add),
-                    ),
-      persistentFooterButtons: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: MediaQuery.of(navContext).size.width * 1.20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                SocialIcon.snapchatIconButton!,
-                const Spacer(),
-                SocialIcon.galleryIconButton!,
-                const Spacer(),
-                SocialIcon.bumbleIconButton!,
-                const Spacer(),
-                FloatingActionButton(
-                  heroTag: null,
-                  tooltip: 'Change current directory',
-                  onPressed: _changeImportDir,
-                  child: const Icon(Icons.drive_folder_upload),
-                ),
-                const Spacer(),
-                SocialIcon.instagramIconButton!,
-                const Spacer(),
-                SocialIcon.discordIconButton!,
-                const Spacer(),
-                SocialIcon.kikIconButton!,
-              ],
+                      final targets = images.where(_isRedoCandidate).toList();
+                      if (targets.isEmpty) return;
+                      for (final entry in targets) {
+                        try {
+                          RedoJobManager.instance.enqueueFull(
+                            entry: entry,
+                            imageFile: File(entry.imagePath),
+                            allowNameAgeUpdate: (entry.name == null ||
+                                entry.name!.isEmpty ||
+                                entry.age == null),
+                          );
+                        } catch (_) {}
+                      }
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'Queued ${targets.length} redo job${targets.length == 1 ? '' : 's'}')),
+                      );
+                    },
+                    icon: const Icon(Icons.autorenew),
+                    label: const Text('Redo (Full)'),
+                  )
+                : _selectionModeActive
+                    ? FloatingActionButton(
+                        onPressed: selectedImages.isEmpty
+                            ? null
+                            : () => _onMenuOptionSelected('', 'move'),
+                        tooltip: 'Move selected',
+                        child: const Icon(Icons.move_to_inbox),
+                      )
+                    : FloatingActionButton(
+                        onPressed: () => _importImages(navContext),
+                        tooltip: 'Import Images',
+                        child: const Icon(Icons.add),
+                      ),
+        persistentFooterButtons: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: MediaQuery.of(navContext).size.width * 1.20,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SocialIcon.snapchatIconButton!,
+                  const Spacer(),
+                  SocialIcon.galleryIconButton!,
+                  const Spacer(),
+                  SocialIcon.bumbleIconButton!,
+                  const Spacer(),
+                  FloatingActionButton(
+                    heroTag: null,
+                    tooltip: 'Change current directory',
+                    onPressed: _changeImportDir,
+                    child: const Icon(Icons.drive_folder_upload),
+                  ),
+                  const Spacer(),
+                  SocialIcon.instagramIconButton!,
+                  const Spacer(),
+                  SocialIcon.discordIconButton!,
+                  const Spacer(),
+                  SocialIcon.kikIconButton!,
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  /// Intercepts back navigation and shows a confirmation sheet when work could be lost.
+  Future<bool> _handleExitAttempt() async {
+    if (!_hasBlockingOperation) {
+      return true;
+    }
+
+    final bool? confirmExit = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return _ExitConfirmationSheet(
+          selectionCount: selectedImages.length,
+          onDiscard: () => Navigator.pop(sheetContext, true),
+          onStay: () => Navigator.pop(sheetContext, false),
+        );
+      },
+    );
+
+    if (confirmExit == true) {
+      setState(() {
+        selectedImages.clear();
+        _neverBackSelected.clear();
+        _selectionModeActive = false;
+      });
+      return true;
+    }
+
+    return false;
   }
 
   Widget _buildInitializing() {
@@ -549,7 +586,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               _buildInitializationErrorBanner(context),
             if (!_redoMode) _buildRedoBanner(),
             _buildControls(),
-    Expanded(
+            Expanded(
               child: ImageGallery(
                 images: displayedImages,
                 selectedImages: selectedImages,
@@ -561,7 +598,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       _neverBackSelected.remove(id);
                     } else {
                       selectedImages.add(id);
-          _selectionModeActive = true;
+                      _selectionModeActive = true;
                     }
                   });
                 },
@@ -569,7 +606,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 galleryHeight: screenHeight,
                 onPageChanged: (idx) => setState(() => currentIndex = idx),
                 currentIndex: currentIndex,
-        selectionMode: _selectionModeActive,
+                selectionMode: _selectionModeActive,
                 neverBackSelectedIds: _neverBackSelected,
                 onToggleNeverBack: (id) {
                   setState(() {
@@ -623,12 +660,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 _neverBackSelected.remove(id);
               } else {
                 selectedImages.add(id);
-        _selectionModeActive = true;
+                _selectionModeActive = true;
               }
             });
           },
           onMenuOptionSelected: _onMenuOptionSelected,
-      selectionMode: _selectionModeActive,
+          selectionMode: _selectionModeActive,
           neverBackSelectedIds: _neverBackSelected,
           onToggleNeverBack: (id) {
             setState(() {
@@ -2070,9 +2107,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         ? currentState
         : states.firstWhere((s) => s != 'All', orElse: () => '');
     final controller = TextEditingController(text: selected);
-  // Default checkbox: ON by default (user can toggle off)
-  bool applyNeverBack = true;
-  bool userToggled = false; // track manual user change
+    // Default checkbox: ON by default (user can toggle off)
+    bool applyNeverBack = true;
+    bool userToggled = false; // track manual user change
 
     return showDialog<_MoveSelection>(
       context: context,
@@ -2125,8 +2162,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Also mark "never friended back" for moved items'),
-                  subtitle: const Text('Resets Added on Snap/Insta/Discord and adds a note'),
+                  title: const Text(
+                      'Also mark "never friended back" for moved items'),
+                  subtitle: const Text(
+                      'Resets Added on Snap/Insta/Discord and adds a note'),
                   value: applyNeverBack,
                   onChanged: (v) {
                     setState(() {
@@ -2148,7 +2187,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   if (state.isEmpty) {
                     Navigator.pop(context);
                   } else {
-                    Navigator.pop(context, _MoveSelection(state, applyNeverBack));
+                    Navigator.pop(
+                        context, _MoveSelection(state, applyNeverBack));
                   }
                 },
                 child: const Text('OK')),
@@ -2481,6 +2521,101 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         content: Text(imported > 0
             ? 'Imported $imported image${imported == 1 ? '' : 's'}'
             : 'No new images imported'),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet shown when the user attempts to exit with pending selections.
+class _ExitConfirmationSheet extends StatelessWidget {
+  final int selectionCount;
+  final VoidCallback onStay;
+  final VoidCallback onDiscard;
+
+  const _ExitConfirmationSheet({
+    required this.selectionCount,
+    required this.onStay,
+    required this.onDiscard,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final message = selectionCount == 1
+        ? 'You have 1 item selected. Leaving will clear it.'
+        : 'You have $selectionCount items selected. Leaving will clear them.';
+
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: theme.colorScheme.secondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Leave and clear selection?',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: theme.textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonal(
+                    style: FilledButton.styleFrom(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: onStay,
+                    child: const Text(
+                      'Stay in app',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: onDiscard,
+                    child: const Text(
+                      'Discard & exit',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
