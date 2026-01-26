@@ -60,4 +60,12 @@ void main() {
     // Should either show the app content or an error message, but not crash
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('ImageGalleryScreen wires exit confirmation guard',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: ImageGalleryScreen()));
+    await tester.pump();
+
+    expect(find.byType(WillPopScope), findsWidgets);
+  });
 }
