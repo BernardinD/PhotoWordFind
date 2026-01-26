@@ -11,6 +11,10 @@ This repository contains a Flutter application. A setup script is automatically 
   using the standard Flutter format, describing the function's action and
   purpose when applicable.
 
+## Maintenance
+- Every new chat request must operate on its own feature/fix branch created from the latest `master` (or `main`) branch so work stays isolated and easy to review.
+- When new developer instructions emerge that are likely to be reused, append them to this document immediately so future AI agents stay aligned.
+
 ## Testing
 Run tests with:
 ```bash
