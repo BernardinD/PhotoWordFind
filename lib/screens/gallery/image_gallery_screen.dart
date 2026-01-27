@@ -188,6 +188,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   bool get _hasBlockingOperation =>
       _selectionModeActive && selectedImages.isNotEmpty;
 
+  /// Returns true if leaving the screen should prompt because work is in progress.
+  bool get _hasBlockingOperation =>
+      _selectionModeActive && selectedImages.isNotEmpty;
+
   // Listen to job status changes to refresh banner/mode contents
   void _onJobsChanged() {
     if (!mounted) return;
@@ -545,38 +549,34 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   /// Intercepts back navigation and shows a confirmation sheet when work could be lost.
   Future<bool> _handleExitAttempt() async {
-    bool shouldExit = true;
-
-    if (_hasBlockingOperation) {
-      final bool? confirmExit = await showModalBottomSheet<bool>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (sheetContext) {
-          return _ExitConfirmationSheet(
-            selectionCount: selectedImages.length,
-            onDiscard: () => Navigator.pop(sheetContext, true),
-            onStay: () => Navigator.pop(sheetContext, false),
-          );
-        },
-      );
-
-      if (confirmExit == true) {
-        setState(() {
-          selectedImages.clear();
-          _neverBackSelected.clear();
-          _selectionModeActive = false;
-        });
-        shouldExit = true;
-      } else {
-        shouldExit = false;
-      }
-    }
-
-    if (shouldExit) {
+    if (!_hasBlockingOperation) {
       _ensurePendingSavesFlushed('nav-pop', flushCloud: true);
+      return true;
     }
 
-    return shouldExit;
+    final bool? confirmExit = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return _ExitConfirmationSheet(
+          selectionCount: selectedImages.length,
+          onDiscard: () => Navigator.pop(sheetContext, true),
+          onStay: () => Navigator.pop(sheetContext, false),
+        );
+      },
+    );
+
+    if (confirmExit == true) {
+      setState(() {
+        selectedImages.clear();
+        _neverBackSelected.clear();
+        _selectionModeActive = false;
+      });
+      _ensurePendingSavesFlushed('nav-pop', flushCloud: true);
+      return true;
+    }
+
+    return false;
   }
 
   Widget _buildInitializing() {
@@ -2571,7 +2571,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 }
 
-/// Modal dialog that displays syncing progress until [progress] completes.
 /// Bottom sheet shown when the user attempts to exit with pending selections.
 class _ExitConfirmationSheet extends StatelessWidget {
   final int selectionCount;
