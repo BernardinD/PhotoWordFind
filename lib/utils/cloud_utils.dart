@@ -1,8 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:PhotoWordFind/main.dart';
-import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:_discoveryapis_commons/_discoveryapis_commons.dart'
