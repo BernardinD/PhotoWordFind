@@ -16,6 +16,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppException implements Exception {
   String cause;
@@ -47,6 +48,11 @@ class CloudUtils {
   // static String _jsonBackupFile = "PWF_scans_backup.json";
   // static String _jsonTestingNewUIBackup = "testing_new_UI.json";
   static String _jsonBackupFile = "test_auto_create_file2.json";
+
+  static const String _pendingFlushPrefKey =
+      'cloud_flush_pending_started_at_v1';
+  static const Duration _pendingFlushMaxAge = Duration(minutes: 5);
+  static const Duration _pendingFlushRecheckInterval = Duration(seconds: 3);
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -82,19 +88,18 @@ class CloudUtils {
     }
   }
 
-  static Future<bool> firstSignIn() {
-    return handleSignIn().then((bool value) {
-      if (value) {
-        CloudUtils.getCloudJson().then((bool found) {
-          if (!found) {
-            CloudUtils.createCloudJson();
-          }
-        }).onError((dynamic error, stackTrace) async =>
-            Future.value(debugPrint("$error \n $stackTrace") as Null));
-      }
-
-      return value;
-    });
+  static Future<bool> firstSignIn() async {
+    final signedIn = await handleSignIn();
+    if (!signedIn) return false;
+    final pending = await isCloudFlushPending();
+    if (pending) {
+      debugPrint(
+          'Cloud flush pending on sign-in; deferring initial cloud pull.');
+      unawaited(_waitForPendingFlushThenMerge());
+    } else {
+      unawaited(_refreshOrCreateCloudJson());
+    }
+    return true;
   }
 
   static Future possibleSignOut() async {
@@ -175,6 +180,29 @@ class CloudUtils {
     }
   }
 
+  static Future<void> markCloudFlushPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+        _pendingFlushPrefKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Future<void> clearCloudFlushPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingFlushPrefKey);
+  }
+
+  static Future<bool> isCloudFlushPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? startedAt = prefs.getInt(_pendingFlushPrefKey);
+    if (startedAt == null) return false;
+    final duration = DateTime.now().millisecondsSinceEpoch - startedAt;
+    if (duration > _pendingFlushMaxAge.inMilliseconds) {
+      await prefs.remove(_pendingFlushPrefKey);
+      return false;
+    }
+    return true;
+  }
+
   static Future<bool> createCloudJson() async {
     // Check connection
     if (!(await isConnected())) throw NoInternetException();
@@ -200,6 +228,24 @@ class CloudUtils {
       if (value) debugPrint("File created");
       return value;
     });
+  }
+
+  static Future<void> _refreshOrCreateCloudJson() async {
+    try {
+      final found = await getCloudJson();
+      if (!found) {
+        await createCloudJson();
+      }
+    } catch (error, stackTrace) {
+      debugPrint("$error \n $stackTrace");
+    }
+  }
+
+  static Future<void> _waitForPendingFlushThenMerge() async {
+    while (await isCloudFlushPending()) {
+      await Future.delayed(_pendingFlushRecheckInterval);
+    }
+    await _refreshOrCreateCloudJson();
   }
 
   /// Returns list of existing directories names along a given path

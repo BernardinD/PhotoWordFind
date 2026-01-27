@@ -26,6 +26,7 @@ Future<void> initBackgroundTasks() async {
 Future<void> enqueueCloudFlushTask() async {
   if (!Platform.isAndroid) return;
   try {
+    await CloudUtils.markCloudFlushPending();
     await Workmanager().registerOneOffTask(
       kCloudFlushTask,
       kCloudFlushTask,
@@ -34,6 +35,7 @@ Future<void> enqueueCloudFlushTask() async {
     );
     debugPrint('[bg-task] enqueued cloud flush');
   } catch (e, s) {
+    await CloudUtils.clearCloudFlushPending();
     debugPrint('Failed to enqueue cloud flush task: $e\n$s');
   }
 }
@@ -45,6 +47,7 @@ void callbackDispatcher() {
     WidgetsFlutterBinding.ensureInitialized();
     debugPrint('[bg-task] start task: $task');
     if (task == kCloudFlushTask) {
+      bool success = true;
       try {
         await StorageUtils.init();
         final signedIn = await CloudUtils.isSignedin();
@@ -56,11 +59,13 @@ void callbackDispatcher() {
         }
         await CloudUtils.updateCloudJson();
         debugPrint('[bg-task] cloud flush success');
-        return true;
       } catch (e, s) {
+        success = false;
         debugPrint('Cloud flush task failed: $e\n$s');
-        return false;
+      } finally {
+        await CloudUtils.clearCloudFlushPending();
       }
+      return success;
     }
     debugPrint('[bg-task] task ignored: $task');
     return true;
