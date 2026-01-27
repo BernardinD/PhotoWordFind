@@ -179,7 +179,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       false; // when true, show only redo candidates/failed and change FAB
   // Selection mode: stays active until user cancels
   bool _selectionModeActive = false;
-  static const Duration _pendingSaveFlushTimeout = Duration(seconds: 3);
+  static const Duration _pendingSaveFlushTimeout = Duration(seconds: 1);
+  static const Duration _pendingCloudFlushTimeout = Duration(seconds: 1);
 
   /// Returns true if leaving the screen should prompt because work is in progress.
   bool get _hasBlockingOperation =>
@@ -240,6 +241,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   @override
   void dispose() {
+    _ensurePendingSavesFlushed('dispose');
     _searchDebounce?.cancel();
     _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -274,13 +276,43 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     MemoryUtils.trimImageCaches();
   }
 
-  void _ensurePendingSavesFlushed(String reason) {
-    if (!StorageUtils.hasPendingSaves) return;
-    unawaited(StorageUtils
-        .waitForPendingSaves(timeout: _pendingSaveFlushTimeout)
-        .catchError((error, stack) {
+  /// Ensures pending local saves finish and optionally forces an immediate
+  /// cloud sync. When [awaitCompletion] is true, the caller is responsible for
+  /// awaiting the returned future (typically to show UI feedback).
+  Future<void>? _ensurePendingSavesFlushed(String reason,
+      {bool awaitCompletion = false, bool flushCloud = false}) {
+    final shouldFlush = StorageUtils.hasPendingSaves || flushCloud;
+    if (!shouldFlush) return null;
+    Future<void> future = StorageUtils.waitForPendingSaves(
+      timeout: _pendingSaveFlushTimeout,
+    ).catchError((error, stack) {
       debugPrint('Failed to flush pending saves on $reason: $error');
-    }));
+    });
+    if (flushCloud) {
+      future = future.then((_) {
+        return StorageUtils.flushCloudNow(
+          timeout: _pendingCloudFlushTimeout,
+        );
+      });
+    }
+    if (!awaitCompletion) {
+      unawaited(future);
+      return null;
+    }
+    return future;
+  }
+
+  /// Displays a modal progress indicator while [flushFuture] completes.
+  Future<void> _showFlushProgressDialog(Future<void> flushFuture) async {
+    if (!mounted) {
+      await flushFuture;
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _CloudFlushProgressDialog(progress: flushFuture),
+    );
   }
 
   // ---------------- Initialization ----------------
@@ -519,32 +551,42 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   /// Intercepts back navigation and shows a confirmation sheet when work could be lost.
   Future<bool> _handleExitAttempt() async {
-    if (!_hasBlockingOperation) {
-      return true;
+    bool shouldExit = true;
+
+    if (_hasBlockingOperation) {
+      final bool? confirmExit = await showModalBottomSheet<bool>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) {
+          return _ExitConfirmationSheet(
+            selectionCount: selectedImages.length,
+            onDiscard: () => Navigator.pop(sheetContext, true),
+            onStay: () => Navigator.pop(sheetContext, false),
+          );
+        },
+      );
+
+      if (confirmExit == true) {
+        setState(() {
+          selectedImages.clear();
+          _neverBackSelected.clear();
+          _selectionModeActive = false;
+        });
+        shouldExit = true;
+      } else {
+        shouldExit = false;
+      }
     }
 
-    final bool? confirmExit = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return _ExitConfirmationSheet(
-          selectionCount: selectedImages.length,
-          onDiscard: () => Navigator.pop(sheetContext, true),
-          onStay: () => Navigator.pop(sheetContext, false),
-        );
-      },
-    );
-
-    if (confirmExit == true) {
-      setState(() {
-        selectedImages.clear();
-        _neverBackSelected.clear();
-        _selectionModeActive = false;
-      });
-      return true;
+    if (shouldExit) {
+      final flushFuture = _ensurePendingSavesFlushed('nav-pop',
+          awaitCompletion: true, flushCloud: true);
+      if (flushFuture != null) {
+        await _showFlushProgressDialog(flushFuture);
+      }
     }
 
-    return false;
+    return shouldExit;
   }
 
   Widget _buildInitializing() {
@@ -2534,6 +2576,55 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         content: Text(imported > 0
             ? 'Imported $imported image${imported == 1 ? '' : 's'}'
             : 'No new images imported'),
+      ),
+    );
+  }
+}
+
+/// Modal dialog that displays syncing progress until [progress] completes.
+class _CloudFlushProgressDialog extends StatefulWidget {
+  final Future<void> progress;
+
+  const _CloudFlushProgressDialog({required this.progress});
+
+  @override
+  State<_CloudFlushProgressDialog> createState() =>
+      _CloudFlushProgressDialogState();
+}
+
+/// State backing [_CloudFlushProgressDialog] that automatically closes when
+/// the tracked future completes.
+class _CloudFlushProgressDialogState extends State<_CloudFlushProgressDialog> {
+  @override
+  void initState() {
+    super.initState();
+    widget.progress.whenComplete(() {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: AlertDialog(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Saving changes to cloud...',
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

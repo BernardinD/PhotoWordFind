@@ -251,9 +251,30 @@ class StorageUtils {
     });
   }
 
-  /// Await any in-flight save calls and optionally force the Hive box to
-  /// flush its buffers. Use this before the app backgrounds so edits are not
-  /// lost if the process is killed mid-write.
+  /// Forces a cloud backup update immediately, cancelling any pending debounce.
+  /// Use sparingly; prefer the debounced path for routine saves to avoid excess I/O.
+  static Future<void> flushCloudNow({Duration? timeout}) async {
+    try {
+      _cloudDebounceTimer?.cancel();
+      _cloudDebounceTimer = null;
+      if (await CloudUtils.isSignedin()) {
+        final updater = CloudUtils.updateCloudJson();
+        if (timeout != null && timeout > Duration.zero) {
+          await updater.timeout(timeout);
+        } else {
+          await updater;
+        }
+      }
+    } on TimeoutException catch (e) {
+      debugPrint('Cloud flush timeout: $e');
+    } catch (e) {
+      debugPrint('Failed to flush cloud backup: $e');
+    }
+  }
+
+  /// Await any in-flight save calls and optionally force the Hive box to flush.
+  /// Use this before the app backgrounds so
+  /// edits are not lost if the process is killed mid-write.
   static Future<void> waitForPendingSaves({
     Duration timeout = const Duration(seconds: 3),
     bool flushHive = true,
