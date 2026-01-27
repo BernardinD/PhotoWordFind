@@ -6,6 +6,7 @@ import 'package:PhotoWordFind/gallery/gallery.dart';
 import 'package:PhotoWordFind/services/chat_gpt_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:PhotoWordFind/utils/background_tasks.dart';
 import 'package:PhotoWordFind/utils/operations_utils.dart';
 import 'package:PhotoWordFind/utils/sort_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
@@ -65,6 +66,8 @@ Future<void> initializeApp() async {
   ChatGPTService.initialize();
 
   tz.initializeTimeZones();
+
+  await initBackgroundTasks();
 
   await StorageUtils.init();
 

@@ -74,6 +74,7 @@ import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:PhotoWordFind/utils/background_tasks.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
 import 'package:file_picker/file_picker.dart';
@@ -179,8 +180,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       false; // when true, show only redo candidates/failed and change FAB
   // Selection mode: stays active until user cancels
   bool _selectionModeActive = false;
-  static const Duration _pendingSaveFlushTimeout = Duration(seconds: 1);
-  static const Duration _pendingCloudFlushTimeout = Duration(seconds: 1);
+  static const Duration _pendingSaveFlushTimeout = Duration(milliseconds: 300);
+  static const Duration _foregroundCloudFlushTimeout =
+      Duration(milliseconds: 300);
 
   /// Returns true if leaving the screen should prompt because work is in progress.
   bool get _hasBlockingOperation =>
@@ -241,7 +243,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   @override
   void dispose() {
-    _ensurePendingSavesFlushed('dispose');
+    _ensurePendingSavesFlushed('dispose', flushCloud: true);
     _searchDebounce?.cancel();
     _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -261,12 +263,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       MemoryUtils.trimImageCaches();
-      _ensurePendingSavesFlushed('background');
+      _ensurePendingSavesFlushed('background', flushCloud: true);
     } else if (state == AppLifecycleState.resumed) {
       // Also clear any stale decodes on resume
       MemoryUtils.trimImageCaches();
     } else if (state == AppLifecycleState.detached) {
-      _ensurePendingSavesFlushed('detached');
+      _ensurePendingSavesFlushed('detached', flushCloud: true);
     }
   }
 
@@ -277,22 +279,27 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   /// Ensures pending local saves finish and optionally forces an immediate
-  /// cloud sync. When [awaitCompletion] is true, the caller is responsible for
-  /// awaiting the returned future (typically to show UI feedback).
+  /// cloud sync attempt (foreground) and enqueue. When [awaitCompletion] is
+  /// true, the caller is responsible for awaiting the returned future.
   Future<void>? _ensurePendingSavesFlushed(String reason,
       {bool awaitCompletion = false, bool flushCloud = false}) {
     final shouldFlush = StorageUtils.hasPendingSaves || flushCloud;
     if (!shouldFlush) return null;
+    debugPrint(
+        '[gallery-flush] reason=$reason await=$awaitCompletion flushCloud=$flushCloud');
     Future<void> future = StorageUtils.waitForPendingSaves(
       timeout: _pendingSaveFlushTimeout,
     ).catchError((error, stack) {
       debugPrint('Failed to flush pending saves on $reason: $error');
     });
     if (flushCloud) {
-      future = future.then((_) {
-        return StorageUtils.flushCloudNow(
-          timeout: _pendingCloudFlushTimeout,
-        );
+      future = future.then((_) async {
+        // Best-effort foreground push; do not block exit on this.
+        unawaited(StorageUtils.flushCloudNow(
+          timeout: _foregroundCloudFlushTimeout,
+          logTag: 'foreground-exit-cloud',
+        ));
+        await enqueueCloudFlushTask();
       });
     }
     if (!awaitCompletion) {
@@ -300,19 +307,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       return null;
     }
     return future;
-  }
-
-  /// Displays a modal progress indicator while [flushFuture] completes.
-  Future<void> _showFlushProgressDialog(Future<void> flushFuture) async {
-    if (!mounted) {
-      await flushFuture;
-      return;
-    }
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _CloudFlushProgressDialog(progress: flushFuture),
-    );
   }
 
   // ---------------- Initialization ----------------
@@ -579,11 +573,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     }
 
     if (shouldExit) {
-      final flushFuture = _ensurePendingSavesFlushed('nav-pop',
-          awaitCompletion: true, flushCloud: true);
-      if (flushFuture != null) {
-        await _showFlushProgressDialog(flushFuture);
-      }
+      _ensurePendingSavesFlushed('nav-pop', flushCloud: true);
     }
 
     return shouldExit;
@@ -2582,54 +2572,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 }
 
 /// Modal dialog that displays syncing progress until [progress] completes.
-class _CloudFlushProgressDialog extends StatefulWidget {
-  final Future<void> progress;
-
-  const _CloudFlushProgressDialog({required this.progress});
-
-  @override
-  State<_CloudFlushProgressDialog> createState() =>
-      _CloudFlushProgressDialogState();
-}
-
-/// State backing [_CloudFlushProgressDialog] that automatically closes when
-/// the tracked future completes.
-class _CloudFlushProgressDialogState extends State<_CloudFlushProgressDialog> {
-  @override
-  void initState() {
-    super.initState();
-    widget.progress.whenComplete(() {
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: AlertDialog(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Saving changes to cloud...',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Bottom sheet shown when the user attempts to exit with pending selections.
 class _ExitConfirmationSheet extends StatelessWidget {
   final int selectionCount;

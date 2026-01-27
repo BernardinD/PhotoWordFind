@@ -253,22 +253,39 @@ class StorageUtils {
 
   /// Forces a cloud backup update immediately, cancelling any pending debounce.
   /// Use sparingly; prefer the debounced path for routine saves to avoid excess I/O.
-  static Future<void> flushCloudNow({Duration? timeout}) async {
+  static Future<void> flushCloudNow({
+    Duration? timeout,
+    String logTag = 'foreground-cloud-flush',
+  }) async {
     try {
+      debugPrint('[$logTag] start');
       _cloudDebounceTimer?.cancel();
       _cloudDebounceTimer = null;
       if (await CloudUtils.isSignedin()) {
         final updater = CloudUtils.updateCloudJson();
+        var timedOut = false;
         if (timeout != null && timeout > Duration.zero) {
-          await updater.timeout(timeout);
+          await updater.timeout(
+            timeout,
+            onTimeout: () {
+              timedOut = true;
+              debugPrint(
+                  '[$logTag] timed out after $timeout; continuing in background.');
+            },
+          );
         } else {
           await updater;
         }
+        if (timedOut) {
+          debugPrint('[$logTag] will finish asynchronously.');
+        } else {
+          debugPrint('[$logTag] success');
+        }
+      } else {
+        debugPrint('[$logTag] skipped (not signed in)');
       }
-    } on TimeoutException catch (e) {
-      debugPrint('Cloud flush timeout: $e');
     } catch (e) {
-      debugPrint('Failed to flush cloud backup: $e');
+      debugPrint('[$logTag] failed: $e');
     }
   }
 
