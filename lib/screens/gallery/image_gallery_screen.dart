@@ -286,7 +286,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final hasPending = StorageUtils.hasPendingSaves;
     if (!hasPending) return null;
     debugPrint(
-        '[gallery-flush] reason=$reason await=$awaitCompletion flushCloud=$flushCloud');
+        '[gallery-flush] hasPending=true reason=$reason await=$awaitCompletion flushCloud=$flushCloud');
     Future<void> future = StorageUtils.waitForPendingSaves(
       timeout: _pendingSaveFlushTimeout,
     ).catchError((error, stack) {
