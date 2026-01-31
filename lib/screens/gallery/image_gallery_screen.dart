@@ -283,8 +283,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   /// true, the caller is responsible for awaiting the returned future.
   Future<void>? _ensurePendingSavesFlushed(String reason,
       {bool awaitCompletion = false, bool flushCloud = false}) {
-    final shouldFlush = StorageUtils.hasPendingSaves || flushCloud;
-    if (!shouldFlush) return null;
+    final hasPending = StorageUtils.hasPendingSaves;
+    if (!hasPending) return null;
     debugPrint(
         '[gallery-flush] reason=$reason await=$awaitCompletion flushCloud=$flushCloud');
     Future<void> future = StorageUtils.waitForPendingSaves(
