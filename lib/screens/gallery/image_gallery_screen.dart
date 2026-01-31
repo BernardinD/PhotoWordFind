@@ -77,6 +77,8 @@ import 'package:PhotoWordFind/utils/cloud_utils.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:intl/intl.dart';
@@ -159,6 +161,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   bool _isInitializing = true;
   String? _initializationError;
   bool _filtersCollapsed = false; // compact header collapse for split screen
+  bool _runningHandleTest = false;
+  final Random _random = Random();
 
   // Sync
   bool _syncing = false;
@@ -465,9 +469,24 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         child: const Icon(Icons.move_to_inbox),
                       )
                     : FloatingActionButton(
-                        onPressed: () => _importImages(navContext),
-                        tooltip: 'Import Images',
-                        child: const Icon(Icons.add),
+                        onPressed: _runningHandleTest
+                            ? null
+                            : () =>
+                                _runHandleVerificationSampleTest(navContext),
+                        tooltip: _runningHandleTest
+                            ? 'Running handle sampling test...'
+                            : 'Run handle sampling test',
+                        child: _runningHandleTest
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.science),
                       ),
         persistentFooterButtons: [
           SingleChildScrollView(
@@ -1844,6 +1863,197 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           where: "${CustomColumns.android.bucketId} = '$id'");
     }
     return null;
+  }
+
+  bool _hasVerifiedHandle(ContactEntry entry) {
+    final snap = (entry.snapUsername?.trim().isNotEmpty ?? false) &&
+        entry.verifiedOnSnapAt != null;
+    final insta = (entry.instaUsername?.trim().isNotEmpty ?? false) &&
+        entry.verifiedOnInstaAt != null;
+    final discord = (entry.discordUsername?.trim().isNotEmpty ?? false) &&
+        entry.verifiedOnDiscordAt != null;
+    return snap || insta || discord;
+  }
+
+  /// Runs a sampling test against five random verified entries in the current
+  /// filtered set, showing stored handles versus fresh extraction. Nothing is
+  /// persisted.
+  Future<void> _runHandleVerificationSampleTest(BuildContext context) async {
+    if (_runningHandleTest) return;
+    setState(() => _runningHandleTest = true);
+
+    try {
+      final messenger = ScaffoldMessenger.of(context);
+      // Show feedback immediately on the next frame, then yield.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              duration: const Duration(hours: 1),
+              content: Row(
+                children: const [
+                  SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5)),
+                  SizedBox(width: 12),
+                  Text('Running handle sampling test...'),
+                ],
+              ),
+            ),
+          );
+      });
+
+      // Yield twice to give the frame a chance to paint before any heavy work.
+      await Future.delayed(Duration.zero);
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      final candidates = images.where(_hasVerifiedHandle).toList();
+      if (candidates.isEmpty) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+              content: Text('No verified handles in current filter')),
+        );
+        return;
+      }
+
+      candidates.shuffle(_random);
+      final picks = candidates.take(5).toList();
+
+      final results = await Future.wait(picks.map((entry) async {
+        try {
+          return await ChatGPTService.processImage(
+              imageFile: File(entry.imagePath));
+        } catch (e) {
+          debugPrint('Handle test failed for ${entry.identifier}: $e');
+          return null;
+        }
+      }));
+
+      if (!mounted) return;
+
+      messenger.hideCurrentSnackBar();
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) {
+          String formatStored(ContactEntry e) {
+            final snap = e.snapUsername?.trim().isNotEmpty == true
+                ? e.snapUsername!
+                : '-';
+            final insta = e.instaUsername?.trim().isNotEmpty == true
+                ? e.instaUsername!
+                : '-';
+            final discord = e.discordUsername?.trim().isNotEmpty == true
+                ? e.discordUsername!
+                : '-';
+            final location = e.location?.rawLocation ?? 'Unknown';
+            return 'Snap: $snap | Insta: $insta | Discord: $discord | Location: $location';
+          }
+
+          String formatNew(Map<String, dynamic>? result) {
+            final handles =
+                (result?['social_media_handles'] as Map<String, dynamic>?) ??
+                    const {};
+            final snap =
+                (handles['snap']?.toString().trim().isNotEmpty ?? false)
+                    ? handles['snap'].toString()
+                    : '-';
+            final insta =
+                (handles['insta']?.toString().trim().isNotEmpty ?? false)
+                    ? handles['insta'].toString()
+                    : '-';
+            final discord =
+                (handles['discord']?.toString().trim().isNotEmpty ?? false)
+                    ? handles['discord'].toString()
+                    : '-';
+            final locMap = result?['location'] as Map<String, dynamic>?;
+            final locName = locMap?['name']?.toString() ??
+                locMap?['location']?.toString() ??
+                'Unknown';
+            final locTz = locMap?['timezone']?.toString();
+            final locPart = locTz != null && locTz.isNotEmpty
+                ? '$locName ($locTz)'
+                : locName;
+            return 'Snap: $snap | Insta: $insta | Discord: $discord | Location: $locPart';
+          }
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                height: MediaQuery.of(sheetContext).size.height * 0.65,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sampled ${picks.length} verified entries',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                        'Shows stored handles vs. fresh extraction. Nothing is saved.'),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: picks.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (_, index) {
+                          final entry = picks[index];
+                          final result =
+                              index < results.length ? results[index] : null;
+                          final sectionCount =
+                              (result?['sections'] as List?)?.length ?? 0;
+
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(path.basename(entry.imagePath),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall),
+                                  Text('State: ${entry.state ?? 'Unknown'}'),
+                                  const SizedBox(height: 8),
+                                  Text('Stored: ${formatStored(entry)}'),
+                                  Text('New: ${formatNew(result)}'),
+                                  const SizedBox(height: 6),
+                                  Text('Sections returned: $sectionCount'),
+                                  if (result == null)
+                                    const Text('Result: processing failed'),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text('Handle test failed: $e')),
+          );
+      }
+    } finally {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        setState(() => _runningHandleTest = false);
+      }
+    }
   }
 
   // ---------------- Sorting/apply ----------------
