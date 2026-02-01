@@ -7,15 +7,15 @@ import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:collection';
 
-class Gpt4oModel extends Gpt4OChatModel {
-  Gpt4oModel() : super() {
-    model = "gpt-4o-2024-08-06";
+class Gpt41Model extends Gpt4OChatModel {
+  Gpt41Model() : super() {
+    model = "gpt-4.1";
   }
 }
 
-class Gpt4oMiniModel extends Gpt4OChatModel {
-  Gpt4oMiniModel() : super() {
-    model = "gpt-4o-mini";
+class Gpt41MiniModel extends Gpt4OChatModel {
+  Gpt41MiniModel() : super() {
+    model = "gpt-4.1-mini";
   }
 }
 
@@ -237,7 +237,7 @@ Keep the information below in mind:
       try {
         final request = ChatCompleteText(
             maxToken: 2000,
-            model: useMiniModel ? Gpt4oMiniModel() : Gpt4oModel(),
+            model: useMiniModel ? Gpt41MiniModel() : Gpt41Model(),
             messages: messages,
             responseFormat: ResponseFormat.jsonObject,
             temperature: 1);
