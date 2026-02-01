@@ -188,10 +188,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   bool get _hasBlockingOperation =>
       _selectionModeActive && selectedImages.isNotEmpty;
 
-  /// Returns true if leaving the screen should prompt because work is in progress.
-  bool get _hasBlockingOperation =>
-      _selectionModeActive && selectedImages.isNotEmpty;
-
   // Listen to job status changes to refresh banner/mode contents
   void _onJobsChanged() {
     if (!mounted) return;
@@ -247,7 +243,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   @override
   void dispose() {
-    _ensurePendingSavesFlushed('dispose', flushCloud: true);
+    _ensurePendingSavesFlushed('dispose');
     _searchDebounce?.cancel();
     _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -267,12 +263,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       MemoryUtils.trimImageCaches();
-      _ensurePendingSavesFlushed('background', flushCloud: true);
+      _ensurePendingSavesFlushed('background');
     } else if (state == AppLifecycleState.resumed) {
       // Also clear any stale decodes on resume
       MemoryUtils.trimImageCaches();
     } else if (state == AppLifecycleState.detached) {
-      _ensurePendingSavesFlushed('detached', flushCloud: true);
+      _ensurePendingSavesFlushed('detached');
     }
   }
 
@@ -282,21 +278,23 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     MemoryUtils.trimImageCaches();
   }
 
-  /// Ensures pending local saves finish and optionally forces an immediate
-  /// cloud sync attempt (foreground) and enqueue. When [awaitCompletion] is
-  /// true, the caller is responsible for awaiting the returned future.
+  /// Ensures pending local saves finish and triggers a foreground cloud sync
+  /// when edits were still pending (or when [flushCloud] is explicitly set).
+  /// When [awaitCompletion] is true, the caller is responsible for awaiting the
+  /// returned future.
   Future<void>? _ensurePendingSavesFlushed(String reason,
       {bool awaitCompletion = false, bool flushCloud = false}) {
-    final shouldFlush = StorageUtils.hasPendingSaves || flushCloud;
+    final bool hadPendingSaves = StorageUtils.hasPendingSaves;
+    final bool shouldFlush = hadPendingSaves || flushCloud;
     if (!shouldFlush) return null;
     debugPrint(
-        '[gallery-flush] reason=$reason await=$awaitCompletion flushCloud=$flushCloud');
+        '[gallery-flush] reason=$reason await=$awaitCompletion pending=$hadPendingSaves forceCloud=$flushCloud');
     Future<void> future = StorageUtils.waitForPendingSaves(
       timeout: _pendingSaveFlushTimeout,
     ).catchError((error, stack) {
       debugPrint('Failed to flush pending saves on $reason: $error');
     });
-    if (flushCloud) {
+    if (shouldFlush) {
       future = future.then((_) async {
         // Best-effort foreground push; do not block exit on this.
         unawaited(StorageUtils.flushCloudNow(
@@ -550,7 +548,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   /// Intercepts back navigation and shows a confirmation sheet when work could be lost.
   Future<bool> _handleExitAttempt() async {
     if (!_hasBlockingOperation) {
-      _ensurePendingSavesFlushed('nav-pop', flushCloud: true);
+      _ensurePendingSavesFlushed('nav-pop');
       return true;
     }
 
@@ -572,7 +570,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         _neverBackSelected.clear();
         _selectionModeActive = false;
       });
-      _ensurePendingSavesFlushed('nav-pop', flushCloud: true);
+      _ensurePendingSavesFlushed('nav-pop');
       return true;
     }
 
@@ -2760,3 +2758,6 @@ class _Badge extends StatelessWidget {
     );
   }
 }
+
+
+
