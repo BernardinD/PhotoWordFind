@@ -63,7 +63,6 @@
    - Cached file-size lookup for sorting; error banners; progress callbacks; crash reporting via Catcher.
 */
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:PhotoWordFind/main.dart' show UiMode; // for UI mode switching
@@ -2477,8 +2476,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
         final result =
             await ChatGPTService.processImage(imageFile: File(destPath));
-        debugPrint(
-            'ChatGPT result for $filename: ${result == null ? 'null' : jsonEncode(result)}');
         if (result != null) {
           entry = postProcessChatGptResult(entry, result, save: false);
         }
