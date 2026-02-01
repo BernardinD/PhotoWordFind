@@ -20,3 +20,4 @@ Run tests with:
 ```bash
 flutter test
 ```
+See docs/cloud_sync.md for current background cloud flush design details.

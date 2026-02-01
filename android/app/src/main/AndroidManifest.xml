@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.PhotoWordFind">
    <application
+        android:name=".App"
         android:label="PhotoWordFind"
         android:icon="@mipmap/ic_launcher">
         <activity

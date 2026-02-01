@@ -1,8 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:PhotoWordFind/main.dart';
-import 'package:PhotoWordFind/models/contactEntry.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:_discoveryapis_commons/_discoveryapis_commons.dart'
@@ -16,6 +15,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppException implements Exception {
   String cause;
@@ -47,6 +47,11 @@ class CloudUtils {
   // static String _jsonBackupFile = "PWF_scans_backup.json";
   // static String _jsonTestingNewUIBackup = "testing_new_UI.json";
   static String _jsonBackupFile = "test_auto_create_file2.json";
+
+  static const String _pendingFlushPrefKey =
+      'cloud_flush_pending_started_at_v1';
+  static const Duration _pendingFlushMaxAge = Duration(minutes: 5);
+  static const Duration _pendingFlushRecheckInterval = Duration(seconds: 3);
 
   static GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -82,19 +87,18 @@ class CloudUtils {
     }
   }
 
-  static Future<bool> firstSignIn() {
-    return handleSignIn().then((bool value) {
-      if (value) {
-        CloudUtils.getCloudJson().then((bool found) {
-          if (!found) {
-            CloudUtils.createCloudJson();
-          }
-        }).onError((dynamic error, stackTrace) async =>
-            Future.value(debugPrint("$error \n $stackTrace") as Null));
-      }
-
-      return value;
-    });
+  static Future<bool> firstSignIn() async {
+    final signedIn = await handleSignIn();
+    if (!signedIn) return false;
+    final pending = await isCloudFlushPending();
+    if (pending) {
+      debugPrint(
+          'Cloud flush pending on sign-in; deferring initial cloud pull.');
+      unawaited(_waitForPendingFlushThenMerge());
+    } else {
+      unawaited(_refreshOrCreateCloudJson());
+    }
+    return true;
   }
 
   static Future possibleSignOut() async {
@@ -151,8 +155,51 @@ class CloudUtils {
   }
 
   static Future<AuthClient?> _getAuthClient() async {
-    handleSignIn();
-    return await _googleSignIn.authenticatedClient();
+    try {
+      final bool wasSignedIn = await _googleSignIn.isSignedIn();
+      GoogleSignInAccount? user;
+      try {
+        user = await _googleSignIn.signInSilently();
+      } catch (e) {
+        debugPrint('Silent sign-in threw: $e');
+      }
+      user ??= _googleSignIn.currentUser;
+      if (user == null && !wasSignedIn) {
+        debugPrint('No signed-in Google account available for auth client.');
+        return null;
+      }
+      final client = await _googleSignIn.authenticatedClient();
+      if (client == null) {
+        debugPrint('Authenticated client was null after silent refresh.');
+      }
+      return client;
+    } catch (e) {
+      debugPrint('Failed to obtain authenticated client: $e');
+      return null;
+    }
+  }
+
+  static Future<void> markCloudFlushPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+        _pendingFlushPrefKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Future<void> clearCloudFlushPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingFlushPrefKey);
+  }
+
+  static Future<bool> isCloudFlushPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? startedAt = prefs.getInt(_pendingFlushPrefKey);
+    if (startedAt == null) return false;
+    final duration = DateTime.now().millisecondsSinceEpoch - startedAt;
+    if (duration > _pendingFlushMaxAge.inMilliseconds) {
+      await prefs.remove(_pendingFlushPrefKey);
+      return false;
+    }
+    return true;
   }
 
   static Future<bool> createCloudJson() async {
@@ -182,8 +229,26 @@ class CloudUtils {
     });
   }
 
+  static Future<void> _refreshOrCreateCloudJson() async {
+    try {
+      final found = await getCloudJson();
+      if (!found) {
+        await createCloudJson();
+      }
+    } catch (error, stackTrace) {
+      debugPrint("$error \n $stackTrace");
+    }
+  }
+
+  static Future<void> _waitForPendingFlushThenMerge() async {
+    while (await isCloudFlushPending()) {
+      await Future.delayed(_pendingFlushRecheckInterval);
+    }
+    await _refreshOrCreateCloudJson();
+  }
+
   /// Returns list of existing directories names along a given path
-  static Future<bool> getCloudJson() async {
+  static Future<bool> getCloudJson({bool merge = true}) async {
     debugPrint("Entering getCloudJson()...");
 
     return await (_useDriveAPI((drive.DriveApi api) async {
@@ -198,6 +263,11 @@ class CloudUtils {
       if (_cloudRef == null) {
         debugPrint("Could not find file");
         return false;
+      }
+
+      if (!merge) {
+        debugPrint("Leaving getCloudJson() (metadata only)...");
+        return _cloudRef != null;
       }
 
       /*
@@ -224,7 +294,28 @@ class CloudUtils {
     }));
   }
 
+  /// Ensures [_cloudRef] points to the Drive file backing the JSON backup.
+  /// Fetches the existing file metadata or attempts creation if missing.
+  static Future<void> _ensureCloudReference() async {
+    if (_cloudRef != null) return;
+    final found = await getCloudJson(merge: false);
+    if (found) {
+      debugPrint('Cloud reference loaded.');
+      return;
+    }
+    final created = await createCloudJson();
+    if (!created) {
+      throw StateError('Failed to create cloud backup file.');
+    }
+    if (!await getCloudJson(merge: false)) {
+      throw StateError('Unable to load cloud backup file after creation.');
+    }
+    debugPrint('Cloud reference created.');
+  }
+
   static Future updateCloudJson() async {
+    debugPrint('Starting cloud JSON update...');
+    await _ensureCloudReference();
     return await _useDriveAPI((drive.DriveApi api) async {
       /*
        Convert data to bytes
@@ -254,14 +345,18 @@ class CloudUtils {
           _cloudRef!.id!,
           uploadMedia: uploadMedia,
           uploadOptions: drive.UploadOptions.defaultOptions);
+      debugPrint('Cloud JSON update complete.');
     });
   }
 
   static Future _useDriveAPI(Function callback) async {
     if (!(await _googleSignIn.isSignedIn())) {
-      throw Exception();
+      throw StateError('Google account is not signed in.');
     }
-    final AuthClient client = (await _getAuthClient())!;
+    final AuthClient? client = await _getAuthClient();
+    if (client == null) {
+      throw StateError('Unable to obtain Google auth client for Drive access.');
+    }
 
     // Initialize DriveAPI
     // developer.log("getting DriveApi");

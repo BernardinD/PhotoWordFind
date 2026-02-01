@@ -74,6 +74,7 @@ import 'package:PhotoWordFind/services/search_service.dart';
 import 'package:PhotoWordFind/social_icons.dart';
 import 'package:PhotoWordFind/utils/chatgpt_post_utils.dart';
 import 'package:PhotoWordFind/utils/cloud_utils.dart';
+import 'package:PhotoWordFind/utils/background_tasks.dart';
 import 'package:PhotoWordFind/utils/storage_utils.dart';
 import 'package:PhotoWordFind/services/redo_job_manager.dart';
 import 'package:file_picker/file_picker.dart';
@@ -179,6 +180,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       false; // when true, show only redo candidates/failed and change FAB
   // Selection mode: stays active until user cancels
   bool _selectionModeActive = false;
+  static const Duration _pendingSaveFlushTimeout = Duration(milliseconds: 300);
+  static const Duration _foregroundCloudFlushTimeout =
+      Duration(milliseconds: 300);
 
   /// Returns true if leaving the screen should prompt because work is in progress.
   bool get _hasBlockingOperation =>
@@ -239,6 +243,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   @override
   void dispose() {
+    _ensurePendingSavesFlushed('dispose');
     _searchDebounce?.cancel();
     _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -258,9 +263,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       MemoryUtils.trimImageCaches();
+      _ensurePendingSavesFlushed('background');
     } else if (state == AppLifecycleState.resumed) {
       // Also clear any stale decodes on resume
       MemoryUtils.trimImageCaches();
+    } else if (state == AppLifecycleState.detached) {
+      _ensurePendingSavesFlushed('detached');
     }
   }
 
@@ -268,6 +276,39 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   void didHaveMemoryPressure() {
     // Android signaled low memory; free decoded bitmaps immediately
     MemoryUtils.trimImageCaches();
+  }
+
+  /// Ensures pending local saves finish and triggers a foreground cloud sync
+  /// when edits were still pending (or when [flushCloud] is explicitly set).
+  /// When [awaitCompletion] is true, the caller is responsible for awaiting the
+  /// returned future.
+  Future<void>? _ensurePendingSavesFlushed(String reason,
+      {bool awaitCompletion = false, bool flushCloud = false}) {
+    final bool hadPendingSaves = StorageUtils.hasPendingSaves;
+    final bool shouldFlush = hadPendingSaves || flushCloud;
+    if (!shouldFlush) return null;
+    debugPrint(
+        '[gallery-flush] reason=$reason await=$awaitCompletion pending=$hadPendingSaves forceCloud=$flushCloud');
+    Future<void> future = StorageUtils.waitForPendingSaves(
+      timeout: _pendingSaveFlushTimeout,
+    ).catchError((error, stack) {
+      debugPrint('Failed to flush pending saves on $reason: $error');
+    });
+    if (shouldFlush) {
+      future = future.then((_) async {
+        // Best-effort foreground push; do not block exit on this.
+        unawaited(StorageUtils.flushCloudNow(
+          timeout: _foregroundCloudFlushTimeout,
+          logTag: 'foreground-exit-cloud',
+        ));
+        await enqueueCloudFlushTask();
+      });
+    }
+    if (!awaitCompletion) {
+      unawaited(future);
+      return null;
+    }
+    return future;
   }
 
   // ---------------- Initialization ----------------
@@ -507,6 +548,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   /// Intercepts back navigation and shows a confirmation sheet when work could be lost.
   Future<bool> _handleExitAttempt() async {
     if (!_hasBlockingOperation) {
+      _ensurePendingSavesFlushed('nav-pop');
       return true;
     }
 
@@ -528,6 +570,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         _neverBackSelected.clear();
         _selectionModeActive = false;
       });
+      _ensurePendingSavesFlushed('nav-pop');
       return true;
     }
 
@@ -2715,3 +2758,6 @@ class _Badge extends StatelessWidget {
     );
   }
 }
+
+
+
