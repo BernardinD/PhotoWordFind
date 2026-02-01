@@ -2,25 +2,38 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:PhotoWordFind/apiSecretKeys.dart';
-import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'dart:collection';
 import 'package:image/image.dart' as imglib;
 
-class Gpt4oModel extends Gpt4OChatModel {
-  Gpt4oModel() : super() {
-    model = "gpt-4o-2024-08-06";
-  }
+/// Model classes for different ChatGPT variants
+abstract class ChatGPTModel {
+  String get model;
+  bool get supportsResponses => false; // Most models use chat/completions
 }
 
-class Gpt4oMiniModel extends Gpt4OChatModel {
-  Gpt4oMiniModel() : super() {
-    model = "gpt-4o-mini";
-  }
+class Gpt4oModel extends ChatGPTModel {
+  @override
+  String get model => "gpt-4o-2024-08-06";
+}
+
+class Gpt4oMiniModel extends ChatGPTModel {
+  @override
+  String get model => "gpt-4o-mini";
+}
+
+/// GPT-5 Nano model - uses the new responses API endpoint
+class Gpt5NanoModel extends ChatGPTModel {
+  @override
+  String get model => "gpt-5-nano";
+  
+  @override
+  bool get supportsResponses => true; // GPT-5 Nano uses responses endpoint
 }
 
 class ChatGPTService {
-  static late OpenAI _openAI;
+  static late String _apiKey;
   static late Map<String, dynamic> systemMessage;
   static late Map<String, dynamic> userMessage;
   static bool _initialized = false;
@@ -28,15 +41,11 @@ class ChatGPTService {
   static const int _maxRequestsPerMinute = 3;
   static int _currentRequestCount = 0;
   static final Queue<Map<String, dynamic>> _requestQueue = Queue();
+  
+  static const String _baseUrl = 'https://api.openai.com/v1';
 
   static void initialize() {
-    _openAI = OpenAI.instance.build(
-      token: chatGPTApiKey,
-      baseOption: HttpSetup(
-        receiveTimeout: const Duration(seconds: 60),
-        connectTimeout: const Duration(seconds: 60),
-      ),
-    );
+    _apiKey = chatGPTApiKey;
 
     systemMessage = {
       "role": 'system',
@@ -114,7 +123,7 @@ Notice:
 
   static Future<Map<String, dynamic>?> processImage({
     required File imageFile,
-    bool useMiniModel = true,
+    bool useNanoModel = true,
     int maxRetries = 3,
   }) async {
     if (!_initialized) {
@@ -141,7 +150,7 @@ Keep the information below in mind:
 
     Map<String, dynamic> request = {
       'imageFile': imageFile,
-      'useMiniModel': useMiniModel,
+      'useNanoModel': useNanoModel,
       'maxRetries': maxRetries
     };
 
@@ -184,11 +193,20 @@ Keep the information below in mind:
 
   static Future<Map<String, dynamic>?> _sendRequest(
       Map<String, dynamic> request) async {
-    final useMiniModel = request['useMiniModel'] as bool;
+    final useNanoModel = request['useNanoModel'] as bool? ?? true;
     final maxRetries = request['maxRetries'] as int;
     int attempt = 0;
     List<Map<String, dynamic>> content;
     List<Map<String, dynamic>> messages = [];
+
+    // Determine which model to use
+    ChatGPTModel model;
+    if (useNanoModel) {
+      model = Gpt5NanoModel();
+    } else {
+      // Fall back to Mini model if Nano is not selected
+      model = Gpt4oMiniModel();
+    }
 
     // If processing image
     if (request['imageFile'] != null) {
@@ -220,43 +238,32 @@ Keep the information below in mind:
 
     while (attempt < maxRetries) {
       try {
-        final request = ChatCompleteText(
-            maxToken: 2000,
-            model: useMiniModel ? Gpt4oMiniModel() : Gpt4oModel(),
-            messages: messages,
-            responseFormat: ResponseFormat.jsonObject,
-            temperature: 1);
+        // Use responses endpoint instead of chat completions
+        final response = await _makeResponsesRequest(
+          model: model.model,
+          messages: messages,
+          maxTokens: 2000,
+          temperature: 1.0,
+          responseFormat: 'json_object',
+        );
 
-        final response = await _openAI.onChatCompletion(request: request);
-
-        if (response != null && response.choices.isNotEmpty) {
-          final result = response.choices.first.message?.content;
-          if (result != null) {
-            return json.decode(result);
-          } else {
-            debugPrint("Error: The content of the response is null.");
-            return null;
-          }
+        if (response != null) {
+          return response;
         }
         return null;
-      } on RequestError catch (e) {
-        debugPrint("OpenAIError: ${e.data}");
-        // Handle specific OpenAI errors
-        switch (e.code) {
-          case 'token_limit_exceeded':
-          case 'rate_limit_exceeded':
-            debugPrint("Retrying... (Attempt ${attempt + 1} of $maxRetries)");
-            attempt++;
-            await Future.delayed(
-                Duration(seconds: 2)); // Optional: delay between retries
-            break;
-          default:
-            debugPrint("An unknown error occurred");
-            return null;
-        }
       } catch (e) {
-        debugPrint("General error: ${e.toString()}");
-        return null;
+        debugPrint("OpenAI API Error: ${e.toString()}");
+        
+        // Handle specific error types
+        if (e.toString().contains('rate_limit') || 
+            e.toString().contains('token_limit')) {
+          debugPrint("Retrying... (Attempt ${attempt + 1} of $maxRetries)");
+          attempt++;
+          await Future.delayed(Duration(seconds: 2));
+        } else {
+          debugPrint("An unknown error occurred: ${e.toString()}");
+          return null;
+        }
       }
     }
 
@@ -264,10 +271,107 @@ Keep the information below in mind:
     return null;
   }
 
+  /// Makes a request to the OpenAI API endpoint
+  /// First tries the new responses endpoint, falls back to chat/completions if needed
+  static Future<Map<String, dynamic>?> _makeResponsesRequest({
+    required String model,
+    required List<Map<String, dynamic>> messages,
+    required int maxTokens,
+    required double temperature,
+    required String responseFormat,
+  }) async {
+    // Try the new responses endpoint first for GPT-5 Nano
+    if (model == 'gpt-5-nano') {
+      try {
+        return await _makeApiRequest(
+          endpoint: 'responses',
+          model: model,
+          messages: messages,
+          maxTokens: maxTokens,
+          temperature: temperature,
+          responseFormat: responseFormat,
+        );
+      } catch (e) {
+        debugPrint("Responses endpoint failed, falling back to chat/completions: $e");
+        // Fall through to chat/completions endpoint
+      }
+    }
+    
+    // Use standard chat/completions endpoint for other models or as fallback
+    return await _makeApiRequest(
+      endpoint: 'chat/completions',
+      model: model,
+      messages: messages,
+      maxTokens: maxTokens,
+      temperature: temperature,
+      responseFormat: responseFormat,
+    );
+  }
+
+  /// Makes the actual HTTP request to the specified OpenAI API endpoint
+  static Future<Map<String, dynamic>?> _makeApiRequest({
+    required String endpoint,
+    required String model,
+    required List<Map<String, dynamic>> messages,
+    required int maxTokens,
+    required double temperature,
+    required String responseFormat,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl/$endpoint');
+      
+      final requestBody = {
+        'model': model,
+        'messages': messages,
+        'max_tokens': maxTokens,
+        'temperature': temperature,
+        'response_format': {'type': responseFormat},
+      };
+
+      debugPrint("Making API request to: $endpoint with model: $model");
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body) as Map<String, dynamic>;
+        
+        // Extract content from API response format
+        if (responseData['choices'] != null && 
+            responseData['choices'].isNotEmpty) {
+          final content = responseData['choices'][0]['message']['content'];
+          if (content != null) {
+            return json.decode(content);
+          }
+        }
+        
+        debugPrint("Error: No content found in response");
+        return null;
+      } else if (response.statusCode == 404 && endpoint == 'responses') {
+        // Responses endpoint doesn't exist, let caller fall back
+        throw Exception("Responses endpoint not found");
+      } else {
+        final errorData = json.decode(response.body);
+        final errorMessage = errorData['error']['message'] ?? 'Unknown error';
+        debugPrint("API Error ${response.statusCode}: $errorMessage");
+        throw Exception("API Error: $errorMessage");
+      }
+    } catch (e) {
+      debugPrint("HTTP request failed: ${e.toString()}");
+      rethrow;
+    }
+  }
+
   /// This function has mostly just been used for testing.
   static Future<List<Map<String, dynamic>?>> processMultipleImages({
     required List<File> imageFiles,
-    bool useMiniModel = true,
+    bool useNanoModel = true,
   }) async {
     if (!_initialized) {
       throw Exception(
@@ -276,7 +380,7 @@ Keep the information below in mind:
 
     List<Future<Map<String, dynamic>?>> tasks = imageFiles
         .map((imageFile) =>
-            processImage(imageFile: imageFile, useMiniModel: useMiniModel))
+            processImage(imageFile: imageFile, useNanoModel: useNanoModel))
         .toList();
     return await Future.wait(tasks);
   }
@@ -340,7 +444,7 @@ Keep the information below in mind:
 
       Map<String, dynamic> request = {
         'prompt': prompt,
-        'useMiniModel': true,
+        'useNanoModel': true,
         'maxRetries': 3
       };
 
