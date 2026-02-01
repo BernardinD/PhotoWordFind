@@ -195,7 +195,7 @@ Keep the information below in mind:
       final imageFile = request['imageFile'] as File;
       List<File> chunks;
       try {
-        chunks = sliceImageIntoOverlappingSquares(imageFile);
+        chunks = await _sliceImageOffMainThread(imageFile);
       } catch (e) {
         debugPrint(
             "Falling back to original image after preprocessing failed: $e");
@@ -338,4 +338,30 @@ Keep the information below in mind:
 
     return null; // 🔹 Return null if ChatGPT request fails
   }
+}
+
+class _SliceRequest {
+  final String path;
+  final double overlapRatio;
+  const _SliceRequest(this.path, this.overlapRatio);
+}
+
+Future<List<File>> _sliceImageOffMainThread(File imageFile,
+    {double overlapRatio = 0.25}) async {
+  final chunkPaths = await compute<_SliceRequest, List<String>>(
+    _sliceImageWorker,
+    _SliceRequest(imageFile.path, overlapRatio),
+  );
+  return chunkPaths.map((p) => File(p)).toList();
+}
+
+List<String> _sliceImageWorker(_SliceRequest request) {
+  final file = File(request.path);
+  final chunks = sliceImageIntoOverlappingSquares(
+    file,
+    overlapRatio: request.overlapRatio,
+  );
+  return [
+    for (final chunk in chunks) chunk.path,
+  ];
 }
