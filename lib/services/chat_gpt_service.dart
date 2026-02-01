@@ -2,20 +2,20 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:PhotoWordFind/apiSecretKeys.dart';
+import 'package:PhotoWordFind/utils/image_slicer.dart';
 import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:collection';
-import 'package:image/image.dart' as imglib;
 
-class Gpt4oModel extends Gpt4OChatModel {
-  Gpt4oModel() : super() {
-    model = "gpt-4o-2024-08-06";
+class Gpt41Model extends Gpt4OChatModel {
+  Gpt41Model() : super() {
+    model = "gpt-4.1";
   }
 }
 
-class Gpt4oMiniModel extends Gpt4OChatModel {
-  Gpt4oMiniModel() : super() {
-    model = "gpt-4o-mini";
+class Gpt41MiniModel extends Gpt4OChatModel {
+  Gpt41MiniModel() : super() {
+    model = "gpt-4.1-mini";
   }
 }
 
@@ -193,8 +193,15 @@ Keep the information below in mind:
     // If processing image
     if (request['imageFile'] != null) {
       final imageFile = request['imageFile'] as File;
+      List<File> chunks;
+      try {
+        chunks = await _sliceImageOffMainThread(imageFile);
+      } catch (e) {
+        debugPrint(
+            "Falling back to original image after preprocessing failed: $e");
+        chunks = [imageFile];
+      }
 
-      List<File> chunks = [imageFile];
       content = chunks.map((imageFileChunk) {
         final encodedImage = base64Encode(imageFileChunk.readAsBytesSync());
         return {
@@ -202,6 +209,14 @@ Keep the information below in mind:
           "image_url": {"url": "data:image/jpeg;base64,$encodedImage"}
         };
       }).toList();
+
+      for (final chunk in chunks) {
+        if (chunk.path != imageFile.path && chunk.existsSync()) {
+          try {
+            chunk.deleteSync();
+          } catch (_) {}
+        }
+      }
 
       final imageMessage = {
         "role": 'user',
@@ -222,7 +237,7 @@ Keep the information below in mind:
       try {
         final request = ChatCompleteText(
             maxToken: 2000,
-            model: useMiniModel ? Gpt4oMiniModel() : Gpt4oModel(),
+            model: useMiniModel ? Gpt41MiniModel() : Gpt41Model(),
             messages: messages,
             responseFormat: ResponseFormat.jsonObject,
             temperature: 1);
@@ -288,37 +303,6 @@ Keep the information below in mind:
     });
   }
 
-  static List<File> _preprocessAndSplitImage(File imageFile) {
-    // Read the image from the file
-    final image = imglib.decodeImage(imageFile.readAsBytesSync());
-
-    if (image == null) {
-      throw Exception("Unable to decode image.");
-    }
-
-    // Convert the image to grayscale
-    final grayscaleImage = imglib.grayscale(image);
-
-    // Enhance contrast
-    final enhancedImage = imglib.adjustColor(grayscaleImage, contrast: 1.5);
-
-    // Split the image into smaller chunks
-    final chunkHeight =
-        (image.height / 4).ceil(); // Split into 4 horizontal chunks
-    final chunkWidth = image.width; // Keep the full width
-
-    List<File> chunks = [];
-    for (int i = 0; i < 4; i++) {
-      final chunk = imglib.copyCrop(enhancedImage,
-          x: 0, y: i * chunkHeight, width: chunkWidth, height: chunkHeight);
-      final chunkFile = File('${imageFile.path}_chunk_$i.jpg')
-        ..writeAsBytesSync(imglib.encodeJpg(chunk));
-      chunks.add(chunkFile);
-    }
-
-    return chunks;
-  }
-
   /// 🌍 Fetches new location details using ChatGPT
   static Future<Map<String, dynamic>?> fetchUpdatedLocationFromChatGPT(
       String locationName) async {
@@ -354,4 +338,30 @@ Keep the information below in mind:
 
     return null; // 🔹 Return null if ChatGPT request fails
   }
+}
+
+class _SliceRequest {
+  final String path;
+  final double overlapRatio;
+  const _SliceRequest(this.path, this.overlapRatio);
+}
+
+Future<List<File>> _sliceImageOffMainThread(File imageFile,
+    {double overlapRatio = 0.25}) async {
+  final chunkPaths = await compute<_SliceRequest, List<String>>(
+    _sliceImageWorker,
+    _SliceRequest(imageFile.path, overlapRatio),
+  );
+  return chunkPaths.map((p) => File(p)).toList();
+}
+
+List<String> _sliceImageWorker(_SliceRequest request) {
+  final file = File(request.path);
+  final chunks = sliceImageIntoOverlappingSquares(
+    file,
+    overlapRatio: request.overlapRatio,
+  );
+  return [
+    for (final chunk in chunks) chunk.path,
+  ];
 }
